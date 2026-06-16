@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary / cache
+cache/
+downloads/
+tmp/
+temp/
+*.tmp
+
+# User output / downloads
+output/
+
+# Node (if used later)
+node_modules/

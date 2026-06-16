@@ -1,0 +1,580 @@
+/**
+ * 播放器核心：音频/视频播放、队列、播放模式、歌词同步
+ */
+
+import { API_BASE, MODE_LABELS, PLAYBACK_MODES } from './config.js';
+import { els } from './dom.js';
+import { state } from './state.js';
+import {
+    formatTime,
+    getThumbnailUrl,
+    showToast
+} from './utils.js';
+import { icon } from './icons.js';
+import {
+    fetchPlayCounts,
+    previewTrack,
+    recordPlay,
+    fetchLyrics
+} from './api.js';
+import { isTrackInPlaylist, getCurrentPlaylistTracks } from './playlistOps.js';
+import { loadLocal } from './views/local.js';
+
+// ===================== 播放控制 =====================
+
+export function togglePlayPause() {
+    if (!state.currentTrack) { showToast('请先选择一首歌曲'); return; }
+    if (state.isPlaying) {
+        els.audioPlayer.pause();
+        state.isPlaying = false;
+    } else {
+        els.audioPlayer.play().catch(() => showToast('播放失败', 'error'));
+        state.isPlaying = true;
+    }
+    updatePlayButton();
+}
+
+export function updatePlayButton() {
+    els.playPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
+    els.lyricsPlayPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
+    updateMediaSession();
+}
+
+function updateMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+
+    if (state.currentTrack) {
+        const t = state.currentTrack;
+        const artwork = t.thumbnail
+            ? [{ src: getThumbnailUrl(t.thumbnail), sizes: '512x512', type: 'image/jpeg' }]
+            : [];
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: t.title,
+            artist: t.artist,
+            album: t.album || '',
+            artwork,
+        });
+    } else {
+        navigator.mediaSession.metadata = null;
+    }
+
+    navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
+
+    try {
+        navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+        navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+        navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+        navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+    } catch (e) {
+        // 部分浏览器不支持某些 action，忽略
+    }
+}
+
+export function updatePlayerInfo() {
+    if (!state.currentTrack) return;
+    const t = state.currentTrack;
+    els.playerTitle.textContent = t.title;
+    els.playerArtist.textContent = t.artist;
+    els.playerThumbnail.src = getThumbnailUrl(t.thumbnail);
+    updatePlayerFavorite();
+    updatePlayerRemoveButton();
+
+    // 歌词页打开时同步更新
+    if (!els.lyricsModal.classList.contains('hidden')) {
+        els.lyricsTitle.textContent = t.title;
+        els.lyricsArtist.textContent = t.artist;
+        els.lyricsBackground.style.backgroundImage = `url(${getThumbnailUrl(t.thumbnail)})`;
+        openLyricsPage();
+    }
+}
+
+function getFavoriteTargetId(track) {
+    if (track && track.source && track.source.startsWith('web_')) {
+        return state.settings.webFavoritePlaylistId || 'web_favorites';
+    }
+    return state.settings.targetPlaylistId || 'default';
+}
+
+export function updatePlayerFavorite() {
+    if (!state.currentTrack) {
+        els.playerFavoriteBtn.innerHTML = icon('heart');
+        els.playerFavoriteBtn.className = 'btn btn-circle btn-ghost btn-sm text-base-content/40';
+        if (els.lyricsFavoriteBtn) {
+            els.lyricsFavoriteBtn.innerHTML = icon('heart');
+            els.lyricsFavoriteBtn.className = 'btn btn-circle btn-ghost text-white';
+        }
+        return;
+    }
+    const targetId = getFavoriteTargetId(state.currentTrack);
+    const isFavorite = isTrackInPlaylist(state.currentTrack.id, targetId);
+    els.playerFavoriteBtn.innerHTML = icon('heart', { filled: isFavorite });
+    els.playerFavoriteBtn.className = isFavorite
+        ? 'btn btn-circle btn-ghost btn-sm text-error'
+        : 'btn btn-circle btn-ghost btn-sm text-base-content/40';
+    if (els.lyricsFavoriteBtn) {
+        els.lyricsFavoriteBtn.innerHTML = icon('heart', { filled: isFavorite });
+        els.lyricsFavoriteBtn.className = isFavorite
+            ? 'btn btn-circle btn-ghost text-error'
+            : 'btn btn-circle btn-ghost text-white';
+    }
+}
+
+export function updatePlayerRemoveButton() {
+    if (!state.currentTrack) {
+        els.playerRemoveBtn.classList.add('hidden');
+        if (els.lyricsRemoveBtn) els.lyricsRemoveBtn.classList.add('hidden');
+        return;
+    }
+    const localItem = state.localItems.find(i => i.track && i.track.id === state.currentTrack.id);
+    els.playerRemoveBtn.classList.toggle('hidden', !localItem);
+    if (els.lyricsRemoveBtn) els.lyricsRemoveBtn.classList.toggle('hidden', !localItem);
+}
+
+export async function removeCurrentLocalTrack() {
+    if (!state.currentTrack) return;
+    const localItem = state.localItems.find(i => i.track && i.track.id === state.currentTrack.id);
+    if (!localItem) return;
+    if (!confirm('确定删除该本地文件吗？')) return;
+    try {
+        const { deleteLocalItem } = await import('./api.js');
+        await deleteLocalItem(localItem.key);
+        showToast('已删除', 'success');
+        const { loadLocal } = await import('./views/local.js');
+        await loadLocal();
+        updatePlayerRemoveButton();
+    } catch (err) {
+        showToast('删除失败', 'error');
+    }
+}
+
+async function tryPlayLocal(track, context = 'search') {
+    await loadLocal();
+    const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
+    if (!localItem) return false;
+
+    if (localItem.media_type === 'video') {
+        playLocalItem(localItem);
+        return true;
+    }
+
+    state.currentTrack = track;
+    state.isPlaying = true;
+    state.playRecordedForTrackId = null;
+    state.streamFallback = null;
+    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+    els.audioPlayer.play().catch(err => {
+        console.error('本地播放失败:', err);
+        showToast('本地播放失败', 'error');
+        state.isPlaying = false;
+        updatePlayButton();
+    });
+    updatePlayerInfo();
+    updatePlayButton();
+    updatePlayerRemoveButton();
+    return true;
+}
+
+export async function playTrack(track, context = 'search', preferStream = null) {
+    if (context === 'search') state.queue = [...state.searchResults];
+    else if (context === 'playlist') state.queue = [...getCurrentPlaylistTracks()];
+    else if (context === 'local') state.queue = [track];
+
+    state.queueIndex = state.queue.findIndex(t => t.id === track.id);
+    state.randomHistory = [];
+
+    // Bilibili/YouTube/网页音源 默认优先走流（代理或直接 MP3），减少首次播放等待时间；显式传 false 时才强制下载
+    const useStream = preferStream ?? (['bilibili', 'youtube'].includes(track.source) || track.source.startsWith('web_'));
+
+    // 本地已有该歌曲，优先播放本地文件
+    const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
+    if (localItem) {
+        state.currentTrack = track;
+        state.isPlaying = true;
+        state.playRecordedForTrackId = null;
+        state.streamFallback = null;
+        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+        els.audioPlayer.play().catch(err => {
+            console.error('播放失败:', err);
+            showToast('播放失败', 'error');
+            state.isPlaying = false;
+            updatePlayButton();
+        });
+        updatePlayerInfo();
+        updatePlayButton();
+        return;
+    }
+
+    showToast('正在加载试听...');
+    try {
+        const data = await previewTrack(track, 'audio', useStream);
+        state.currentTrack = track;
+        state.isPlaying = true;
+        state.playRecordedForTrackId = null;
+        state.streamFallback = data.streamed ? { track, context, isVideo: false, tried: !useStream } : null;
+
+        els.audioPlayer.src = data.stream_url;
+        els.audioPlayer.play().catch(err => {
+            console.error('播放失败:', err);
+            showToast('播放失败', 'error');
+            state.isPlaying = false;
+            updatePlayButton();
+        });
+
+        updatePlayerInfo();
+        updatePlayButton();
+    } catch (err) {
+        console.error('网络加载失败，尝试本地文件:', err);
+        const played = await tryPlayLocal(track, context);
+        if (played) {
+            showToast('已切换到本地文件', 'success');
+        } else {
+            showToast('加载失败，本地无该歌曲', 'error');
+        }
+    }
+}
+
+export async function playVideo(track, preferStream = true) {
+    showToast('正在加载 MV...');
+    try {
+        const data = await previewTrack(track, 'video', preferStream);
+        els.videoTitle.textContent = `${track.artist} - ${track.title}`;
+        els.videoPlayer.src = data.stream_url;
+        state.streamFallback = data.streamed ? { track, context: 'search', isVideo: true, tried: !preferStream } : null;
+        els.videoModal.classList.remove('hidden');
+        els.videoPlayer.play().catch(err => {
+            console.error('视频播放失败:', err);
+            showToast('视频播放失败', 'error');
+        });
+    } catch (err) {}
+}
+
+export function closeVideoModal() {
+    els.videoPlayer.pause();
+    els.videoPlayer.src = '';
+    els.videoModal.classList.add('hidden');
+}
+
+export async function playLocalItem(item) {
+    if (!item.track) return;
+
+    if (item.media_type === 'video') {
+        els.videoTitle.textContent = `${item.track.artist} - ${item.track.title}`;
+        els.videoPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.key)}`;
+        els.videoModal.classList.remove('hidden');
+        els.videoPlayer.play().catch(err => {
+            console.error('视频播放失败:', err);
+            showToast('视频播放失败', 'error');
+        });
+        return;
+    }
+
+    state.currentTrack = item.track;
+    state.isPlaying = true;
+    state.queue = state.localItems.filter(i => i.track).map(i => i.track);
+    state.queueIndex = state.queue.findIndex(t => t.id === item.track.id);
+    state.randomHistory = [];
+    state.streamFallback = null;
+    state.playRecordedForTrackId = null;
+
+    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.key)}`;
+    els.audioPlayer.play().catch(err => {
+        console.error('播放失败:', err);
+        showToast('播放失败', 'error');
+        state.isPlaying = false;
+        updatePlayButton();
+    });
+
+    updatePlayerInfo();
+    updatePlayButton();
+}
+
+// ===================== 队列与播放模式 =====================
+
+export function togglePlaybackMode() {
+    const idx = PLAYBACK_MODES.indexOf(state.playbackMode);
+    state.playbackMode = PLAYBACK_MODES[(idx + 1) % PLAYBACK_MODES.length];
+    renderPlaybackMode();
+}
+
+export function renderPlaybackMode() {
+    const cfg = MODE_LABELS[state.playbackMode];
+    els.modeBtn.innerHTML = `<i class="ph ${cfg.icon}"></i>`;
+    els.modeBtn.title = cfg.title;
+    if (els.lyricsModeBtn) {
+        els.lyricsModeBtn.innerHTML = `<i class="ph ${cfg.icon}"></i>`;
+        els.lyricsModeBtn.title = cfg.title;
+    }
+}
+
+export function playPrev() {
+    if (state.queue.length === 0) { showToast('没有上一首'); return; }
+    if (state.playbackMode === 'list-random') {
+        if (state.randomHistory.length > 1) {
+            state.randomHistory.pop();
+            const prevId = state.randomHistory[state.randomHistory.length - 1];
+            const track = state.queue.find(t => t.id === prevId);
+            if (track) playTrackByQueueTrack(track);
+        }
+        return;
+    }
+    state.queueIndex = (state.queueIndex - 1 + state.queue.length) % state.queue.length;
+    playTrackByQueueTrack(state.queue[state.queueIndex]);
+}
+
+export function playNext() {
+    if (state.queue.length === 0) { showToast('没有下一首'); return; }
+
+    if (state.playbackMode === 'list-random') {
+        const remaining = state.queue.filter(t => !state.randomHistory.includes(t.id));
+        let nextTrack;
+        if (remaining.length === 0) {
+            state.randomHistory = [];
+            nextTrack = state.queue[Math.floor(Math.random() * state.queue.length)];
+        } else {
+            nextTrack = remaining[Math.floor(Math.random() * remaining.length)];
+        }
+        state.randomHistory.push(nextTrack.id);
+        playTrackByQueueTrack(nextTrack);
+        return;
+    }
+
+    state.queueIndex = (state.queueIndex + 1) % state.queue.length;
+    playTrackByQueueTrack(state.queue[state.queueIndex]);
+}
+
+export async function playTrackByQueueTrack(track, preferStream = null) {
+    if (!track) return;
+    state.currentTrack = track;
+    state.isPlaying = true;
+    state.playRecordedForTrackId = null;
+
+    const useStream = preferStream ?? (['bilibili', 'youtube'].includes(track.source) || track.source.startsWith('web_'));
+
+    const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
+    if (localItem) {
+        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+        state.streamFallback = null;
+    } else {
+        try {
+            const data = await previewTrack(track, 'audio', useStream);
+            els.audioPlayer.src = data.stream_url;
+            state.streamFallback = data.streamed ? { track, context: 'queue', isVideo: false, tried: !useStream } : null;
+        } catch (err) {
+            console.error('队列加载失败，尝试本地文件:', err);
+            const played = await tryPlayLocal(track, 'queue');
+            if (played) {
+                showToast('已切换到本地文件', 'success');
+            } else {
+                showToast('加载失败，本地无该歌曲', 'error');
+                state.isPlaying = false;
+                updatePlayButton();
+                return;
+            }
+        }
+    }
+
+    els.audioPlayer.play().catch(err => {
+        console.error('播放失败:', err);
+        showToast('播放失败', 'error');
+        state.isPlaying = false;
+        updatePlayButton();
+    });
+
+    updatePlayerInfo();
+    updatePlayButton();
+}
+
+export function handleTrackEnded() {
+    if (!state.currentTrack || state.queue.length === 0) return;
+    recordPlayProgress(state.currentTrack, 1.0);
+
+    if (state.playbackMode === 'single-loop') {
+        els.audioPlayer.currentTime = 0;
+        els.audioPlayer.play().catch(() => showToast('播放失败', 'error'));
+        return;
+    }
+    playNext();
+}
+
+// ===================== 进度与歌词 =====================
+
+export function updateProgress() {
+    const audio = els.audioPlayer;
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    els.progressBar.style.width = `${pct}%`;
+    els.currentTime.textContent = formatTime(audio.currentTime);
+
+    if (state.currentTrack && audio.currentTime / audio.duration >= 0.8) {
+        recordPlayProgress(state.currentTrack, audio.currentTime / audio.duration);
+    }
+
+    syncLyrics(audio.currentTime);
+}
+
+export function updateDuration() {
+    els.duration.textContent = formatTime(els.audioPlayer.duration);
+}
+
+export function seekProgress(e) {
+    const audio = els.audioPlayer;
+    if (!audio.duration) return;
+    const rect = els.progressContainer.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pct * audio.duration;
+}
+
+export async function openLyricsPage() {
+    if (!state.currentTrack) { showToast('请先选择一首歌曲'); return; }
+    const track = state.currentTrack;
+    els.lyricsTitle.textContent = track.title;
+    els.lyricsArtist.textContent = track.artist;
+    els.lyricsBackground.style.backgroundImage = `url(${getThumbnailUrl(track.thumbnail)})`;
+    els.lyricsModal.classList.remove('hidden');
+    updatePlayerFavorite();
+    updatePlayerRemoveButton();
+
+    state.lyrics = [];
+    state.lyricsSource = null;
+    renderLyrics();
+
+    try {
+        const data = await fetchLyrics(track);
+        state.lyrics = data.has_lyrics ? (data.lines || []) : [];
+        state.lyricsSource = data.source || track.source;
+        renderLyrics();
+    } catch (err) {
+        state.lyrics = [];
+        state.lyricsSource = null;
+        renderLyrics();
+    }
+}
+
+export function closeLyricsPage() {
+    els.lyricsModal.classList.add('hidden');
+}
+
+export function renderLyrics() {
+    const container = els.lyricsContainer;
+    container.innerHTML = '';
+
+    if (!state.lyrics || state.lyrics.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full py-20 text-white/80">
+                <div class="text-5xl mb-4">${icon('music', { className: 'text-white/80' })}</div>
+                <p class="text-lg font-medium">暂无歌词</p>
+                <p class="text-sm text-white/50 mt-1">${state.lyricsSource ? '该音源暂未提供歌词' : '欣赏音乐吧'}</p>
+            </div>
+        `;
+        return;
+    }
+
+    state.lyrics.forEach((line, index) => {
+        const div = document.createElement('div');
+        div.className = 'lyrics-line text-lg text-white/60 transition-all duration-300 cursor-pointer py-1';
+        div.dataset.index = index;
+        div.dataset.time = line.time;
+        div.textContent = line.text || '·';
+        if (line.translation) {
+            const trans = document.createElement('div');
+            trans.className = 'text-sm text-white/40 mt-1';
+            trans.textContent = line.translation;
+            div.appendChild(trans);
+        }
+        div.addEventListener('click', () => {
+            els.audioPlayer.currentTime = line.time;
+        });
+        container.appendChild(div);
+    });
+}
+
+export function syncLyrics(currentTime) {
+    if (!state.lyrics || state.lyrics.length === 0) return;
+    const lines = els.lyricsContainer.querySelectorAll('.lyrics-line');
+    if (!lines.length) return;
+
+    let activeIndex = -1;
+    for (let i = 0; i < state.lyrics.length; i++) {
+        if (state.lyrics[i].time <= currentTime + 0.2) {
+            activeIndex = i;
+        } else {
+            break;
+        }
+    }
+
+    lines.forEach((line, index) => {
+        if (index === activeIndex) {
+            line.className = 'lyrics-line text-xl font-semibold text-white scale-105 transition-all duration-300 cursor-pointer py-2';
+            line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            line.className = 'lyrics-line text-lg text-white/60 transition-all duration-300 cursor-pointer py-1';
+        }
+    });
+}
+
+// ===================== 错误处理 =====================
+
+export async function handleAudioError() {
+    if (state.currentTrack) {
+        const played = await tryPlayLocal(state.currentTrack, state.streamFallback?.context || 'search');
+        if (played) {
+            showToast('网络流失败，已切换到本地文件', 'success');
+            return;
+        }
+    }
+
+    if (state.streamFallback && !state.streamFallback.tried) {
+        state.streamFallback.tried = true;
+        const { track, context, isVideo } = state.streamFallback;
+        showToast('边下边播失败，回退到下载后播放...', 'warning');
+        if (isVideo) {
+            await playVideo(track, false);
+        } else {
+            await playTrack(track, context, false);
+        }
+        return;
+    }
+    console.error('音频播放错误:', els.audioPlayer.error);
+    showToast('播放失败', 'error');
+    state.isPlaying = false;
+    updatePlayButton();
+}
+
+export async function handleVideoError() {
+    if (state.streamFallback && state.streamFallback.isVideo && !state.streamFallback.tried) {
+        state.streamFallback.tried = true;
+        const { track } = state.streamFallback;
+        showToast('边下边播失败，回退到下载后播放...', 'warning');
+        await playVideo(track, false);
+        return;
+    }
+    console.error('视频播放错误:', els.videoPlayer.error);
+    showToast('视频播放失败', 'error');
+}
+
+// ===================== 播放频率统计 =====================
+
+function recordPlayProgress(track, progress) {
+    if (!track) return;
+    if (state.playRecordedForTrackId === track.id) return;
+    state.playRecordedForTrackId = track.id;
+    recordPlay(track, progress)
+        .then(() => refreshPlayCounts())
+        .catch(err => console.error('记录播放失败:', err));
+}
+
+export async function refreshPlayCounts() {
+    try {
+        const data = await fetchPlayCounts();
+        state.playCounts = data.items || {};
+        document.dispatchEvent(new CustomEvent('musiic:playcounts-updated'));
+    } catch (err) {
+        console.error('加载收听频率失败', err);
+    }
+}
+
+// ===================== 收藏相关 =====================
+
+document.addEventListener('musiic:playlists-updated', () => {
+    updatePlayerFavorite();
+});

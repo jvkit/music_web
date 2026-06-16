@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dim">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Musiic - 音乐搜索</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="node_modules/@phosphor-icons/web/src/regular/style.css">
+    <link rel="stylesheet" href="node_modules/@phosphor-icons/web/src/fill/style.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#38bdf8">
+</head>
+<body class="bg-base-200 text-base-content pb-40">
+    <!-- 入站密码验证 -->
+    <div id="passwordGate" class="fixed inset-0 z-[100] bg-base-200 flex items-center justify-center p-4">
+        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
+            <div class="card-body items-center text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-black text-3xl shadow-lg shadow-primary/20 mb-4">
+                    <i class="ph-fill ph-lock-key"></i>
+                </div>
+                <h2 class="card-title text-lg">我们不欢迎爬虫</h2>
+                <p class="text-sm text-base-content/60">请输入密码</p>
+                <input id="passwordInput" type="password" placeholder="密码" class="input input-bordered w-full mt-2" autocomplete="off">
+                <p id="passwordError" class="text-sm text-error hidden">密码错误</p>
+                <button id="passwordSubmit" class="btn btn-primary w-full mt-2">进入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部搜索栏 -->
+    <header class="sticky top-0 z-40 glass border-b border-base-300/50">
+        <div class="max-w-3xl mx-auto px-4 py-4 space-y-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-black text-xl shadow-lg shadow-primary/20">
+                    <i class="ph-fill ph-music-note"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight leading-none bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Musiic</h1>
+                    <p class="text-xs text-base-content/50">发现你的下一首歌</p>
+                </div>
+            </div>
+
+            <!-- 搜索框 -->
+            <div class="join w-full">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="搜索歌曲、艺人、专辑..."
+                    class="input input-bordered join-item w-full bg-base-100/80"
+                >
+                <button id="searchBtn" class="btn btn-primary join-item px-6">搜索</button>
+            </div>
+
+            <!-- 音源筛选 -->
+            <div id="sourceChips" class="flex flex-wrap gap-2 pb-1 items-center">
+                <button class="source-chip btn btn-sm btn-primary" data-value="youtube">YouTube</button>
+                <button class="source-chip btn btn-sm btn-ghost" data-value="netease">网易云</button>
+                <button class="source-chip btn btn-sm btn-ghost" data-value="bilibili">Bilibili</button>
+                <button class="source-chip btn btn-sm btn-ghost" data-value="soundcloud">SoundCloud</button>
+
+                <div class="dropdown dropdown-end flex-shrink-0">
+                    <button id="webSourceDropdownBtn" tabindex="0" class="btn btn-sm btn-ghost gap-1">
+                        <span>网页音源</span>
+                        <i class="ph ph-caret-down"></i>
+                    </button>
+                    <ul id="webSourceMenu" tabindex="0" class="dropdown-content menu z-[1] p-2 shadow bg-base-100 rounded-box w-56 max-h-72 overflow-y-auto border border-base-200">
+                        <li class="disabled"><a>加载中…</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量操作栏 -->
+        <div id="batchBar" class="hidden bg-base-100/60 border-t border-base-300/30">
+            <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="selectAll" class="checkbox checkbox-primary checkbox-sm">
+                    <label for="selectAll" class="text-sm">全选</label>
+                    <span id="selectedCount" class="text-xs text-base-content/60 ml-2">已选 0 首</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="copyToPlaylistBtn" class="btn btn-xs btn-outline btn-primary" disabled>复制到…</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 导航 -->
+        <nav class="bg-base-100/60 border-t border-base-300/30" id="tabNav">
+            <div class="max-w-3xl mx-auto px-4">
+                <div role="tablist" class="tabs tabs-bordered">
+                    <button role="tab" class="tab tab-active tab-btn flex-1 gap-1" data-tab="search"><i class="ph ph-magnifying-glass"></i> 搜索</button>
+                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="playlists"><i class="ph ph-music-notes"></i> 列表</button>
+                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="local"><i class="ph ph-hard-drives"></i> 本地</button>
+                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="settings"><i class="ph ph-gear"></i> 设置</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="max-w-3xl mx-auto px-4 py-5">
+        <!-- 搜索视图 -->
+        <section id="searchView" class="view space-y-4">
+            <div id="searchLoading" class="hidden py-16 text-center">
+                <span class="loading loading-spinner loading-lg text-primary"></span>
+                <p class="mt-3 text-sm text-base-content/60">搜索中...</p>
+            </div>
+            <div id="searchEmpty" class="py-16 text-center text-base-content/40">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-base-300/50 flex items-center justify-center text-5xl text-primary">
+                    <i class="ph ph-headphones"></i>
+                </div>
+                <p class="text-sm">输入关键词开始搜索</p>
+            </div>
+            <div id="searchResults" class="space-y-3"></div>
+        </section>
+
+        <!-- 播放列表视图 -->
+        <section id="playlistsView" class="view hidden">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="w-full md:w-1/3 md:min-w-[160px]">
+                    <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-3 mb-3">
+                        <button id="createPlaylistBtn" class="btn btn-primary btn-sm w-full">
+                            + 新建列表
+                        </button>
+                    </div>
+                    <div id="playlistsSidebar" class="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-1 md:pb-0"></div>
+                </div>
+                <div class="flex-1">
+                    <div id="playlistDetailHeader" class="mb-4 flex items-center justify-between">
+                        <h2 id="currentPlaylistTitle" class="text-xl font-bold">我的收藏</h2>
+                        <button id="deletePlaylistBtn" class="hidden btn btn-sm btn-error btn-soft">删除列表</button>
+                    </div>
+                    <div id="playlistTracks" class="space-y-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 本地视图 -->
+        <section id="localView" class="view hidden">
+            <h2 class="text-xl font-bold mb-4">本地音乐</h2>
+            <div id="localLoading" class="hidden py-16 text-center">
+                <span class="loading loading-spinner loading-lg text-primary"></span>
+            </div>
+            <div id="localList" class="space-y-3"></div>
+        </section>
+
+        <!-- 设置视图 -->
+        <section id="settingsView" class="view hidden">
+            <h2 class="text-xl font-bold mb-4">设置</h2>
+            <div class="space-y-4">
+                <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-5">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">默认收藏目标列表</span>
+                        </label>
+                        <select id="settingsTargetPlaylist" class="select select-bordered bg-base-100/80">
+                            <option value="default">我的收藏</option>
+                        </select>
+                        <label class="label">
+                            <span class="label-text-alt">点击「收藏」按钮时加入的默认播放列表。</span>
+                        </label>
+                    </div>
+
+                    <div class="form-control mt-4">
+                        <label class="label">
+                            <span class="label-text font-medium">网页音源收藏列表</span>
+                        </label>
+                        <select id="settingsWebFavoritePlaylist" class="select select-bordered bg-base-100/80">
+                            <option value="web_favorites">网页收藏</option>
+                        </select>
+                        <label class="label">
+                            <span class="label-text-alt">网页音源（第三方站点）收藏时加入的播放列表。</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-5">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">搜索分页数量</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="label-text-alt">YouTube</label>
+                                <input type="number" id="settingsLimitYoutube" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
+                            </div>
+                            <div>
+                                <label class="label-text-alt">网易云</label>
+                                <input type="number" id="settingsLimitNetease" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
+                            </div>
+                            <div>
+                                <label class="label-text-alt">Bilibili</label>
+                                <input type="number" id="settingsLimitBilibili" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
+                            </div>
+                            <div>
+                                <label class="label-text-alt">SoundCloud</label>
+                                <input type="number" id="settingsLimitSoundcloud" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
+                            </div>
+                        </div>
+                        <label class="label">
+                            <span class="label-text-alt">每次搜索/加载更多时返回的曲目数量（YouTube 暂不支持真正翻页）。</span>
+                        </label>
+                    </div>
+                    <button id="settingsSaveBtn" class="btn btn-primary w-full mt-4">保存设置</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 复制到播放列表弹窗 -->
+    <div id="copyModal" class="modal" role="dialog">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-3">复制到播放列表</h3>
+            <div id="copyModalList" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
+            <div class="modal-action">
+                <button id="copyModalCancel" class="btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 歌词/播放页弹窗 -->
+    <div id="lyricsModal" class="fixed inset-0 z-[75] hidden bg-black/95 flex flex-col">
+        <div class="relative flex-1 flex flex-col overflow-hidden">
+            <div id="lyricsBackground" class="absolute inset-0 bg-cover bg-center opacity-30 blur-xl transition-all duration-700"></div>
+            <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black/90"></div>
+
+            <div class="relative z-10 flex items-center justify-between p-4 text-white">
+                <div class="min-w-0">
+                    <h3 id="lyricsTitle" class="text-base font-semibold truncate">歌曲标题</h3>
+                    <p id="lyricsArtist" class="text-xs text-white/70 truncate">歌手</p>
+                </div>
+                <button id="lyricsModalClose" class="btn btn-circle btn-ghost text-white"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="relative z-10 flex-1 overflow-y-auto px-6 py-4" id="lyricsScroller">
+                <div id="lyricsContainer" class="space-y-6 text-center transition-transform duration-300"></div>
+            </div>
+
+            <div class="relative z-10 p-4 bg-black/60 backdrop-blur-md">
+                <div class="flex items-center justify-center gap-4 text-white mb-4">
+                    <button id="lyricsModeBtn" class="btn btn-circle btn-ghost text-white" title="列表循环"><i class="ph ph-repeat"></i></button>
+                    <button id="lyricsFavoriteBtn" class="btn btn-circle btn-ghost text-white" title="收藏"><i class="ph ph-heart"></i></button>
+                    <button id="lyricsRemoveBtn" class="hidden btn btn-circle btn-ghost text-error" title="删除本地文件"><i class="ph ph-trash"></i></button>
+                </div>
+                <div class="flex items-center justify-center gap-6 text-white">
+                    <button id="lyricsPrevBtn" class="btn btn-circle btn-ghost text-white"><i class="ph ph-skip-back"></i></button>
+                    <button id="lyricsPlayPauseBtn" class="btn btn-circle btn-lg bg-white text-black hover:bg-white/90 border-0"><i class="ph ph-play"></i></button>
+                    <button id="lyricsNextBtn" class="btn btn-circle btn-ghost text-white"><i class="ph ph-skip-forward"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频播放弹窗 -->
+    <div id="videoModal" class="fixed inset-0 z-[70] hidden bg-black flex items-center justify-center">
+        <div class="relative w-full h-full max-w-3xl max-h-screen flex flex-col">
+            <div class="flex items-center justify-between p-3 bg-neutral text-neutral-content">
+                <h3 id="videoTitle" class="text-sm font-medium truncate flex-1">MV</h3>
+                <button id="videoModalClose" class="btn btn-circle btn-ghost btn-sm"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="flex-1 flex items-center justify-center bg-black">
+                <video id="videoPlayer" class="w-full h-full max-h-[80vh]" controls playsinline></video>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部固定播放器 -->
+    <footer id="playerBar" class="fixed bottom-0 left-0 right-0 z-50 glass border-t border-base-300/50 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]">
+        <div class="relative h-1.5 bg-base-300 cursor-pointer group" id="progressContainer">
+            <div id="progressBar" class="absolute top-0 left-0 h-full bg-primary w-0 transition-all duration-100"></div>
+            <div class="absolute top-1/2 -translate-y-1/2 left-[var(--progress,0%)] w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow" style="pointer-events:none"></div>
+        </div>
+
+        <div class="max-w-3xl mx-auto px-4 py-3">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+                <img
+                    id="playerThumbnail"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23e5e7eb'/%3E%3Ccircle cx='24' cy='24' r='10' fill='%239ca3af'/%3E%3C/svg%3E"
+                    alt="cover"
+                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover flex-shrink-0 bg-base-300 shadow-md"
+                >
+
+                <div class="flex-1 min-w-0 order-2 sm:order-2">
+                    <p id="playerTitle" class="text-sm font-bold truncate">未在播放</p>
+                    <p id="playerArtist" class="text-xs text-base-content/60 truncate">-</p>
+                </div>
+
+                <div class="flex items-center gap-1 order-3 sm:order-3">
+                    <button id="prevBtn" class="btn btn-circle btn-ghost btn-sm"><i class="ph ph-skip-back"></i></button>
+                    <button id="playPauseBtn" class="btn btn-circle btn-primary"><i class="ph ph-play"></i></button>
+                    <button id="nextBtn" class="btn btn-circle btn-ghost btn-sm"><i class="ph ph-skip-forward"></i></button>
+                </div>
+
+                <div class="flex items-center gap-1 order-4 sm:order-4 ml-auto sm:ml-2">
+                    <button id="modeBtn" class="btn btn-circle btn-ghost btn-sm" title="列表循环"><i class="ph ph-repeat"></i></button>
+                    <button id="playerFavoriteBtn" class="btn btn-circle btn-ghost btn-sm text-base-content/40" title="收藏"><i class="ph ph-heart"></i></button>
+                    <button id="playerLyricsBtn" class="btn btn-circle btn-ghost btn-sm" title="歌词"><i class="ph ph-microphone"></i></button>
+                    <button id="playerRemoveBtn" class="hidden btn btn-circle btn-ghost btn-sm text-error" title="删除本地文件"><i class="ph ph-trash"></i></button>
+                </div>
+            </div>
+
+            <div class="flex justify-between text-xs text-base-content/50 mt-2 px-1">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+
+        <audio id="audioPlayer" preload="none" playsinline webkit-playsinline></audio>
+    </footer>
+
+    <!-- 下载进度弹窗 -->
+    <div id="downloadModal" class="modal" role="dialog">
+        <div class="modal-box">
+            <h3 id="downloadModalTitle" class="font-bold text-lg mb-2 truncate">下载中...</h3>
+            <p id="downloadModalStatus" class="text-sm text-base-content/60 mb-3">准备下载</p>
+            <div class="w-full h-2 bg-base-300 rounded-full overflow-hidden mb-4">
+                <div id="downloadModalProgress" class="h-full bg-success w-0 transition-all duration-200"></div>
+            </div>
+            <div class="modal-action">
+                <button id="downloadModalCancel" class="btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 hidden alert shadow-lg">
+        <div class="text-sm font-medium"></div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

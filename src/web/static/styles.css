@@ -1,0 +1,83 @@
+/* Musiic H5 主题增强与排版优化 */
+
+/* 玻璃拟态：使用 DaisyUI OKLCH 变量 + 透明度 */
+.glass {
+    background: oklch(var(--b1) / 0.72);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+/* 隐藏滚动条但保留滚动 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 进度条 */
+#progressContainer {
+    min-height: 10px;
+}
+#progressBar {
+    box-shadow: 0 0 10px oklch(var(--p) / 0.5);
+}
+#progressContainer:hover #progressBar {
+    filter: brightness(1.2);
+}
+
+/* 底部播放器不遮挡内容 */
+body {
+    padding-bottom: 130px;
+}
+
+/* 卡片点击反馈 */
+.track-card {
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+/* 歌词行 hover 高亮 */
+.lyrics-line:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* 播放中封面脉冲 */
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(var(--p) / 0.4); }
+    50% { box-shadow: 0 0 0 12px oklch(var(--p) / 0); }
+}
+.playing-cover {
+    animation: pulse-glow 2s infinite;
+}
+
+/* 源筛选按钮不换行 */
+#sourceChips {
+    flex-wrap: nowrap;
+}
+
+/* Tab 导航固定过渡 */
+.tab {
+    transition: all 0.2s ease;
+}
+
+/* 弹窗背景 */
+.modal {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* 移动端底部播放器紧凑 */
+@media (max-width: 640px) {
+    #playerBar .btn-circle {
+        min-width: 2.25rem;
+        min-height: 2.25rem;
+    }
+    #playPauseBtn {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+    body {
+        padding-bottom: 140px;
+    }
+}
