@@ -141,6 +141,9 @@ python scripts/deploy.py --skip-deps
 ```bash
 export PATH="/home/ubuntu/.local/bin:$PATH"
 cd ~/workspace/music/src
+uv sync
+uv run music setup      # 首次部署或 node_modules 丢失时执行
+uv run music check-env  # 检查环境
 nohup uv run music -s > /tmp/musiic-server.log 2>&1 &
 ```
 

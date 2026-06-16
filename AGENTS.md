@@ -119,8 +119,13 @@
 
 ```bash
 cd src
-uv run music -s        # 启动服务器（自动设置 data/cache/config 路径）
-uv run music -l --help # 本地 CLI 模式
+uv sync                         # 安装 Python 依赖
+uv run music setup              # 安装前端 npm 依赖（图标、字体等）
+uv run music check-env          # 检查环境是否就绪
+uv run music -s                 # 启动服务器
+uv run music -l --help          # 本地 CLI 模式
 ```
 
 > `-s` / `--serve` 会自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根目录下的 `data/`、`cache/`、`config/`。如果环境变量已设置，则以环境变量为准。
+>
+> 前端资源（Phosphor Icons）通过 `npm install` 安装到 `src/web/static/node_modules/`，`music setup` 会自动执行。

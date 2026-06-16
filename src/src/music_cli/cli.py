@@ -25,6 +25,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -457,6 +458,39 @@ def check_env() -> None:
     # 目录
     console.print(f"[OK] 缓存目录: {get_config_dir()}")
     console.print(f"[OK] 下载目录: {get_download_dir()}")
+
+    # 前端依赖
+    static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
+    node_modules = static_dir / "node_modules" / "@phosphor-icons" / "web"
+    if node_modules.exists():
+        console.print(f"[OK] 前端依赖: {node_modules}")
+    else:
+        console.print("[FAIL] 前端依赖未安装（图标会显示为圆点）")
+        console.print(f"       请在 {static_dir} 下执行: npm install")
+
+
+@app.command("setup")
+def setup(
+    npm: bool = typer.Option(True, "--npm/--no-npm", help="是否运行 npm install 安装前端依赖"),
+) -> None:
+    """初始化项目环境：安装前端 npm 依赖"""
+    static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
+    if not (static_dir / "package.json").exists():
+        console.print(f"❌ 未找到 package.json: {static_dir}")
+        raise typer.Exit(1)
+
+    if npm:
+        console.print(f"📦 安装前端依赖: {static_dir}")
+        try:
+            subprocess.run(["npm", "install"], cwd=static_dir, check=True)
+            console.print("✅ 前端依赖安装完成")
+        except Exception as e:
+            console.print(f"❌ npm install 失败: {e}")
+            raise typer.Exit(1)
+    else:
+        console.print("⏭️  跳过 npm install")
+
+    console.print("\n建议运行: music check-env")
 
 
 def _setup_server_env() -> None:
