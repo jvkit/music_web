@@ -481,8 +481,12 @@ def setup(
 
     if npm:
         console.print(f"📦 安装前端依赖: {static_dir}")
+        npm_cmd = shutil.which("npm") or (shutil.which("npm.cmd") if sys.platform == "win32" else None)
+        if not npm_cmd:
+            console.print("❌ 未找到 npm，请先安装 Node.js 并添加到 PATH")
+            raise typer.Exit(1)
         try:
-            subprocess.run(["npm", "install"], cwd=static_dir, check=True)
+            subprocess.run([npm_cmd, "install"], cwd=static_dir, check=True, shell=sys.platform == "win32")
             console.print("✅ 前端依赖安装完成")
         except Exception as e:
             console.print(f"❌ npm install 失败: {e}")
