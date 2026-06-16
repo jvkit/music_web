@@ -481,9 +481,10 @@ def setup(
 
     if npm:
         console.print(f"📦 安装前端依赖: {static_dir}")
-        npm_cmd = shutil.which("npm") or (shutil.which("npm.cmd") if sys.platform == "win32" else None)
+        npm_cmd = _find_npm()
         if not npm_cmd:
             console.print("❌ 未找到 npm，请先安装 Node.js 并添加到 PATH")
+            console.print("   或手动执行: cd src/web/static && npm install")
             raise typer.Exit(1)
         try:
             subprocess.run([npm_cmd, "install"], cwd=static_dir, check=True, shell=sys.platform == "win32")
@@ -500,6 +501,27 @@ def setup(
 def _project_root() -> Path:
     """cli.py 位于 <project_root>/src/music_cli/cli.py"""
     return Path(__file__).resolve().parents[2]
+
+
+def _find_npm() -> Optional[str]:
+    """尝试找到可用的 npm 可执行文件（兼容 Windows/Git Bash）"""
+    candidates = ["npm", "npm.cmd"]
+    if sys.platform == "win32":
+        # 常见 Node.js 安装路径
+        program_files = [
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")),
+            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")),
+            Path.home() / "AppData" / "Roaming" / "npm",
+        ]
+        for base in program_files:
+            candidates.append(str(base / "npm.cmd"))
+            candidates.append(str(base / "npm"))
+
+    for cmd in candidates:
+        found = shutil.which(cmd)
+        if found:
+            return found
+    return None
 
 
 def _setup_server_env() -> None:
