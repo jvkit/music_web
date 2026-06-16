@@ -703,6 +703,7 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
 
 
 # 静态文件：H5 前端
-_static_dir = Path(__file__).parent.parent.parent.parent / "web" / "static"
+# api.py 位于 <project_root>/src/music_cli/web/api.py
+_static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
 if _static_dir.exists():
     app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
