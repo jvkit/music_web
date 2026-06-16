@@ -460,7 +460,7 @@ def check_env() -> None:
     console.print(f"[OK] 下载目录: {get_download_dir()}")
 
     # 前端依赖
-    static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
+    static_dir = _project_root() / "src" / "web" / "static"
     node_modules = static_dir / "node_modules" / "@phosphor-icons" / "web"
     if node_modules.exists():
         console.print(f"[OK] 前端依赖: {node_modules}")
@@ -474,7 +474,7 @@ def setup(
     npm: bool = typer.Option(True, "--npm/--no-npm", help="是否运行 npm install 安装前端依赖"),
 ) -> None:
     """初始化项目环境：安装前端 npm 依赖"""
-    static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
+    static_dir = _project_root() / "src" / "web" / "static"
     if not (static_dir / "package.json").exists():
         console.print(f"❌ 未找到 package.json: {static_dir}")
         raise typer.Exit(1)
@@ -493,10 +493,14 @@ def setup(
     console.print("\n建议运行: music check-env")
 
 
+def _project_root() -> Path:
+    """cli.py 位于 <project_root>/src/music_cli/cli.py"""
+    return Path(__file__).resolve().parents[2]
+
+
 def _setup_server_env() -> None:
     """如果环境变量未设置，自动把 data/cache/config 指到项目根目录"""
-    # cli.py 位于 <project_root>/src/src/music_cli/cli.py
-    project_root = Path(__file__).resolve().parents[3]
+    project_root = _project_root()
     if (project_root / "data").is_dir() and (project_root / "config").is_dir():
         os.environ.setdefault("MUSIC_DOWNLOAD_DIR", str(project_root / "data"))
         os.environ.setdefault("MUSIC_CACHE_DIR", str(project_root / "cache"))

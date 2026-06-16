@@ -140,7 +140,7 @@ python scripts/deploy.py --skip-deps
 
 ```bash
 export PATH="/home/ubuntu/.local/bin:$PATH"
-cd ~/workspace/music/src
+cd ~/workspace/music
 uv sync
 uv run music setup      # 首次部署或 node_modules 丢失时执行
 uv run music check-env  # 检查环境
@@ -152,7 +152,7 @@ nohup uv run music -s > /tmp/musiic-server.log 2>&1 &
 如果通过 `ssh` 启动，建议用 `ssh -f` 让会话后台化：
 
 ```bash
-ssh -f j 'cd ~/workspace/music/src && export PATH="/home/ubuntu/.local/bin:$PATH" && nohup uv run music -s > /tmp/musiic-server.log 2>&1 &'
+ssh -f j 'cd ~/workspace/music && export PATH="/home/ubuntu/.local/bin:$PATH" && nohup uv run music -s > /tmp/musiic-server.log 2>&1 &'
 ```
 
 ### 部署踩坑记录

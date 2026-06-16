@@ -3,11 +3,12 @@
 ## 项目说明
 
 多音源音乐搜索/试听/下载 CLI + H5 前端。
-源码入口：`src/main.py`，实际逻辑在 `src/music_cli/`。
+源码入口：`main.py`，实际逻辑在 `src/music_cli/`，H5 前端在 `src/web/static/`。
 
 ## 关键目录
 
-- `src/`：Python 源码与 H5 前端（`src/web/static/`）。
+- `src/music_cli/`：Python 源码。
+- `src/web/static/`：H5 前端。
 - `data/`：下载的音乐文件。
 - `cache/`：试听缓存。
 - `config/`：播放列表、播放记录等配置。
@@ -118,7 +119,6 @@
 ## 常用命令
 
 ```bash
-cd src
 uv sync                         # 安装 Python 依赖
 uv run music setup              # 安装前端 npm 依赖（图标、字体等）
 uv run music check-env          # 检查环境是否就绪
