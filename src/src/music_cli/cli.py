@@ -23,6 +23,7 @@
 """
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -160,7 +161,7 @@ def search(
             track.artist,
             track.title,
             _fmt_duration(track.duration),
-            track.source.value,
+            track.source,
         )
 
     console.print(table)
@@ -458,29 +459,46 @@ def check_env() -> None:
     console.print(f"[OK] 下载目录: {get_download_dir()}")
 
 
-@app.command("serve")
-def serve(
-    host: str = typer.Option("0.0.0.0", "--host", "-h", help="监听地址"),
-    port: int = typer.Option(8000, "--port", "-p", help="监听端口"),
-    reload: bool = typer.Option(False, "--reload", help="开发模式自动重载"),
+def _setup_server_env() -> None:
+    """如果环境变量未设置，自动把 data/cache/config 指到项目根目录"""
+    # cli.py 位于 <project_root>/src/src/music_cli/cli.py
+    project_root = Path(__file__).resolve().parents[3]
+    if (project_root / "data").is_dir() and (project_root / "config").is_dir():
+        os.environ.setdefault("MUSIC_DOWNLOAD_DIR", str(project_root / "data"))
+        os.environ.setdefault("MUSIC_CACHE_DIR", str(project_root / "cache"))
+        os.environ.setdefault("MUSIC_CONFIG_DIR", str(project_root / "config"))
+
+
+def run_server(
+    host: str = "0.0.0.0",
+    port: int = 8001,
+    root_path: Optional[str] = None,
+    reload: bool = False,
 ) -> None:
-    """启动 FastAPI 后端服务（供 H5/小程序调用）"""
+    """启动 FastAPI 后端服务"""
     import signal
-    import sys
 
     import uvicorn
     from uvicorn import Config, Server
 
+    _setup_server_env()
     console.print(f"🚀 启动 API 服务: http://{host}:{port}")
+    if root_path:
+        console.print(f"   root_path: {root_path}")
     console.print("   按 Ctrl+C 停止")
 
-    config = Config("music_cli.web.main:app", host=host, port=port, reload=reload)
+    config = Config(
+        "music_cli.web.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        root_path=root_path,
+    )
     server = Server(config)
 
     def _shutdown(signum, frame):
         console.print("\n🛑 正在停止服务...")
         server.should_exit = True
-        # 强制退出，避免 Windows/Git Bash 下线程阻塞导致 Ctrl+C 无效
         sys.exit(0)
 
     signal.signal(signal.SIGINT, _shutdown)
@@ -491,6 +509,43 @@ def serve(
         server.run()
     except KeyboardInterrupt:
         _shutdown(None, None)
+
+
+@app.command("serve")
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="监听地址"),
+    port: int = typer.Option(8001, "--port", "-p", help="监听端口"),
+    root_path: Optional[str] = typer.Option("/music", "--root-path", help="反向代理路径前缀"),
+    reload: bool = typer.Option(False, "--reload", help="开发模式自动重载"),
+) -> None:
+    """启动 FastAPI 后端服务（供 H5/小程序调用）"""
+    run_server(host=host, port=port, root_path=root_path, reload=reload)
+
+
+@app.callback(invoke_without_command=True)
+def callback(
+    ctx: typer.Context,
+    serve: bool = typer.Option(False, "--serve", "-s", help="启动服务器模式"),
+    local: bool = typer.Option(False, "--local", "-l", help="本地 CLI 模式"),
+) -> None:
+    """music CLI 入口"""
+    if serve and local:
+        console.print("❌ -s 和 -l 不能同时使用")
+        raise typer.Exit(1)
+
+    if serve:
+        run_server(host="0.0.0.0", port=8001, root_path="/music")
+        raise typer.Exit()
+
+    if local:
+        if ctx.invoked_subcommand is None:
+            console.print("本地模式：请使用子命令，如 music -l search 周杰伦")
+            raise typer.Exit()
+        return
+
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        raise typer.Exit()
 
 
 def main() -> None:

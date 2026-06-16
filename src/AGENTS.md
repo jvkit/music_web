@@ -140,17 +140,16 @@ python scripts/deploy.py --skip-deps
 
 ```bash
 export PATH="/home/ubuntu/.local/bin:$PATH"
-export MUSIC_DOWNLOAD_DIR=~/workspace/music/data
-export MUSIC_CACHE_DIR=~/workspace/music/cache
-export MUSIC_CONFIG_DIR=~/workspace/music/config
 cd ~/workspace/music/src
-nohup uv run uvicorn music_cli.web.main:app --host 0.0.0.0 --port 8001 --root-path /music > /tmp/musiic-server.log 2>&1 &
+nohup uv run music -s > /tmp/musiic-server.log 2>&1 &
 ```
+
+`-s` 会自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根目录下的 `data/`、`cache/`、`config/`。
 
 如果通过 `ssh` 启动，建议用 `ssh -f` 让会话后台化：
 
 ```bash
-ssh -f j 'cd ~/workspace/music/src && export PATH="/home/ubuntu/.local/bin:$PATH" && export MUSIC_DOWNLOAD_DIR=~/workspace/music/data && export MUSIC_CACHE_DIR=~/workspace/music/cache && export MUSIC_CONFIG_DIR=~/workspace/music/config && nohup uv run uvicorn music_cli.web.main:app --host 0.0.0.0 --port 8001 --root-path /music > /tmp/musiic-server.log 2>&1 &'
+ssh -f j 'cd ~/workspace/music/src && export PATH="/home/ubuntu/.local/bin:$PATH" && nohup uv run music -s > /tmp/musiic-server.log 2>&1 &'
 ```
 
 ### 部署踩坑记录

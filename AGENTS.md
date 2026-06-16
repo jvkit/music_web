@@ -119,8 +119,8 @@
 
 ```bash
 cd src
-export MUSIC_DOWNLOAD_DIR=/home/ubuntu/workspace/music/data
-export MUSIC_CACHE_DIR=/home/ubuntu/workspace/music/cache
-export MUSIC_CONFIG_DIR=/home/ubuntu/workspace/music/config
-uv run uvicorn music_cli.web.main:app --host 0.0.0.0 --port 8001 --root-path /music
+uv run music -s        # 启动服务器（自动设置 data/cache/config 路径）
+uv run music -l --help # 本地 CLI 模式
 ```
+
+> `-s` / `--serve` 会自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根目录下的 `data/`、`cache/`、`config/`。如果环境变量已设置，则以环境变量为准。
