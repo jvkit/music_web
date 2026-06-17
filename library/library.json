@@ -2000,6 +2000,29 @@
         "album": "假象",
         "audio_url": "http://kw-api.cenguigui.cn?id=3371655&type=song&level=exhigh&format=mp3"
       }
+    },
+    "web_liumingye:kuwo:243826": {
+      "id": "web_liumingye:kuwo:243826",
+      "title": "龙卷风",
+      "artist": "周杰伦",
+      "source": "web_liumingye",
+      "source_url": "https://www.kuwo.cn/play_detail/243826",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_kuwo_243826_龙卷风.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 1,
+      "last_played_at": "2026-06-17T20:29:36.353948",
+      "extra": {
+        "site_id": "liumingye",
+        "source": "kuwo",
+        "rid": "243826",
+        "album": "Jay",
+        "audio_url": "http://kw-api.cenguigui.cn?id=243826&type=song&level=exhigh&format=mp3"
+      }
     }
   }
 }

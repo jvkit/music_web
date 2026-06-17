@@ -50,6 +50,9 @@ async def no_cache_static(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+        # B 方案：对入口页强制浏览器清空该站点缓存，解决已卡住的老客户端
+        if path in ("/", "/music", "/music/", "/index.html"):
+            response.headers["Clear-Site-Data"] = '"cache"'
     return response
 
 _cache_manager = CacheManager()
