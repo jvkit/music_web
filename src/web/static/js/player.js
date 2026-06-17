@@ -21,6 +21,7 @@ import {
 } from './api.js';
 import { isTrackInPlaylist, getCurrentPlaylistTracks } from './playlistOps.js';
 import { loadLocal } from './views/local.js';
+import { isInRoom, sendChangeTrack, sendPlay, sendPause, sendSeek } from './room.js';
 
 let lastPlaybackSaveTime = 0;
 
@@ -51,9 +52,11 @@ export function togglePlayPause() {
     if (state.isPlaying) {
         els.audioPlayer.pause();
         state.isPlaying = false;
+        if (isInRoom() && !state.room.applyingRemote) sendPause(els.audioPlayer.currentTime || 0);
     } else {
         els.audioPlayer.play().catch(() => showToast('播放失败', 'error'));
         state.isPlaying = true;
+        if (isInRoom() && !state.room.applyingRemote) sendPlay(els.audioPlayer.currentTime || 0);
     }
     updatePlayButton();
     savePlaybackState();
@@ -236,6 +239,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     if (context === 'search') state.queue = [...state.searchResults];
     else if (context === 'playlist') state.queue = [...getCurrentPlaylistTracks()];
     else if (context === 'local') state.queue = [track];
+    else if (context === 'room') state.queue = [track];
 
     state.queueIndex = state.queue.findIndex(t => t.id === track.id);
     state.randomHistory = [];
@@ -261,6 +265,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         updatePlayerInfo();
         updatePlayButton();
         savePlaybackState();
+        if (isInRoom() && !state.room.applyingRemote) sendChangeTrack(track);
         return;
     }
 
@@ -284,6 +289,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         updatePlayerInfo();
         updatePlayButton();
         savePlaybackState();
+        if (isInRoom() && !state.room.applyingRemote) sendChangeTrack(track);
     } catch (err) {
         if (state.loadingTrackId !== track.id) return;
         console.error('网络加载失败，尝试本地文件:', err);
@@ -299,6 +305,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
 }
 
 export async function playVideo(track, preferStream = true) {
+    if (isInRoom()) { showToast('房间模式下暂不支持 MV', 'warning'); return; }
     showToast('正在加载 MV...');
     try {
         const data = await previewTrack(track, 'video', preferStream);
@@ -324,6 +331,7 @@ export async function playLocalItem(item) {
     finishTrackLoading();
 
     if (item.media_type === 'video') {
+        if (isInRoom()) { showToast('房间模式下暂不支持 MV', 'warning'); return; }
         els.videoTitle.textContent = `${item.track.artist} - ${item.track.title}`;
         els.videoPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.id)}`;
         els.videoModal.classList.remove('hidden');
@@ -353,6 +361,7 @@ export async function playLocalItem(item) {
     updatePlayerInfo();
     updatePlayButton();
     savePlaybackState();
+    if (isInRoom() && !state.room.applyingRemote) sendChangeTrack(item.track);
 }
 
 // ===================== 队列与播放模式 =====================
@@ -462,6 +471,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
     updatePlayerInfo();
     updatePlayButton();
     savePlaybackState();
+    if (isInRoom() && !state.room.applyingRemote) sendChangeTrack(track);
 }
 
 export function handleTrackEnded() {
@@ -508,6 +518,7 @@ export function seekProgress(e) {
     const rect = els.progressContainer.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     audio.currentTime = pct * audio.duration;
+    if (isInRoom() && !state.room.applyingRemote) sendSeek(audio.currentTime);
     savePlaybackState();
 }
 
@@ -759,4 +770,61 @@ export async function restorePlaybackState() {
 
 document.addEventListener('musiic:playlists-updated', () => {
     updatePlayerFavorite();
+});
+
+// ===================== 一起听歌：远程状态应用 =====================
+
+async function applyRemoteTrack(track) {
+    if (!track || !track.id) return;
+    if (state.currentTrack && state.currentTrack.id === track.id) return;
+    state.room.applyingRemote = true;
+    try {
+        await playTrack(track, 'room');
+    } catch (err) {
+        console.error('同步房间曲目失败:', err);
+        showToast('房间同步失败', 'error');
+    } finally {
+        state.room.applyingRemote = false;
+    }
+}
+
+function applyRemotePlayState(isPlaying, position) {
+    if (!state.currentTrack) return;
+    state.room.applyingRemote = true;
+    try {
+        const audio = els.audioPlayer;
+        let targetPosition = position || 0;
+        if (isPlaying && state.room.updatedAt) {
+            // 补上从服务端下发到现在经过的时间
+            targetPosition += Math.max(0, Date.now() / 1000 - state.room.updatedAt);
+        }
+        if (audio.duration && targetPosition > audio.duration) {
+            targetPosition = audio.duration;
+        }
+        if (audio.currentTime != null && Math.abs(audio.currentTime - targetPosition) > 1.5) {
+            audio.currentTime = targetPosition;
+        }
+        if (isPlaying) {
+            audio.play().catch(() => {
+                // 移动端自动播放被拦截时保持暂停，用户可手动点播放
+            });
+            state.isPlaying = true;
+        } else {
+            audio.pause();
+            state.isPlaying = false;
+        }
+        updatePlayButton();
+        savePlaybackState();
+    } finally {
+        state.room.applyingRemote = false;
+    }
+}
+
+document.addEventListener('musiic:room-state', (e) => {
+    const { changes } = e.detail;
+    if (changes.trackChanged) {
+        applyRemoteTrack(state.room.currentTrack);
+    } else if (changes.playStateChanged || changes.seekChanged) {
+        applyRemotePlayState(state.room.isPlaying, state.room.position);
+    }
 });

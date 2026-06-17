@@ -66,4 +66,18 @@ export const state = {
 
     // 是否正在搜索（防重复提交）
     isSearching: false,
+
+    // 一起听歌房间
+    room: {
+        id: null,
+        connected: false,
+        participants: [],
+        isInRoom: false,
+        syncEnabled: false,
+        currentTrack: null,
+        isPlaying: false,
+        position: 0,
+        updatedAt: 0,
+        queue: [],
+    },
 };

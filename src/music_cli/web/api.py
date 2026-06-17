@@ -27,6 +27,7 @@ from music_cli.sources import SOURCE_STATUS, get_source
 from music_cli.sources.base import Source
 from music_cli.sources.web import WEB_ADAPTERS
 from music_cli.web.downloads import DownloadManager, write_track_sidecar
+from music_cli.web.rooms import router as rooms_router
 
 
 app = FastAPI(title="music-cli API", version="0.1.0")
@@ -899,6 +900,9 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
     """封面代理 HEAD 支持"""
     return api_thumbnail(url)
 
+
+# 一起听歌房间 WebSocket / REST API
+app.include_router(rooms_router, prefix="/api")
 
 # 静态文件：H5 前端
 # api.py 位于 <project_root>/src/music_cli/web/api.py

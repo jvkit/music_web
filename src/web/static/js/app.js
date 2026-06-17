@@ -48,6 +48,8 @@ import { saveSettingsFromUI, renderSettings } from './views/settings.js';
 import { openCopyModal, closeCopyModal, cancelActiveDownload } from './views/modals.js';
 import { handleSelectAll } from './selection.js';
 import { initPasswordGate, initAdminPasswordModal } from './passwordGate.js';
+import { initRoomUI, openRoomModal } from './components/roomPanel.js';
+import { connectRoom, checkRoomExists } from './room.js';
 import {
     togglePlayPause,
     playPrev,
@@ -81,7 +83,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderPlaybackMode();
     renderSourceSelect();
     await restorePlaybackState();
+    initRoomUI();
+    promptJoinFromUrl();
 });
+
+async function promptJoinFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('room');
+    if (!roomId) return;
+    // 清理 URL，避免刷新重复提示
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    window.history.replaceState({}, '', url);
+
+    const exists = await checkRoomExists(roomId);
+    if (!exists) {
+        showToast('邀请链接中的房间不存在', 'error');
+        return;
+    }
+    openRoomModal(roomId);
+    showToast(`邀请你加入房间 ${roomId}`, 'success');
+}
 
 function bindEvents() {
     els.searchBtn.addEventListener('click', () => { switchTab('search'); handleSearch(); });

@@ -49,6 +49,19 @@
         </div>
     </div>
 
+    <!-- 一起听房间弹窗 -->
+    <div id="roomModal" class="fixed inset-0 z-[120] bg-base-200/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
+            <div class="card-body">
+                <div class="flex items-center justify-between">
+                    <h2 id="roomModalTitle" class="card-title text-lg">一起听</h2>
+                    <button id="roomModalClose" class="btn btn-ghost btn-circle btn-sm"><i class="ph ph-x"></i></button>
+                </div>
+                <div id="roomModalBody" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 顶部搜索栏 -->
     <header class="sticky top-0 z-40 glass border-b border-base-300/50">
         <div class="max-w-3xl mx-auto px-4 py-4 space-y-3">
@@ -108,6 +121,19 @@
             </div>
         </nav>
     </header>
+
+    <!-- 一起听顶部横幅 -->
+    <div id="roomBanner" class="hidden bg-primary/10 border-b border-primary/20 backdrop-blur">
+        <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-sm">
+                <i class="ph ph-users text-primary"></i>
+                <span class="font-medium text-primary">一起听</span>
+                <span class="text-base-content/70">房间 <span id="roomBannerCode" class="font-mono font-bold tracking-wider">----</span></span>
+                <span class="text-base-content/50 text-xs" id="roomBannerCount">1 人在线</span>
+            </div>
+            <button id="roomBannerExit" class="btn btn-xs btn-ghost text-error">退出</button>
+        </div>
+    </div>
 
     <!-- 主内容区 -->
     <main class="max-w-3xl mx-auto px-4 py-5">
@@ -307,6 +333,7 @@
                     <button id="modeBtn" class="btn btn-circle btn-ghost btn-sm" title="列表循环"><i class="ph ph-repeat"></i></button>
                     <button id="playerFavoriteBtn" class="btn btn-circle btn-ghost btn-sm text-base-content/40" title="收藏"><i class="ph ph-heart"></i></button>
                     <button id="playerLyricsBtn" class="btn btn-circle btn-ghost btn-sm" title="歌词"><i class="ph ph-microphone"></i></button>
+                    <button id="roomBtn" class="btn btn-circle btn-ghost btn-sm text-base-content/60" title="一起听"><i class="ph ph-users"></i></button>
                     <button id="playerRemoveBtn" class="hidden btn btn-circle btn-ghost btn-sm text-error" title="删除本地文件"><i class="ph ph-trash"></i></button>
                 </div>
             </div>
@@ -380,6 +407,6 @@
         })();
     </script>
 
-    <script type="module" src="js/app.js?v=8"></script>
+    <script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

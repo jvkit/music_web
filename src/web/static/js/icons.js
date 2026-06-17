@@ -40,6 +40,7 @@ export const ICON_CLASS = {
     shuffle: 'ph-shuffle',
 
     list: 'ph-list',
+    users: 'ph-users',
     spinner: 'ph-spinner',
     clock: 'ph-clock',
     chart: 'ph-chart-bar',
