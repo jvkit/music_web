@@ -9,12 +9,13 @@ import { fetchWebSources } from './api.js';
 import { refreshPlayCounts, restorePlaybackState, savePlaybackState } from './player.js';
 import { toggleFavorite } from './playlistOps.js';
 import { loadPlaylists, renderPlaylists, handleCreatePlaylist, handleDeletePlaylist } from './views/playlists.js';
+import { refreshLibrary } from './playlistOps.js';
 import { loadLocal } from './views/local.js';
 import { handleSearch } from './views/search.js';
 import { saveSettingsFromUI, renderSettings } from './views/settings.js';
 import { openCopyModal, closeCopyModal, cancelActiveDownload } from './views/modals.js';
 import { handleSelectAll } from './selection.js';
-import { initPasswordGate } from './passwordGate.js';
+import { initPasswordGate, initAdminPasswordModal } from './passwordGate.js';
 import {
     togglePlayPause,
     playPrev,
@@ -35,13 +36,14 @@ import {
 
 document.addEventListener('DOMContentLoaded', async () => {
     initPasswordGate();
+    initAdminPasswordModal();
     cacheElements();
     bindEvents();
     loadSettings();
+    await loadWebSources();
     await loadPlaylists();
     refreshPlayCounts();
     await loadLocal();
-    await loadWebSources();
     renderTabs();
     renderSettings();
     renderPlaybackMode();
@@ -170,6 +172,8 @@ async function loadWebSources() {
         state.webSources = data.items || [];
         renderWebSourceMenu();
         renderSourceChips();
+        // 音源分类播放列表依赖 webSources 元数据，加载后重新构建
+        await refreshLibrary();
     } catch (err) {
         console.error('加载网页音源失败:', err);
     }

@@ -9,6 +9,7 @@ import { icon } from '../icons.js';
 import { createPlaylist, deletePlaylist } from '../api.js';
 import { createTrackCard } from '../components/trackCard.js';
 import { refreshLibrary } from '../playlistOps.js';
+import { requireAdminPassword } from '../passwordGate.js';
 
 export async function loadPlaylists() {
     try {
@@ -40,7 +41,7 @@ export function renderPlaylists() {
     if (!playlist) return;
 
     els.currentPlaylistTitle.textContent = playlist.name;
-    els.deletePlaylistBtn.classList.toggle('hidden', playlist.is_default);
+    els.deletePlaylistBtn.classList.toggle('hidden', playlist.is_default || playlist.is_system);
 
     const container = els.playlistTracks;
     container.innerHTML = '';
@@ -94,10 +95,12 @@ export async function handleCreatePlaylist() {
 
 export async function handleDeletePlaylist() {
     const playlist = state.playlists.find(p => p.id === state.currentPlaylistId);
-    if (!playlist || playlist.is_default) {
-        showToast('默认播放列表不可删除', 'warning');
+    if (!playlist || playlist.is_default || playlist.is_system) {
+        showToast('该播放列表不可删除', 'warning');
         return;
     }
+    const ok = await requireAdminPassword('删除播放列表');
+    if (!ok) return;
     if (!confirm(`确定删除播放列表「${playlist.name}」吗？`)) return;
     try {
         await deletePlaylist(playlist.id);

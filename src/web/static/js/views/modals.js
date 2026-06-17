@@ -18,7 +18,7 @@ export function openCopyModal() {
 
     const list = els.copyModalList;
     list.innerHTML = '';
-    state.playlists.forEach(p => {
+    state.playlists.filter(p => !p.is_system).forEach(p => {
         const btn = document.createElement('button');
         btn.className = 'btn btn-ghost justify-start';
         btn.innerHTML = `${icon(p.is_default ? 'heart' : 'playlist', { filled: p.is_default })} ${p.name}`;

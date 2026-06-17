@@ -10,6 +10,7 @@ import { icon } from '../icons.js';
 import { deleteLocalItem, fetchLocalItems } from '../api.js';
 import { playLocalItem, updatePlayerRemoveButton, playNext, stopPlayback } from '../player.js';
 import { toggleFavorite } from '../playlistOps.js';
+import { requireAdminPassword } from '../passwordGate.js';
 
 export async function loadLocal() {
     els.localLoading.classList.remove('hidden');
@@ -75,6 +76,8 @@ export function renderLocal() {
 }
 
 async function deleteLocalItemById(item) {
+    const ok = await requireAdminPassword('删除本地文件');
+    if (!ok) return;
     if (!confirm('确定删除该本地文件吗？')) return;
 
     if (item.track && state.currentTrack && state.currentTrack.id === item.track.id) {

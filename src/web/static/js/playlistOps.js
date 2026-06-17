@@ -4,6 +4,7 @@
 
 import { state } from './state.js';
 import { showToast } from './utils.js';
+import { requireAdminPassword } from './passwordGate.js';
 import {
     addTrackToPlaylist as apiAddTrack,
     removeTrackFromPlaylist as apiRemoveTrack,
@@ -25,18 +26,50 @@ export function songToTrack(song) {
     };
 }
 
+const SYSTEM_SOURCE_PLAYLISTS = [
+    { id: 'source_direct', name: '稳定直连源', category: 'direct', is_system: true },
+    { id: 'source_stable', name: '非直连但基本稳定的源', category: 'stable', is_system: true },
+    { id: 'source_unstable', name: '不稳定源', category: 'unstable', is_system: true },
+    { id: 'source_foreign', name: '外网源', category: 'foreign', is_system: true },
+];
+
+function getSourceCategory(source, webSources) {
+    const s = (source || '').toLowerCase();
+    if (s === 'youtube' || s === 'soundcloud') return 'foreign';
+
+    const ws = webSources.find(ws => ws.id === s);
+    if (ws) {
+        if (ws.status === 'unstable') return 'unstable';
+        if (ws.direct_stream) return 'direct';
+        return 'stable';
+    }
+
+    if (s === 'netease' || s === 'bilibili') return 'stable';
+    return null;
+}
+
 export function buildPlaylistsFromLibrary(library) {
     const playlistsMap = library.playlists || {};
     const songsMap = library.songs || {};
     const songs = Object.values(songsMap);
+    const webSources = state.webSources || [];
 
-    return Object.values(playlistsMap).map(p => ({
+    const userPlaylists = Object.values(playlistsMap).map(p => ({
         ...p,
         is_default: p.id === 'default',
         tracks: songs
             .filter(s => (s.playlists || []).includes(p.id))
             .map(s => songToTrack(s))
     }));
+
+    const systemPlaylists = SYSTEM_SOURCE_PLAYLISTS.map(sp => ({
+        ...sp,
+        tracks: songs
+            .filter(s => getSourceCategory(s.source, webSources) === sp.category)
+            .map(s => songToTrack(s))
+    }));
+
+    return [...systemPlaylists, ...userPlaylists];
 }
 
 export function isTrackInPlaylist(trackId, playlistId) {
@@ -56,7 +89,11 @@ export async function addTrackToPlaylist(playlistId, track) {
     }
 }
 
-export async function removeTrackFromPlaylist(playlistId, trackId) {
+export async function removeTrackFromPlaylist(playlistId, trackId, { skipPassword = false } = {}) {
+    if (!skipPassword) {
+        const ok = await requireAdminPassword('从列表移除歌曲');
+        if (!ok) return;
+    }
     if (!confirm('确定从列表中移除这首歌曲吗？')) return;
 
     if (state.currentTrack && state.currentTrack.id === trackId) {
@@ -93,7 +130,9 @@ function getFavoriteTargetId(track) {
 export async function toggleFavorite(track) {
     const targetId = getFavoriteTargetId(track);
     if (isTrackInPlaylist(track.id, targetId)) {
-        await removeTrackFromPlaylist(targetId, track.id);
+        const ok = await requireAdminPassword('取消收藏');
+        if (!ok) return;
+        await removeTrackFromPlaylist(targetId, track.id, { skipPassword: true });
         showToast('已取消收藏', 'success');
     } else {
         await addTrackToPlaylist(targetId, track);

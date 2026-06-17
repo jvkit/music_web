@@ -72,12 +72,105 @@ body {
     #playerBar .btn-circle {
         min-width: 2.25rem;
         min-height: 2.25rem;
+        height: 2.25rem;
+        width: 2.25rem;
     }
     #playPauseBtn {
         min-width: 2.75rem;
         min-height: 2.75rem;
+        height: 2.75rem;
+        width: 2.75rem;
     }
     body {
-        padding-bottom: 140px;
+        padding-bottom: 120px;
+    }
+    #playerBar {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    #playerBar .max-w-3xl {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    /* 卡片更紧凑 */
+    .track-card,
+    #localList > div,
+    #playlistTracks > div {
+        padding: 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+
+    .track-card figure img,
+    #localList > div figure img {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+    }
+
+    .track-card h3,
+    #localList h3 {
+        font-size: 0.8125rem !important;
+        line-height: 1.25 !important;
+    }
+
+    .track-card p,
+    .track-card .text-xs,
+    #localList p,
+    #localList .text-xs {
+        font-size: 0.6875rem !important;
+    }
+
+    /* 操作按钮横向排列 */
+    .track-card > div:last-child,
+    #localList > div > div:last-child {
+        flex-direction: row !important;
+        gap: 0.25rem !important;
+    }
+
+    .track-card .btn-circle,
+    #localList .btn-circle {
+        min-width: 1.75rem !important;
+        min-height: 1.75rem !important;
+        height: 1.75rem !important;
+        width: 1.75rem !important;
+    }
+
+    .track-card .btn-circle i,
+    #localList .btn-circle i {
+        font-size: 0.875rem !important;
+    }
+
+    /* 列表侧边栏更紧凑 */
+    #playlistsSidebar button {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        font-size: 0.75rem;
+        height: 2rem;
+        min-height: 2rem;
+    }
+
+    /* 主内容区减少内边距 */
+    main {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    main > section > h2 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* 筛选按钮更紧凑 */
+    .source-chip {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        height: 1.75rem;
+        min-height: 1.75rem;
+        font-size: 0.75rem;
+    }
+
+    /* Tab 更紧凑 */
+    .tab {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
     }
 }

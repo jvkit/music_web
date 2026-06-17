@@ -6,11 +6,12 @@ import { DEFAULT_SETTINGS, LS_SETTINGS_KEY } from '../config.js';
 import { els } from '../dom.js';
 import { state } from '../state.js';
 import { saveToStorage, showToast } from '../utils.js';
+import { requireAdminPassword } from '../passwordGate.js';
 import { renderSearchResults } from './search.js';
 
 function populatePlaylistSelects() {
     const selects = [els.settingsTargetPlaylist, els.settingsWebFavoritePlaylist];
-    const options = state.playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    const options = state.playlists.filter(p => !p.is_system).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     selects.forEach(select => {
         if (!select) return;
         const current = select.value;
@@ -21,7 +22,10 @@ function populatePlaylistSelects() {
     });
 }
 
-export function saveSettingsFromUI() {
+export async function saveSettingsFromUI() {
+    const ok = await requireAdminPassword('保存设置');
+    if (!ok) return;
+
     const limits = {
         youtube: parseInt(els.settingsLimitYoutube.value, 10) || DEFAULT_SETTINGS.limits.youtube,
         netease: parseInt(els.settingsLimitNetease.value, 10) || DEFAULT_SETTINGS.limits.netease,

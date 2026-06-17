@@ -16,9 +16,11 @@ export function createTrackCard(track, options = {}) {
     const isFavorite = isTrackInPlaylist(track.id, targetId);
     const isSelected = state.selectedIds.has(track.id);
     const isCurrent = state.currentTrack && state.currentTrack.id === track.id && state.isPlaying;
+    const currentPlaylist = state.playlists.find(p => p.id === state.currentPlaylistId);
+    const isSystemPlaylist = context === 'playlist' && currentPlaylist && currentPlaylist.is_system;
 
     const div = document.createElement('div');
-    div.className = 'card card-side flex-wrap bg-base-100/80 backdrop-blur shadow-sm border border-base-200/60 p-3 gap-3 items-center hover:shadow-md transition group';
+    div.className = 'track-card card card-side flex-wrap bg-base-100/80 backdrop-blur shadow-sm border border-base-200/60 p-3 gap-3 items-center hover:shadow-md transition group';
 
     let left = '';
     if (selectable) {
@@ -45,7 +47,7 @@ export function createTrackCard(track, options = {}) {
         <div class="flex flex-col gap-2 flex-shrink-0">
             <button class="btn-play btn btn-circle btn-primary btn-sm" title="播放">${icon('play')}</button>
             ${(track.source === 'youtube' || track.source === 'bilibili') ? `<button class="btn-mv btn btn-circle btn-secondary btn-sm" title="播放MV">${icon('film')}</button>` : ''}
-            ${context === 'playlist' ? `<button class="btn-remove btn btn-circle btn-error btn-sm btn-ghost" title="从列表移除">${icon('close')}</button>` : ''}
+            ${context === 'playlist' && !isSystemPlaylist ? `<button class="btn-remove btn btn-circle btn-error btn-sm btn-ghost" title="从列表移除">${icon('close')}</button>` : ''}
             ${hasPages ? `<button class="btn-pages btn btn-circle btn-ghost btn-sm text-base-content/50" title="选集">${icon('list')}</button>` : ''}
             ${context !== 'playlist' ? `<button class="btn-favorite btn btn-circle btn-sm ${isFavorite ? 'btn-error' : 'btn-ghost text-base-content/50'}" title="${isFavorite ? '已收藏' : '收藏'}">${icon('heart', { filled: isFavorite })}</button>` : ''}
         </div>

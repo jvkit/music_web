@@ -29,6 +29,22 @@
         </div>
     </div>
 
+    <!-- 管理密码弹窗（删除/取消收藏/改设置等敏感操作） -->
+    <div id="adminPasswordModal" class="fixed inset-0 z-[110] bg-base-200/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
+            <div class="card-body">
+                <h2 id="adminPasswordTitle" class="card-title text-lg">需要密码</h2>
+                <p class="text-sm text-base-content/60">该操作受保护，请输入管理密码</p>
+                <input id="adminPasswordInput" type="password" placeholder="管理密码" class="input input-bordered w-full mt-2" autocomplete="off">
+                <p id="adminPasswordError" class="text-sm text-error hidden">密码错误</p>
+                <div class="flex gap-2 mt-2">
+                    <button id="adminPasswordCancel" class="btn btn-ghost flex-1">取消</button>
+                    <button id="adminPasswordSubmit" class="btn btn-primary flex-1">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 顶部搜索栏 -->
     <header class="sticky top-0 z-40 glass border-b border-base-300/50">
         <div class="max-w-3xl mx-auto px-4 py-4 space-y-3">

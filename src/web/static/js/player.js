@@ -155,6 +155,9 @@ export async function removeCurrentLocalTrack() {
     if (!state.currentTrack) return;
     const localItem = state.localItems.find(i => i.track && i.track.id === state.currentTrack.id);
     if (!localItem) return;
+    const { requireAdminPassword } = await import('./passwordGate.js');
+    const ok = await requireAdminPassword('删除本地文件');
+    if (!ok) return;
     if (!confirm('确定删除该本地文件吗？')) return;
 
     const deletingId = localItem.id;
