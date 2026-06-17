@@ -12,7 +12,7 @@ const SOURCE_GROUPS = [
     {
         id: 'direct',
         name: '稳定直连源',
-        sources: ['web_zz123', 'web_fangpi', 'web_jbsou', 'web_netease_fe_mm']
+        sources: ['web_fangpi', 'web_jbsou', 'web_netease_fe_mm']
     },
     {
         id: 'stable',
@@ -22,7 +22,7 @@ const SOURCE_GROUPS = [
     {
         id: 'unstable',
         name: '不稳定源',
-        sources: ['web_qqmp3', 'web_musicenc', 'web_yinyueke', 'web_lvyueyang']
+        sources: ['web_zz123', 'web_qqmp3', 'web_musicenc', 'web_yinyueke', 'web_lvyueyang']
     },
     {
         id: 'foreign',
@@ -38,7 +38,8 @@ const NATIVE_SOURCE_NAMES = {
     soundcloud: 'SoundCloud'
 };
 import { refreshPlayCounts, restorePlaybackState, savePlaybackState } from './player.js';
-import { toggleFavorite } from './playlistOps.js';
+import { toggleFavorite, getFavoriteTargetId, isTrackInPlaylist } from './playlistOps.js';
+import { icon } from './icons.js';
 import { loadPlaylists, renderPlaylists, handleCreatePlaylist, handleDeletePlaylist } from './views/playlists.js';
 import { refreshLibrary } from './playlistOps.js';
 import { loadLocal } from './views/local.js';
@@ -83,12 +84,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function bindEvents() {
-    els.searchBtn.addEventListener('click', handleSearch);
-    els.searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSearch(); });
+    els.searchBtn.addEventListener('click', () => { switchTab('search'); handleSearch(); });
+    els.searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { switchTab('search'); handleSearch(); } });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+    // 兜底：用事件委托处理 Tab 切换，防止某些移动端点击图标不触发
+    if (els.tabNav) {
+        els.tabNav.addEventListener('click', e => {
+            const btn = e.target.closest('.tab-btn');
+            if (btn && btn.dataset.tab) switchTab(btn.dataset.tab);
+        });
+    }
 
     if (els.sourceSelect) {
         els.sourceSelect.addEventListener('change', () => {
@@ -122,7 +130,14 @@ function bindEvents() {
     els.lyricsModeBtn.addEventListener('click', togglePlaybackMode);
     els.lyricsFavoriteBtn.addEventListener('click', () => {
         if (!state.currentTrack) { showToast('请先选择一首歌曲'); return; }
-        toggleFavorite(state.currentTrack);
+        const t = state.currentTrack;
+        const targetId = getFavoriteTargetId(t);
+        const next = !isTrackInPlaylist(t.id, targetId);
+        els.lyricsFavoriteBtn.innerHTML = icon('heart', { filled: next });
+        els.lyricsFavoriteBtn.className = next
+            ? 'btn btn-circle btn-ghost text-error'
+            : 'btn btn-circle btn-ghost text-white';
+        toggleFavorite(t).catch(() => {});
     });
     els.lyricsRemoveBtn.addEventListener('click', removeCurrentLocalTrack);
 
@@ -134,7 +149,20 @@ function bindEvents() {
     els.modeBtn.addEventListener('click', togglePlaybackMode);
     els.playerFavoriteBtn.addEventListener('click', () => {
         if (!state.currentTrack) { showToast('请先选择一首歌曲'); return; }
-        toggleFavorite(state.currentTrack);
+        const t = state.currentTrack;
+        const targetId = getFavoriteTargetId(t);
+        const next = !isTrackInPlaylist(t.id, targetId);
+        els.playerFavoriteBtn.innerHTML = icon('heart', { filled: next });
+        els.playerFavoriteBtn.className = next
+            ? 'btn btn-circle btn-ghost btn-sm text-error'
+            : 'btn btn-circle btn-ghost btn-sm text-base-content/40';
+        if (els.lyricsFavoriteBtn) {
+            els.lyricsFavoriteBtn.innerHTML = icon('heart', { filled: next });
+            els.lyricsFavoriteBtn.className = next
+                ? 'btn btn-circle btn-ghost text-error'
+                : 'btn btn-circle btn-ghost text-white';
+        }
+        toggleFavorite(t).catch(() => {});
     });
 
     els.audioPlayer.addEventListener('timeupdate', updateProgress);
@@ -174,6 +202,13 @@ function switchTab(tab) {
         document.dispatchEvent(new CustomEvent('musiic:selection-changed'));
     } else {
         els.batchBar.classList.add('hidden');
+    }
+
+    if (tab === 'search') {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (els.searchInput) els.searchInput.focus({ preventScroll: true });
+        });
     }
 }
 

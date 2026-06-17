@@ -32,5 +32,5 @@ src/package-lock.json
 src/web/package-lock.json
 
 # Temporary / accidental
-src/src/
-web/
+/src/src/
+/web/

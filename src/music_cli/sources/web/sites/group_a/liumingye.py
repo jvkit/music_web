@@ -5,10 +5,12 @@
 以 Kuwo、网易云、QQ 音乐为主进行搜索，并对可用的音源返回播放地址。
 """
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlencode
+
+import time
 
 import requests
 
@@ -36,16 +38,17 @@ class LiumingyeAdapter(WebAdapter):
 
     def __init__(self) -> None:
         self._session = requests.Session()
-        self._session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                ),
-                "Accept": "application/json, text/plain, */*",
-                "Accept-Language": "zh-CN,zh;q=0.9",
-            }
-        )
+        self._session.headers.update(self._headers())
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+        }
 
     # ------------------------------------------------------------------
     # 搜索
@@ -56,33 +59,50 @@ class LiumingyeAdapter(WebAdapter):
 
         page = (offset // max(1, limit)) + 1
         per_source = max(limit, 10)
+        need = offset + limit
 
-        source_tracks: list[list[Track]] = []
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = [
-                pool.submit(self._search_kuwo, query, per_source, page),
-                pool.submit(self._search_netease, query, per_source, page),
-                pool.submit(self._search_qq, query, per_source),
-            ]
-            for future in futures:
+        tracks: list[Track] = []
+        # 有任意源快速返回即可先展示，整体最多等 6 秒，避免最慢源拖垮体验。
+        overall_timeout = 6
+        started = time.time()
+
+        pool = ThreadPoolExecutor(max_workers=3)
+        futures = {
+            pool.submit(self._search_kuwo, query, per_source, page): "kuwo",
+            pool.submit(self._search_netease, query, per_source, page): "netease",
+            pool.submit(self._search_qq, query, per_source): "qq",
+        }
+        try:
+            for future in as_completed(futures, timeout=overall_timeout):
                 try:
-                    source_tracks.append(future.result())
+                    tracks.extend(future.result())
                 except Exception:
-                    source_tracks.append([])
+                    pass
+                if len(tracks) >= need:
+                    break
+                if time.time() - started >= overall_timeout:
+                    break
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
 
         # 交错合并各源结果，避免前几条全部来自同一源。
-        tracks: list[Track] = []
-        max_len = max((len(lst) for lst in source_tracks), default=0)
+        grouped: dict[str, list[Track]] = {name: [] for name in ("kuwo", "netease", "qq")}
+        for t in tracks:
+            src = t.extra.get("source") or "kuwo"
+            grouped.setdefault(src, []).append(t)
+        merged: list[Track] = []
+        max_len = max(len(lst) for lst in grouped.values()) if grouped else 0
         for i in range(max_len):
-            for lst in source_tracks:
+            for src in ("kuwo", "netease", "qq"):
+                lst = grouped.get(src, [])
                 if i < len(lst):
-                    tracks.append(lst[i])
+                    merged.append(lst[i])
 
-        return tracks[offset : offset + limit]
+        return merged[offset:offset + limit]
 
     def _search_kuwo(self, query: str, limit: int, page: int) -> list[Track]:
         url = f"https://kw-api.cenguigui.cn/?{urlencode({'name': query, 'page': page, 'limit': limit})}"
-        resp = self._session.get(url, timeout=20)
+        resp = requests.get(url, headers=self._headers(), timeout=8)
         resp.raise_for_status()
         data = resp.json()
         if data.get("code") != 200 or not isinstance(data.get("data"), list):
@@ -112,7 +132,7 @@ class LiumingyeAdapter(WebAdapter):
 
     def _search_netease(self, query: str, limit: int, page: int) -> list[Track]:
         url = f"https://api.vkeys.cn/v2/music/netease?{urlencode({'word': query, 'page': page, 'num': limit})}"
-        resp = self._session.get(url, timeout=20)
+        resp = requests.get(url, headers=self._headers(), timeout=8)
         resp.raise_for_status()
         data = resp.json()
         if data.get("code") != 200 or not isinstance(data.get("data"), list):
@@ -141,7 +161,7 @@ class LiumingyeAdapter(WebAdapter):
 
     def _search_qq(self, query: str, limit: int) -> list[Track]:
         url = f"https://tang.api.s01s.cn/music_open_api.php?{urlencode({'msg': query, 'type': 'json'})}"
-        resp = self._session.get(url, timeout=20)
+        resp = requests.get(url, headers=self._headers(), timeout=8)
         resp.raise_for_status()
         payload = resp.json()
         items: list[dict[str, Any]] = []

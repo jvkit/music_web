@@ -8,7 +8,7 @@ export const state = {
     currentTab: 'search',
     searchResults: [],
     searchQuery: '',
-    searchSource: 'web_zz123',
+    searchSource: 'web_liumingye',
     searchOffset: 0,
     searchHasMore: true,
     webSources: [],
@@ -60,4 +60,10 @@ export const state = {
 
     // 边下边播回退状态
     streamFallback: null,
+
+    // 当前正在加载（防重复点击）的曲目 ID
+    loadingTrackId: null,
+
+    // 是否正在搜索（防重复提交）
+    isSearching: false,
 };

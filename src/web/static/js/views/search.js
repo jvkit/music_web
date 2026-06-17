@@ -9,12 +9,17 @@ import { searchTracks } from '../api.js';
 import { createTrackCard } from '../components/trackCard.js';
 
 export async function handleSearch() {
+    if (state.isSearching) return;
+
     const query = els.searchInput.value.trim();
     if (!query) { showToast('请输入搜索关键词'); return; }
 
     const source = state.searchSource;
     const limit = state.settings.limits[source] || 10;
 
+    state.isSearching = true;
+    els.searchBtn.disabled = true;
+    els.searchInput.disabled = true;
     els.searchEmpty.classList.add('hidden');
     els.searchResults.innerHTML = '';
     els.searchLoading.classList.remove('hidden');
@@ -25,6 +30,11 @@ export async function handleSearch() {
     state.searchOffset = 0;
     state.searchHasMore = true;
 
+    // 移动端确保用户能看到加载状态
+    requestAnimationFrame(() => {
+        els.searchLoading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     try {
         const data = await searchTracks(query, source, limit, 0);
         state.searchResults = data.tracks || [];
@@ -32,8 +42,18 @@ export async function handleSearch() {
         // YouTube 因 yt-dlp 限制无法真正翻页，不显示“加载更多”
         state.searchHasMore = source !== 'youtube' && state.searchResults.length >= limit;
         renderSearchResults();
+    } catch (err) {
+        showToast('搜索失败', 'error');
     } finally {
+        state.isSearching = false;
+        els.searchBtn.disabled = false;
+        els.searchInput.disabled = false;
         els.searchLoading.classList.add('hidden');
+        if (state.searchResults.length > 0) {
+            requestAnimationFrame(() => {
+                els.searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     }
 }
 

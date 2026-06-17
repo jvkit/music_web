@@ -8,14 +8,15 @@ import { escapeHtml, formatTime, getPlayCountBadge } from '../utils.js';
 import { icon } from '../icons.js';
 import { fetchTrackPages } from '../api.js';
 import { playTrack, playVideo } from '../player.js';
-import { isTrackInPlaylist, toggleFavorite, removeTrackFromPlaylist } from '../playlistOps.js';
+import { isTrackInPlaylist, toggleFavorite, removeTrackFromPlaylist, getFavoriteTargetId } from '../playlistOps.js';
 
 export function createTrackCard(track, options = {}) {
     const { selectable = false, showSource = false, context = 'search' } = options;
-    const targetId = context === 'search' ? (state.settings.targetPlaylistId || 'default') : state.currentPlaylistId;
-    const isFavorite = isTrackInPlaylist(track.id, targetId);
+    const favoriteTargetId = getFavoriteTargetId(track);
+    const isFavorite = isTrackInPlaylist(track.id, favoriteTargetId);
     const isSelected = state.selectedIds.has(track.id);
     const isCurrent = state.currentTrack && state.currentTrack.id === track.id && state.isPlaying;
+    const isLoading = state.loadingTrackId === track.id;
     const currentPlaylist = state.playlists.find(p => p.id === state.currentPlaylistId);
     const isSystemPlaylist = context === 'playlist' && currentPlaylist && currentPlaylist.is_system;
 
@@ -32,7 +33,7 @@ export function createTrackCard(track, options = {}) {
     div.innerHTML = `
         ${left ? `<div class="flex-shrink-0">${left}</div>` : ''}
         <figure class="relative flex-shrink-0 m-0">
-            <img src="${getThumbnailUrl(track.thumbnail)}" alt="cover" class="w-16 h-16 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
+            <img src="${getThumbnailUrl(track.thumbnail)}" alt="cover" loading="lazy" class="w-16 h-16 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
             ${isCurrent ? `<div class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">${icon('music', { className: 'text-white text-lg' })}</div>` : ''}
         </figure>
         <div class="flex-1 min-w-0">
@@ -45,7 +46,7 @@ export function createTrackCard(track, options = {}) {
             </div>
         </div>
         <div class="flex flex-col gap-2 flex-shrink-0">
-            <button class="btn-play btn btn-circle btn-primary btn-sm" title="播放">${icon('play')}</button>
+            <button class="btn-play btn btn-circle btn-primary btn-sm" data-id="${track.id}" title="播放" ${isLoading ? 'disabled' : ''}>${icon(isLoading ? 'spinner' : 'play', isLoading ? { className: 'animate-spin' } : {})}</button>
             ${(track.source === 'youtube' || track.source === 'bilibili') ? `<button class="btn-mv btn btn-circle btn-secondary btn-sm" title="播放MV">${icon('film')}</button>` : ''}
             ${context === 'playlist' && !isSystemPlaylist ? `<button class="btn-remove btn btn-circle btn-error btn-sm btn-ghost" title="从列表移除">${icon('close')}</button>` : ''}
             ${hasPages ? `<button class="btn-pages btn btn-circle btn-ghost btn-sm text-base-content/50" title="选集">${icon('list')}</button>` : ''}
@@ -66,7 +67,20 @@ export function createTrackCard(track, options = {}) {
     const pagesBtn = div.querySelector('.btn-pages');
     if (pagesBtn) pagesBtn.addEventListener('click', () => togglePages(div, track, context, pagesBtn));
     const favBtn = div.querySelector('.btn-favorite');
-    if (favBtn) favBtn.addEventListener('click', () => toggleFavorite(track));
+    if (favBtn) {
+        favBtn.addEventListener('click', async () => {
+            const targetId = getFavoriteTargetId(track);
+            const nextFavorite = !isTrackInPlaylist(track.id, targetId);
+            // 立即反馈，不等 API 返回
+            favBtn.innerHTML = icon('heart', { filled: nextFavorite });
+            favBtn.className = `btn btn-circle btn-sm ${nextFavorite ? 'btn-error' : 'btn-ghost text-base-content/50'}`;
+            try {
+                await toggleFavorite(track);
+            } catch {
+                // 失败时 optimisticallySetFavorite 会回退并触发重绘
+            }
+        });
+    }
 
     return div;
 }
@@ -97,8 +111,9 @@ async function togglePages(container, track, context, btn) {
                 const pageTrack = buildPageTrack(track, page);
                 const row = document.createElement('div');
                 row.className = 'flex items-center gap-2 p-2 rounded-lg bg-base-200/50 hover:bg-base-200 cursor-pointer';
+                const isPageLoading = state.loadingTrackId === pageTrack.id;
                 row.innerHTML = `
-                    <button class="btn btn-circle btn-primary btn-xs">${icon('play')}</button>
+                    <button class="btn-play btn btn-circle btn-primary btn-xs" data-id="${pageTrack.id}" ${isPageLoading ? 'disabled' : ''}>${icon(isPageLoading ? 'spinner' : 'play', isPageLoading ? { className: 'animate-spin' } : {})}</button>
                     <span class="text-xs flex-1 truncate">${escapeHtml(pageTrack.title)}</span>
                     <span class="text-xs text-base-content/50">${formatTime(pageTrack.duration)}</span>
                 `;

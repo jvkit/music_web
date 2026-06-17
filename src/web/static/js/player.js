@@ -24,6 +24,26 @@ import { loadLocal } from './views/local.js';
 
 let lastPlaybackSaveTime = 0;
 
+// ===================== 加载状态（防重复点击） =====================
+
+export function setTrackLoading(trackId) {
+    state.loadingTrackId = trackId;
+    updateLoadingButtons();
+}
+
+export function finishTrackLoading() {
+    state.loadingTrackId = null;
+    updateLoadingButtons();
+}
+
+export function updateLoadingButtons() {
+    document.querySelectorAll('.btn-play[data-id]').forEach(btn => {
+        const loading = state.loadingTrackId === btn.dataset.id;
+        btn.disabled = loading;
+        btn.innerHTML = icon(loading ? 'spinner' : 'play', loading ? { className: 'animate-spin' } : {});
+    });
+}
+
 // ===================== 播放控制 =====================
 
 export function togglePlayPause() {
@@ -209,6 +229,10 @@ async function tryPlayLocal(track, context = 'search') {
 }
 
 export async function playTrack(track, context = 'search', preferStream = null) {
+    // 防重入：同一曲目正在加载则忽略，切歌时覆盖旧加载
+    if (state.loadingTrackId === track.id) return;
+    setTrackLoading(track.id);
+
     if (context === 'search') state.queue = [...state.searchResults];
     else if (context === 'playlist') state.queue = [...getCurrentPlaylistTracks()];
     else if (context === 'local') state.queue = [track];
@@ -222,6 +246,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     // 本地已有该歌曲，优先播放本地文件
     const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
     if (localItem) {
+        finishTrackLoading();
         state.currentTrack = track;
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
@@ -242,6 +267,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     showToast('正在加载试听...');
     try {
         const data = await previewTrack(track, 'audio', useStream);
+        if (state.loadingTrackId !== track.id) return; // 已切歌，丢弃旧结果
         state.currentTrack = track;
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
@@ -259,6 +285,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         updatePlayButton();
         savePlaybackState();
     } catch (err) {
+        if (state.loadingTrackId !== track.id) return;
         console.error('网络加载失败，尝试本地文件:', err);
         const played = await tryPlayLocal(track, context);
         if (played) {
@@ -266,6 +293,8 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         } else {
             showToast('加载失败，本地无该歌曲', 'error');
         }
+    } finally {
+        if (state.loadingTrackId === track.id) finishTrackLoading();
     }
 }
 
@@ -292,6 +321,7 @@ export function closeVideoModal() {
 
 export async function playLocalItem(item) {
     if (!item.track) return;
+    finishTrackLoading();
 
     if (item.media_type === 'video') {
         els.videoTitle.textContent = `${item.track.artist} - ${item.track.title}`;
@@ -385,6 +415,9 @@ export function playNext() {
 
 export async function playTrackByQueueTrack(track, preferStream = null) {
     if (!track) return;
+    if (state.loadingTrackId === track.id) return;
+    setTrackLoading(track.id);
+
     state.currentTrack = track;
     state.isPlaying = true;
     state.playRecordedForTrackId = null;
@@ -393,20 +426,24 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
 
     const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
     if (localItem) {
+        finishTrackLoading();
         els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.id)}`;
         state.streamFallback = null;
     } else {
         try {
             const data = await previewTrack(track, 'audio', useStream);
+            if (state.loadingTrackId !== track.id) return;
             els.audioPlayer.src = data.stream_url;
             state.streamFallback = data.streamed ? { track, context: 'queue', isVideo: false, tried: !useStream } : null;
         } catch (err) {
+            if (state.loadingTrackId !== track.id) return;
             console.error('队列加载失败，尝试本地文件:', err);
             const played = await tryPlayLocal(track, 'queue');
             if (played) {
                 showToast('已切换到本地文件', 'success');
             } else {
                 showToast('加载失败，本地无该歌曲', 'error');
+                finishTrackLoading();
                 state.isPlaying = false;
                 updatePlayButton();
                 return;
@@ -414,6 +451,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
         }
     }
 
+    finishTrackLoading();
     els.audioPlayer.play().catch(err => {
         console.error('播放失败:', err);
         showToast('播放失败', 'error');
