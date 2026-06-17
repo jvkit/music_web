@@ -27,6 +27,8 @@ function unlockGate() {
 function showGateError() {
     const error = document.getElementById('passwordError');
     if (error) error.classList.remove('hidden');
+    const success = document.getElementById('passwordSuccess');
+    if (success) success.classList.add('hidden');
 }
 
 function hideGateError() {
@@ -34,14 +36,43 @@ function hideGateError() {
     if (error) error.classList.add('hidden');
 }
 
+function showGateSuccess() {
+    const success = document.getElementById('passwordSuccess');
+    if (success) success.classList.remove('hidden');
+    const error = document.getElementById('passwordError');
+    if (error) error.classList.add('hidden');
+}
+
 function tryUnlockGate(rawPassword) {
     const password = (rawPassword || '').trim();
+    const submit = document.getElementById('passwordSubmit');
+    if (submit) {
+        submit.disabled = true;
+        submit.textContent = '校验中…';
+    }
+
     if (verifySite(password)) {
-        localStorage.setItem(SITE_KEY, password);
-        unlockGate();
+        showGateSuccess();
+        try {
+            localStorage.setItem(SITE_KEY, password);
+        } catch (e) {
+            console.warn('localStorage 写入失败，本次会话仍放行:', e);
+        }
+        setTimeout(() => {
+            unlockGate();
+            if (submit) {
+                submit.disabled = false;
+                submit.textContent = '进入';
+            }
+        }, 300);
         return true;
     }
+
     showGateError();
+    if (submit) {
+        submit.disabled = false;
+        submit.textContent = '进入';
+    }
     return false;
 }
 

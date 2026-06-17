@@ -1,0 +1,2005 @@
+{
+  "version": 1,
+  "playlists": {
+    "default": {
+      "id": "default",
+      "name": "我的收藏"
+    },
+    "web_favorites": {
+      "id": "web_favorites",
+      "name": "网页收藏"
+    },
+    "playlist_8976b2a8": {
+      "id": "playlist_8976b2a8",
+      "name": "测试"
+    }
+  },
+  "songs": {
+    "bilibili:BV1j142187wF": {
+      "id": "bilibili:BV1j142187wF",
+      "title": "【4K珍藏】Lady Gaga神曲《Bad Romance》！全体起立！",
+      "artist": "4K音乐馆",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1j142187wF",
+      "duration": 307,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1j142187wF_【4K珍藏】Lady_Gaga神曲《Bad_Romance》！全体起立！.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1j142187wF",
+        "original_url": "https://www.bilibili.com/video/BV1j142187wF",
+        "uploader": "4K音乐馆",
+        "thumbnail": "https://i1.hdslb.com/bfs/archive/98ae398367ba40c3d22557d5557e8b208ecfd41f.jpg"
+      }
+    },
+    "youtube:G6JppjQSTh8": {
+      "id": "youtube:G6JppjQSTh8",
+      "title": "HYUNA - 'CHANGE' (Official Music  Video)",
+      "artist": "4Minute 포미닛(Official YouTube Channel)",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=G6JppjQSTh8",
+      "duration": 228,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "G6JppjQSTh8",
+        "original_url": "https://www.youtube.com/watch?v=G6JppjQSTh8",
+        "uploader": "4Minute 포미닛(Official YouTube Channel)",
+        "thumbnail": "https://i.ytimg.com/vi/G6JppjQSTh8/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDtxinOD297wVlbe6qx6Bx8akic_w"
+      }
+    },
+    "netease:27946749": {
+      "id": "netease:27946749",
+      "title": "Heaven (Original Version)",
+      "artist": "Ailee",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=27946749",
+      "duration": 211,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_27946749_Heaven_(Original_Version).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "27946749",
+        "original_url": "https://music.163.com/song?id=27946749",
+        "album": "Heaven",
+        "thumbnail": "https://p2.music.126.net/6gNL3-qLqqYphe6lcL9QWg==/5798824324904082.jpg"
+      }
+    },
+    "youtube:60ItHLz5WEA": {
+      "id": "youtube:60ItHLz5WEA",
+      "title": "Alan Walker - Faded",
+      "artist": "Alan Walker",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=60ItHLz5WEA",
+      "duration": 213,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_60ItHLz5WEA_Alan_Walker_-_Faded.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "60ItHLz5WEA",
+        "original_url": "https://www.youtube.com/watch?v=60ItHLz5WEA",
+        "uploader": "Alan Walker"
+      }
+    },
+    "youtube:wJnBTPUQS5A": {
+      "id": "youtube:wJnBTPUQS5A",
+      "title": "Alan Walker - The Spectre",
+      "artist": "Alan Walker",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=wJnBTPUQS5A",
+      "duration": 207,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_wJnBTPUQS5A_Alan_Walker_-_The_Spectre.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "wJnBTPUQS5A",
+        "original_url": "https://www.youtube.com/watch?v=wJnBTPUQS5A",
+        "uploader": "Alan Walker"
+      }
+    },
+    "netease:1340901311": {
+      "id": "netease:1340901311",
+      "title": "Try Everything",
+      "artist": "Alegra",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=1340901311",
+      "duration": 197,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_1340901311_Try Everything.m4a",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 2,
+      "last_played_at": "2026-06-17T19:26:12.249847",
+      "extra": {
+        "original_id": "1340901311",
+        "original_url": "https://music.163.com/song?id=1340901311",
+        "album": "Try Everything",
+        "thumbnail": "https://p2.music.126.net/7N76reQnVqWAv1puA_Osug==/109951163804843581.jpg"
+      }
+    },
+    "bilibili:BV1M8JM6WEXZ": {
+      "id": "bilibili:BV1M8JM6WEXZ",
+      "title": "2026.6.13徐良时间折叠演唱会青岛站Day2",
+      "artist": "Baekhyunlv",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1M8JM6WEXZ",
+      "duration": 10365,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1M8JM6WEXZ_2026.6.13徐良时间折叠演唱会青岛站Day2_1.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 2,
+      "last_played_at": "2026-06-17T19:36:26.323142",
+      "extra": {
+        "original_id": "BV1M8JM6WEXZ",
+        "original_url": "https://www.bilibili.com/video/BV1M8JM6WEXZ",
+        "uploader": "Baekhyunlv",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/398fa6bb92a298e28740e802017d77244303ff07.jpg"
+      }
+    },
+    "soundcloud:50660948": {
+      "id": "soundcloud:50660948",
+      "title": "Eminem-Mockingbird",
+      "artist": "Blogger_",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/blogger-2/eminem-mockingbird-lyrics",
+      "duration": 264,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/soundcloud_50660948_Eminem-Mockingbird.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "50660948",
+        "original_url": "https://soundcloud.com/blogger-2/eminem-mockingbird-lyrics",
+        "uploader": "Blogger_"
+      }
+    },
+    "youtube:AkBEyXi5He8": {
+      "id": "youtube:AkBEyXi5He8",
+      "title": "新樂塵符 - 123我愛你『我輕輕靠近你的耳朵 說愛你不嫌太多』【Lyrics Video】",
+      "artist": "Boba Beats",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=AkBEyXi5He8",
+      "duration": 200,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_AkBEyXi5He8_新樂塵符_-_123我愛你『我輕輕靠近你的耳朵_說愛你不嫌太多』【Lyrics_Video】.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "AkBEyXi5He8",
+        "original_url": "https://www.youtube.com/watch?v=AkBEyXi5He8",
+        "uploader": "Boba Beats"
+      }
+    },
+    "netease:436514415": {
+      "id": "netease:436514415",
+      "title": "Vacation",
+      "artist": "Damon Empero/Veronica",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=436514415",
+      "duration": 220,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_436514415_Vacation.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "436514415",
+        "original_url": "https://music.163.com/song?id=436514415",
+        "album": "Vacation",
+        "thumbnail": "https://p2.music.126.net/3Mir9huPvuNoMHDPIhsvew==/2946691235140986.jpg"
+      }
+    },
+    "local:EHPMusicChannel - 蔣小呢 - for ya『所有美好全部come for ya，我的愛也全部come for ya。』【動態歌詞Lyrics】.mp3": {
+      "id": "local:EHPMusicChannel - 蔣小呢 - for ya『所有美好全部come for ya，我的愛也全部come for ya。』【動態歌詞Lyrics】.mp3",
+      "title": "蔣小呢 - for ya『所有美好全部come for ya，我的愛也全部come for ya。』【動態歌詞Lyrics】",
+      "artist": "EHPMusicChannel",
+      "source": "local",
+      "source_url": null,
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/local_EHPMusicChannel_-_蔣小呢_-_for_ya『所有美好全部come_for_ya，我的愛也全部come_for_ya。』【動態歌詞Lyrics】_蔣小呢_-_for_ya『所有美好全部come_for_ya，我的愛也全部come_for_ya。』【動態歌詞Lyrics】.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "EHPMusicChannel - 蔣小呢 - for ya『所有美好全部come for ya，我的愛也全部come for ya。』【動態歌詞Lyrics】.mp3"
+      }
+    },
+    "netease:2603123296": {
+      "id": "netease:2603123296",
+      "title": "一个人唱情歌（RAP）",
+      "artist": "Estrella/带泪的鱼/mc诺",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=2603123296",
+      "duration": 235,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_2603123296_一个人唱情歌（RAP）.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "2603123296",
+        "original_url": "https://music.163.com/song?id=2603123296",
+        "album": "一种感觉",
+        "thumbnail": "https://p2.music.126.net/HaR-5DP8poGIV_kJOU9v4w==/109951172413966573.jpg"
+      }
+    },
+    "soundcloud:771126370": {
+      "id": "soundcloud:771126370",
+      "title": "Raven & Kreyn Feat. Nino Lucarelli - This Far (RudeLies Remix)",
+      "artist": "Future House Music",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/futurehousemusic/raven-kreyn-feat-nino-lucarelli-this-far-rudelies-remix",
+      "duration": 157,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/soundcloud_771126370_Raven_&_Kreyn_Feat._Nino_Lucarelli_-_This_Far_(RudeLies_Remix).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "771126370",
+        "original_url": "https://soundcloud.com/futurehousemusic/raven-kreyn-feat-nino-lucarelli-this-far-rudelies-remix",
+        "uploader": "Future House Music"
+      }
+    },
+    "bilibili:BV15P411W7Af": {
+      "id": "bilibili:BV15P411W7Af",
+      "title": "在百万豪装录音棚大声听 徐良&amp;小凌《坏女孩》【Hi-res】",
+      "artist": "JLRS-LeoFM",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV15P411W7Af",
+      "duration": 244,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV15P411W7Af_在百万豪装录音棚大声听_徐良&amp;小凌《坏女孩》【Hi-res】.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV15P411W7Af",
+        "original_url": "https://www.bilibili.com/video/BV15P411W7Af",
+        "uploader": "JLRS-LeoFM",
+        "thumbnail": "https://i2.hdslb.com/bfs/archive/083e2ba9efd1509b71ebebdac20768ce6eb7bb96.jpg"
+      }
+    },
+    "soundcloud:460561512": {
+      "id": "soundcloud:460561512",
+      "title": "Alibi (Far Out Remix)",
+      "artist": "Krewella",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/krewella/alibi-far-out-remix-1",
+      "duration": 219,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/soundcloud_460561512_Alibi_(Far_Out_Remix).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "460561512",
+        "original_url": "https://soundcloud.com/krewella/alibi-far-out-remix-1",
+        "uploader": "Krewella"
+      }
+    },
+    "youtube:bESGLojNYSo": {
+      "id": "youtube:bESGLojNYSo",
+      "title": "Lady Gaga - Poker Face (Official Music Video)",
+      "artist": "Lady Gaga",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=bESGLojNYSo",
+      "duration": 214,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_bESGLojNYSo_Lady_Gaga_-_Poker_Face_(Official_Music_Video).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "bESGLojNYSo",
+        "original_url": "https://www.youtube.com/watch?v=bESGLojNYSo",
+        "uploader": "Lady Gaga"
+      }
+    },
+    "youtube:svhdsHnkTrs": {
+      "id": "youtube:svhdsHnkTrs",
+      "title": "徐良&阿悄-红妆",
+      "artist": "Lee Say Lum",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=svhdsHnkTrs",
+      "duration": 257,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_svhdsHnkTrs_徐良&阿悄-红妆.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 6,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "svhdsHnkTrs",
+        "original_url": "https://www.youtube.com/watch?v=svhdsHnkTrs",
+        "uploader": "Lee Say Lum",
+        "thumbnail": "https://i.ytimg.com/vi/svhdsHnkTrs/sddefault.jpg?sqp=-oaymwEmCIAFEOAD8quKqQMa8AEB-AH-BIAC4AOKAgwIABABGFAgZShjMA8=&rs=AOn4CLABoFFrGW39-hWVvSy453b55bpoFg"
+      }
+    },
+    "soundcloud:1625033952": {
+      "id": "soundcloud:1625033952",
+      "title": "Eminem - Mockingbird (fenekot) ft. 2pac & Pop Smoke (Remix)",
+      "artist": "LeyBso",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/user-249269287/eminem-mockingbird-fenekot-ft",
+      "duration": 239,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/soundcloud_1625033952_Eminem_-_Mockingbird_(fenekot)_ft._2pac_&_Pop_Smoke_(Remix).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "1625033952",
+        "original_url": "https://soundcloud.com/user-249269287/eminem-mockingbird-fenekot-ft",
+        "uploader": "LeyBso"
+      }
+    },
+    "youtube:LHCob76kigA": {
+      "id": "youtube:LHCob76kigA",
+      "title": "Lukas Graham - 7 Years [Official Music Video]",
+      "artist": "Lukas Graham",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=LHCob76kigA",
+      "duration": 240,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_LHCob76kigA_Lukas_Graham_-_7_Years_[Official_Music_Video].mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "LHCob76kigA",
+        "original_url": "https://www.youtube.com/watch?v=LHCob76kigA",
+        "uploader": "Lukas Graham"
+      }
+    },
+    "soundcloud:836307703": {
+      "id": "soundcloud:836307703",
+      "title": "-Play Date - •SLOWED•",
+      "artist": "Mikrovolts XD",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/mikrovolts-xd/play-date-slowed",
+      "duration": 231,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "836307703",
+        "original_url": "https://soundcloud.com/mikrovolts-xd/play-date-slowed",
+        "uploader": "Mikrovolts XD",
+        "thumbnail": "https://i1.sndcdn.com/artworks-SDK4zArPZkmubO0W-KuQAFw-t500x500.jpg"
+      }
+    },
+    "youtube:H7HmzwI67ec": {
+      "id": "youtube:H7HmzwI67ec",
+      "title": "Owl City & Carly Rae Jepsen - Good Time",
+      "artist": "Owl City",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=H7HmzwI67ec",
+      "duration": 208,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "H7HmzwI67ec",
+        "original_url": "https://www.youtube.com/watch?v=H7HmzwI67ec",
+        "uploader": "Owl City",
+        "thumbnail": "https://i.ytimg.com/vi/H7HmzwI67ec/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAigcJssJUWbgROV3AuAAiMnQ0Qgw"
+      }
+    },
+    "youtube:vi7W60XyOlg": {
+      "id": "youtube:vi7W60XyOlg",
+      "title": "忘記時間 - 胡歌 - 『超高无损音質』【動態歌詞Lyrics】",
+      "artist": "POP MusicChannel",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=vi7W60XyOlg",
+      "duration": 264,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_vi7W60XyOlg_忘記時間_-_胡歌_-_『超高无损音質』【動態歌詞Lyrics】.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "vi7W60XyOlg",
+        "original_url": "https://www.youtube.com/watch?v=vi7W60XyOlg",
+        "uploader": "POP MusicChannel",
+        "thumbnail": "https://i.ytimg.com/vi/vi7W60XyOlg/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDdSXL-XsYdz3UIQILxw6cimguzrg"
+      }
+    },
+    "youtube:LsmcZqWmx5I": {
+      "id": "youtube:LsmcZqWmx5I",
+      "title": "T-ara - day by day ~ lyrics on screen (KOR/ROM/ENG)",
+      "artist": "RainyTofu",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=LsmcZqWmx5I",
+      "duration": 210,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "LsmcZqWmx5I",
+        "original_url": "https://www.youtube.com/watch?v=LsmcZqWmx5I",
+        "uploader": "RainyTofu",
+        "thumbnail": "https://i.ytimg.com/vi/LsmcZqWmx5I/hq720.jpg?sqp=-oaymwE2CNAFEJQDSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARhlIGUoZTAP&rs=AOn4CLBTPcnJ9axSQOyn5OAR6rrtx7rkIQ"
+      }
+    },
+    "youtube:c6rP-YP4c5I": {
+      "id": "youtube:c6rP-YP4c5I",
+      "title": "Shakira - Try Everything (Official Video)",
+      "artist": "Shakira",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=c6rP-YP4c5I",
+      "duration": 203,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "c6rP-YP4c5I",
+        "original_url": "https://www.youtube.com/watch?v=c6rP-YP4c5I",
+        "uploader": "Shakira",
+        "thumbnail": "https://i.ytimg.com/vi/c6rP-YP4c5I/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBXX9BiQYYagRQbTZ6So5jA32zBJw"
+      }
+    },
+    "local:VALORANT - Die For You ft.mp3": {
+      "id": "local:VALORANT - Die For You ft.mp3",
+      "title": "Die For You ft",
+      "artist": "VALORANT",
+      "source": "local",
+      "source_url": null,
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/local_VALORANT_-_Die_For_You_ft_Die_For_You_ft.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "VALORANT - Die For You ft.mp3"
+      }
+    },
+    "youtube:FQHhQWK2DwY": {
+      "id": "youtube:FQHhQWK2DwY",
+      "title": "白小白 - 最后我们没在一起 (DJ伟伟Mix)",
+      "artist": "WCY EDM",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=FQHhQWK2DwY",
+      "duration": 230,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_FQHhQWK2DwY_白小白_-_最后我们没在一起_(DJ伟伟Mix).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "FQHhQWK2DwY",
+        "original_url": "https://www.youtube.com/watch?v=FQHhQWK2DwY",
+        "uploader": "WCY EDM",
+        "thumbnail": "https://i.ytimg.com/vi/FQHhQWK2DwY/hq720.jpg?sqp=-oaymwEgCNAFEJQDSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC9xg=&rs=AOn4CLA5gYMbR9Ig1mU9PNflJjVyagBE1g"
+      }
+    },
+    "soundcloud:816293719": {
+      "id": "soundcloud:816293719",
+      "title": "AniFace - 夜、萤火虫和你【動態歌詞/Lyrics Video】",
+      "artist": "WCY Music Studio",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/wcymusicstudio/aniface-lyrics-video",
+      "duration": 188,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "816293719",
+        "original_url": "https://soundcloud.com/wcymusicstudio/aniface-lyrics-video",
+        "uploader": "WCY Music Studio"
+      }
+    },
+    "soundcloud:2062997200": {
+      "id": "soundcloud:2062997200",
+      "title": "季彦霖 - 选择失忆 (DJ咚鼓版)「如何能选择忘记 忘记每一段过去」【動態歌詞/pīn yīn gē cí】#季彦霖 #选择失忆 #動態歌詞",
+      "artist": "WCY Music Studio",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/wcymusicstudio/825d8edc-e65d-4767-b031-51b8a04f623c",
+      "duration": 197,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "2062997200",
+        "original_url": "https://soundcloud.com/wcymusicstudio/825d8edc-e65d-4767-b031-51b8a04f623c",
+        "uploader": "WCY Music Studio"
+      }
+    },
+    "youtube:dSer6YOU4xM": {
+      "id": "youtube:dSer6YOU4xM",
+      "title": "徐良 - 考試什麼的都去死吧(Official MV)",
+      "artist": "XuLiangMusic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=dSer6YOU4xM",
+      "duration": 211,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_dSer6YOU4xM_徐良_-_考試什麼的都去死吧(Official_MV).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "dSer6YOU4xM",
+        "original_url": "https://www.youtube.com/watch?v=dSer6YOU4xM",
+        "uploader": "XuLiangMusic"
+      }
+    },
+    "youtube:6p6efWi3GPI": {
+      "id": "youtube:6p6efWi3GPI",
+      "title": "徐良-客官不可以 官方歌詞版",
+      "artist": "XuLiangMusic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=6p6efWi3GPI",
+      "duration": 231,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_6p6efWi3GPI_徐良-客官不可以_官方歌詞版.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "6p6efWi3GPI",
+        "original_url": "https://www.youtube.com/watch?v=6p6efWi3GPI",
+        "uploader": "XuLiangMusic"
+      }
+    },
+    "local:YilanToniOoki - 徐良《红装》，但是英文填词，R&B风格改编.mp3": {
+      "id": "local:YilanToniOoki - 徐良《红装》，但是英文填词，R&B风格改编.mp3",
+      "title": "徐良《红装》，但是英文填词，R&B风格改编",
+      "artist": "YilanToniOoki",
+      "source": "local",
+      "source_url": null,
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/local_YilanToniOoki_-_徐良《红装》，但是英文填词，R&B风格改编_徐良《红装》，但是英文填词，R&B风格改编.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "YilanToniOoki - 徐良《红装》，但是英文填词，R&B风格改编.mp3"
+      }
+    },
+    "soundcloud:1520060314": {
+      "id": "soundcloud:1520060314",
+      "title": "Mockingbird",
+      "artist": "fenekot",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/user-257964539-414727819/mockingbird",
+      "duration": 30,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "1520060314",
+        "original_url": "https://soundcloud.com/user-257964539-414727819/mockingbird",
+        "uploader": "fenekot"
+      }
+    },
+    "soundcloud:680390258": {
+      "id": "soundcloud:680390258",
+      "title": "选择失忆 -  季彦霖",
+      "artist": "frdecember",
+      "source": "soundcloud",
+      "source_url": "https://soundcloud.com/frdecember/jbmvjdzsgaiy",
+      "duration": 278,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/soundcloud_680390258_选择失忆_-_季彦霖.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "680390258",
+        "original_url": "https://soundcloud.com/frdecember/jbmvjdzsgaiy",
+        "uploader": "frdecember"
+      }
+    },
+    "netease:474574137": {
+      "id": "netease:474574137",
+      "title": "TOMBOY",
+      "artist": "hyukoh",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=474574137",
+      "duration": 241,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "474574137",
+        "original_url": "https://music.163.com/song?id=474574137",
+        "album": "23",
+        "thumbnail": "https://p1.music.126.net/UPny8fU1E_SJucyOktgauw==/18926993160633418.jpg"
+      }
+    },
+    "youtube:7HDeem-JaSY": {
+      "id": "youtube:7HDeem-JaSY",
+      "title": "(여자)아이들((G)I-DLE) - '퀸카 (Queencard)' Official Music Video",
+      "artist": "i-dle (아이들)",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=7HDeem-JaSY",
+      "duration": 211,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_7HDeem-JaSY_(여자)아이들((G)I-DLE)_-_'퀸카_(Queencard)'_Official_Music_Video.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 6,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "7HDeem-JaSY",
+        "original_url": "https://www.youtube.com/watch?v=7HDeem-JaSY",
+        "uploader": "i-dle (아이들)"
+      }
+    },
+    "youtube:kknKs7cAcO8": {
+      "id": "youtube:kknKs7cAcO8",
+      "title": "Melanie Martinez - Play Date [Official Lyric Video]",
+      "artist": "melanie martinez",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=kknKs7cAcO8",
+      "duration": 180,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "kknKs7cAcO8",
+        "original_url": "https://www.youtube.com/watch?v=kknKs7cAcO8",
+        "uploader": "melanie martinez",
+        "thumbnail": "https://i.ytimg.com/vi/kknKs7cAcO8/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBbPs62jPf4cDRlmn2sTDdKrgaTNg"
+      }
+    },
+    "netease:2076754597": {
+      "id": "netease:2076754597",
+      "title": "满天星辰不及你",
+      "artist": "ycc",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=2076754597",
+      "duration": 227,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_2076754597_满天星辰不及你.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "2076754597",
+        "original_url": "https://music.163.com/song?id=2076754597",
+        "album": "满天星辰不及你",
+        "thumbnail": "https://p2.music.126.net/NZwwvoqdBOPYf4L7TXnlew==/109951168869933629.jpg"
+      }
+    },
+    "youtube:tt2k8PGm-TI": {
+      "id": "youtube:tt2k8PGm-TI",
+      "title": "ZAYN - Dusk Till Dawn (Official Video) ft. Sia",
+      "artist": "zayn",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=tt2k8PGm-TI",
+      "duration": 338,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "tt2k8PGm-TI",
+        "original_url": "https://www.youtube.com/watch?v=tt2k8PGm-TI",
+        "uploader": "zayn",
+        "thumbnail": "https://i.ytimg.com/vi/tt2k8PGm-TI/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAeLybpWTii3OvQHI6AK2ycwoJC4w"
+      }
+    },
+    "bilibili:BV1G9EX6QEdP": {
+      "id": "bilibili:BV1G9EX6QEdP",
+      "title": "“课代表 袭击你.”|《Amnesia dj》0.98x",
+      "artist": "一支yuuu",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1G9EX6QEdP",
+      "duration": 169,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1G9EX6QEdP",
+        "original_url": "https://www.bilibili.com/video/BV1G9EX6QEdP",
+        "uploader": "一支yuuu",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/a1995b7932aee0720f2ed80e27e3a055ea353c1b.jpg"
+      }
+    },
+    "bilibili:BV1sszTBoEEL": {
+      "id": "bilibili:BV1sszTBoEEL",
+      "title": "《开摇！近期全网爆火的DJ歌曲合集2.0！》",
+      "artist": "一支yuuu",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1sszTBoEEL",
+      "duration": 2018,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1sszTBoEEL",
+        "original_url": "https://www.bilibili.com/video/BV1sszTBoEEL",
+        "uploader": "一支yuuu",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/458e66b6c32e48d3ef0b8bcba8aeeab125bbfd1f.jpg"
+      }
+    },
+    "bilibili:BV1BD7z6pEyC": {
+      "id": "bilibili:BV1BD7z6pEyC",
+      "title": "【一次听爽】长公主20首合集",
+      "artist": "八方吃客",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1BD7z6pEyC",
+      "duration": 567,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1BD7z6pEyC",
+        "original_url": "https://www.bilibili.com/video/BV1BD7z6pEyC",
+        "uploader": "八方吃客",
+        "thumbnail": "https://i2.hdslb.com/bfs/archive/b819b1887f492486c49a4243f4221d3306ebff3d.jpg"
+      }
+    },
+    "bilibili:BV19ZDSBWEGK": {
+      "id": "bilibili:BV19ZDSBWEGK",
+      "title": "官方认证～同花顺长公主《真英雄》",
+      "artist": "娱乐收藏员",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV19ZDSBWEGK",
+      "duration": 118,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV19ZDSBWEGK",
+        "original_url": "https://www.bilibili.com/video/BV19ZDSBWEGK",
+        "uploader": "娱乐收藏员",
+        "thumbnail": "https://i2.hdslb.com/bfs/archive/b0e5f38bdc0751b2bba747eeb33ebf82d60e2b52.jpg"
+      }
+    },
+    "netease:25638640": {
+      "id": "netease:25638640",
+      "title": "口是心非",
+      "artist": "带泪的鱼",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=25638640",
+      "duration": 242,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "25638640",
+        "original_url": "https://music.163.com/song?id=25638640",
+        "album": "假象",
+        "thumbnail": "https://p2.music.126.net/ouFABJQrSx_WI_E3Dpbh0A==/571746046482843.jpg"
+      }
+    },
+    "netease:3362313323": {
+      "id": "netease:3362313323",
+      "title": "我是个小偷",
+      "artist": "带泪的鱼",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=3362313323",
+      "duration": 390,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "3362313323",
+        "original_url": "https://music.163.com/song?id=3362313323",
+        "album": "",
+        "thumbnail": "https://p2.music.126.net/8IWWHVm10kf3ZOl94CRsfQ==/109951172932403161.jpg"
+      }
+    },
+    "netease:25638642": {
+      "id": "netease:25638642",
+      "title": "莫西干战役爱情传说Mix",
+      "artist": "带泪的鱼",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=25638642",
+      "duration": 320,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "25638642",
+        "original_url": "https://music.163.com/song?id=25638642",
+        "album": "假象",
+        "thumbnail": "https://p2.music.126.net/ouFABJQrSx_WI_E3Dpbh0A==/571746046482843.jpg"
+      }
+    },
+    "youtube:vBaYFTbBr2E": {
+      "id": "youtube:vBaYFTbBr2E",
+      "title": "坏女孩",
+      "artist": "徐良 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=vBaYFTbBr2E",
+      "duration": 243,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "vBaYFTbBr2E",
+        "original_url": "https://www.youtube.com/watch?v=vBaYFTbBr2E",
+        "uploader": "徐良 - Topic"
+      }
+    },
+    "youtube:s4kZ2F__NOk": {
+      "id": "youtube:s4kZ2F__NOk",
+      "title": "情话",
+      "artist": "徐良 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=s4kZ2F__NOk",
+      "duration": 239,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_s4kZ2F_NOk_情话.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "s4kZ2F__NOk",
+        "original_url": "https://www.youtube.com/watch?v=s4kZ2F__NOk",
+        "uploader": "徐良 - Topic"
+      }
+    },
+    "youtube:D7NO-LWMiWU": {
+      "id": "youtube:D7NO-LWMiWU",
+      "title": "抽离",
+      "artist": "徐良 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=D7NO-LWMiWU",
+      "duration": 259,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_D7NO-LWMiWU_抽离.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "D7NO-LWMiWU",
+        "original_url": "https://www.youtube.com/watch?v=D7NO-LWMiWU",
+        "uploader": "徐良 - Topic"
+      }
+    },
+    "bilibili:BV1hAJn68Eh9": {
+      "id": "bilibili:BV1hAJn68Eh9",
+      "title": "游戏专用DJ",
+      "artist": "念去东风",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1hAJn68Eh9",
+      "duration": 2874,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1hAJn68Eh9_游戏专用DJ.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1hAJn68Eh9",
+        "original_url": "https://www.bilibili.com/video/BV1hAJn68Eh9",
+        "uploader": "念去东风",
+        "thumbnail": "https://i2.hdslb.com/bfs/archive/eba1deb560fafcae1e4689baa8adad84d6185e62.jpg"
+      }
+    },
+    "bilibili:BV1yL411U7Be": {
+      "id": "bilibili:BV1yL411U7Be",
+      "title": "《Cupid》甜度拉满，听完丘比特直接就射中我了",
+      "artist": "意西西贝",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1yL411U7Be",
+      "duration": 144,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1yL411U7Be_《Cupid》甜度拉满，听完丘比特直接就射中我了.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1yL411U7Be",
+        "original_url": "https://www.bilibili.com/video/BV1yL411U7Be",
+        "uploader": "意西西贝",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/6d6b9e83b64b9d48a489882fbebf904eba955b2b.jpg"
+      }
+    },
+    "bilibili:BV1Kt4y1t7iQ": {
+      "id": "bilibili:BV1Kt4y1t7iQ",
+      "title": "一首旋律超级上头的英文歌曲《abcdefu》人面对不开心就是应该竖起中指，而不是勉强自己给生活比个Yeah",
+      "artist": "是7个橘子",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1Kt4y1t7iQ",
+      "duration": 171,
+      "media_type": "video",
+      "storage": "local",
+      "path": "files/bilibili_BV1Kt4y1t7iQ_一首旋律超级上头的英文歌曲《abcdefu》人面对不开心就是应该竖起中指，而不是勉强自己给生活比个Yeah.mp4",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1Kt4y1t7iQ",
+        "original_url": "https://www.bilibili.com/video/BV1Kt4y1t7iQ",
+        "uploader": "是7个橘子",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/8118a2ba48b0c8a2e5b4980594ea942da244bf7b.jpg"
+      }
+    },
+    "youtube:nMCo8QiMON0": {
+      "id": "youtube:nMCo8QiMON0",
+      "title": "徐良+阿悄 犯賤",
+      "artist": "朱殷頤",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=nMCo8QiMON0",
+      "duration": 215,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_nMCo8QiMON0_徐良+阿悄_犯賤.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "nMCo8QiMON0",
+        "original_url": "https://www.youtube.com/watch?v=nMCo8QiMON0",
+        "uploader": "朱殷頤"
+      }
+    },
+    "youtube:_5CCprbMMDk": {
+      "id": "youtube:_5CCprbMMDk",
+      "title": "最后我们没在一起 (DJ伟伟Mix)",
+      "artist": "白小白 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=_5CCprbMMDk",
+      "duration": 229,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 5,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "_5CCprbMMDk",
+        "original_url": "https://www.youtube.com/watch?v=_5CCprbMMDk",
+        "uploader": "白小白 - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/_5CCprbMMDk/hq720.jpg?sqp=-oaymwEgCNAFEJQDSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC9xg=&rs=AOn4CLAd_BjCkPjjs4f38LZ0of1WTYHy0Q"
+      }
+    },
+    "youtube:e6fMs-6HY-s": {
+      "id": "youtube:e6fMs-6HY-s",
+      "title": "错季",
+      "artist": "秋原依 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=e6fMs-6HY-s",
+      "duration": 276,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "e6fMs-6HY-s",
+        "original_url": "https://www.youtube.com/watch?v=e6fMs-6HY-s",
+        "uploader": "秋原依 - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/e6fMs-6HY-s/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCNx0UwgJDGRkxGqe3NAH2Td7RijA"
+      }
+    },
+    "bilibili:BV1rWJE6MELJ": {
+      "id": "bilibili:BV1rWJE6MELJ",
+      "title": "徐良时间折叠巡回演唱会青岛站6.12日全程存档",
+      "artist": "秋风与你的猫",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1rWJE6MELJ",
+      "duration": 10231,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1rWJE6MELJ_徐良时间折叠巡回演唱会青岛站6.12日全程存档.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1rWJE6MELJ",
+        "original_url": "https://www.bilibili.com/video/BV1rWJE6MELJ",
+        "uploader": "秋风与你的猫",
+        "thumbnail": "https://i2.hdslb.com/bfs/archive/bf4a487e82a90085d7e9ea1b1bcb3f681c03e3e7.jpg"
+      }
+    },
+    "youtube:FUhS57BLnVk": {
+      "id": "youtube:FUhS57BLnVk",
+      "title": "红装 (女版)",
+      "artist": "苗田雨 - Topic",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=FUhS57BLnVk",
+      "duration": 194,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/youtube_FUhS57BLnVk_红装_(女版).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "FUhS57BLnVk",
+        "original_url": "https://www.youtube.com/watch?v=FUhS57BLnVk",
+        "uploader": "苗田雨 - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/FUhS57BLnVk/maxresdefault.jpg"
+      }
+    },
+    "bilibili:BV1yWJp69EqS": {
+      "id": "bilibili:BV1yWJp69EqS",
+      "title": "2026 抖音 100 首热门歌曲精选，全网爆火单曲循环！",
+      "artist": "那首你最爱的歌谣啊",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1yWJp69EqS",
+      "duration": 25503,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1yWJp69EqS_2026_抖音_100_首热门歌曲精选，全网爆火单曲循环！.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1yWJp69EqS",
+        "original_url": "https://www.bilibili.com/video/BV1yWJp69EqS",
+        "uploader": "那首你最爱的歌谣啊",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/ccecdabf92b998453287aef540ca43d3406af870.jpg"
+      }
+    },
+    "local:闫东炜, Alyssa - Topic - 风屿.mp3": {
+      "id": "local:闫东炜, Alyssa - Topic - 风屿.mp3",
+      "title": "Topic - 风屿",
+      "artist": "闫东炜, Alyssa",
+      "source": "local",
+      "source_url": null,
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/local_闫东炜,_Alyssa_-_Topic_-_风屿_Topic_-_风屿.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default",
+        "playlist_8976b2a8"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "闫东炜, Alyssa - Topic - 风屿.mp3"
+      }
+    },
+    "bilibili:BV13c411J7WK": {
+      "id": "bilibili:BV13c411J7WK",
+      "title": "《一个人唱情歌》带泪的鱼，你是什么时候听到这首歌的",
+      "artist": "鸭子的怀旧音乐",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV13c411J7WK",
+      "duration": 231,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV13c411J7WK_《一个人唱情歌》带泪的鱼，你是什么时候听到这首歌的.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV13c411J7WK",
+        "original_url": "https://www.bilibili.com/video/BV13c411J7WK",
+        "uploader": "鸭子的怀旧音乐",
+        "thumbnail": "https://i1.hdslb.com/bfs/archive/d4b6de20f42f5b1043d03cb2b53f9cc259851afc.jpg"
+      }
+    },
+    "bilibili:BV1ANQqBTEVU:p3": {
+      "id": "bilibili:BV1ANQqBTEVU:p3",
+      "title": "003. 一半一半 - Top Barry、INDEcompany",
+      "artist": "那首你最爱的歌谣啊",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1ANQqBTEVU",
+      "duration": 236,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1ANQqBTEVU_p3_003._一半一半_-_Top_Barry、INDEcompany.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 4,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1ANQqBTEVU:p3",
+        "original_url": "https://www.bilibili.com/video/BV1ANQqBTEVU",
+        "uploader": "那首你最爱的歌谣啊",
+        "cid": 36929798365,
+        "page": 3,
+        "parent_id": "bilibili:BV1ANQqBTEVU",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/c3ba106604affe3e5ff608af7cf62b3d318243eb.jpg"
+      }
+    },
+    "bilibili:BV1ANQqBTEVU": {
+      "id": "bilibili:BV1ANQqBTEVU",
+      "title": "2026网络最好听100首热门歌曲，每一首都好听 🎧",
+      "artist": "那首你最爱的歌谣啊",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1ANQqBTEVU",
+      "duration": 22649,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1ANQqBTEVU_2026网络最好听100首热门歌曲，每一首都好听_🎧.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1ANQqBTEVU",
+        "original_url": "https://www.bilibili.com/video/BV1ANQqBTEVU",
+        "uploader": "那首你最爱的歌谣啊",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/c3ba106604affe3e5ff608af7cf62b3d318243eb.jpg"
+      }
+    },
+    "bilibili:BV1yWJp69EqS:p1": {
+      "id": "bilibili:BV1yWJp69EqS:p1",
+      "title": "001. 雨爱",
+      "artist": "那首你最爱的歌谣啊",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1yWJp69EqS",
+      "duration": 261,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1yWJp69EqS_p1_001._雨爱.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1yWJp69EqS:p1",
+        "original_url": "https://www.bilibili.com/video/BV1yWJp69EqS",
+        "uploader": "那首你最爱的歌谣啊",
+        "cid": 39091372545,
+        "page": 1,
+        "parent_id": "bilibili:BV1yWJp69EqS",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/ccecdabf92b998453287aef540ca43d3406af870.jpg"
+      }
+    },
+    "netease:344403": {
+      "id": "netease:344403",
+      "title": "凑热闹",
+      "artist": "By2",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=344403",
+      "duration": 239,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "344403",
+        "original_url": "https://music.163.com/song?id=344403",
+        "album": "成人礼",
+        "thumbnail": "https://p1.music.126.net/F4PaoO9YZTRv-WQqEXCryw==/109951169200438951.jpg"
+      }
+    },
+    "netease:1973665667": {
+      "id": "netease:1973665667",
+      "title": "海屿你",
+      "artist": "马也_Crabbit",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=1973665667",
+      "duration": 295,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/netease_1973665667_海屿你.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "1973665667",
+        "original_url": "https://music.163.com/song?id=1973665667",
+        "album": "海屿你",
+        "thumbnail": "https://p2.music.126.net/RfguLkQJ8aMVkiIaxdy70Q==/109951170483263672.jpg"
+      }
+    },
+    "bilibili:BV17LVN6yEeB": {
+      "id": "bilibili:BV17LVN6yEeB",
+      "title": "【𝐇𝐢-𝐑𝐞𝐬无损音质】｜《Fever Pitch》- Richz -",
+      "artist": "VV音乐局",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV17LVN6yEeB",
+      "duration": 136,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV17LVN6yEeB_【𝐇𝐢-𝐑𝐞𝐬无损音质】｜《Fever_Pitch》-_Richz_-.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV17LVN6yEeB",
+        "original_url": "https://www.bilibili.com/video/BV17LVN6yEeB",
+        "uploader": "VV音乐局",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/864c1fcbd6556eaf6c95a84dff0de7032cec9b64.jpg"
+      }
+    },
+    "bilibili:BV1MpAZzeEGY": {
+      "id": "bilibili:BV1MpAZzeEGY",
+      "title": "“我欲成冰再也无退路.”|《游山恋dj》0.8x",
+      "artist": "一支yuuu",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1MpAZzeEGY",
+      "duration": 218,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1MpAZzeEGY_“我欲成冰再也无退路.”_《游山恋dj》0.8x.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1MpAZzeEGY",
+        "original_url": "https://www.bilibili.com/video/BV1MpAZzeEGY",
+        "uploader": "一支yuuu",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/ff838c33caabde714cda89290e3e374d18f6c610.jpg"
+      }
+    },
+    "bilibili:BV13qEJ6sEzB": {
+      "id": "bilibili:BV13qEJ6sEzB",
+      "title": "《沦陷》",
+      "artist": "牛奶君_",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV13qEJ6sEzB",
+      "duration": 206,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV13qEJ6sEzB_《沦陷》.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV13qEJ6sEzB",
+        "original_url": "https://www.bilibili.com/video/BV13qEJ6sEzB",
+        "uploader": "牛奶君_",
+        "thumbnail": "https://i1.hdslb.com/bfs/archive/60f10f342cb5ab202908aac15560b366d525fef8.jpg"
+      }
+    },
+    "bilibili:BV1MU411S7xM": {
+      "id": "bilibili:BV1MU411S7xM",
+      "title": "《沦陷》（官方版1.3x）-JuggShots，太好听了，前奏真的沦陷了啊！",
+      "artist": "可乐音乐_",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1MU411S7xM",
+      "duration": 143,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1MU411S7xM_《沦陷》（官方版1.3x）-JuggShots，太好听了，前奏真的沦陷了啊！.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "BV1MU411S7xM",
+        "original_url": "https://www.bilibili.com/video/BV1MU411S7xM",
+        "uploader": "可乐音乐_",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/4cda13773d51989b95fdd9150993855dcc4f0444.jpg"
+      }
+    },
+    "netease:27965209": {
+      "id": "netease:27965209",
+      "title": "那时雨",
+      "artist": "徐良",
+      "source": "netease",
+      "source_url": "https://music.163.com/song?id=27965209",
+      "duration": 214,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "default"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "27965209",
+        "original_url": "https://music.163.com/song?id=27965209",
+        "album": "情话",
+        "thumbnail": "https://p2.music.126.net/Eiq_XiRNqiXJEwmFzLTtow==/109951172050975516.jpg"
+      }
+    },
+    "youtube:_BshMLSUsW8": {
+      "id": "youtube:_BshMLSUsW8",
+      "title": "ycccc - 滿天星辰不及你『星際閃耀光影 落入你的眼睛，我們共赴一場 光年的旅行。』【高音質|動態歌詞Lyrics】♫",
+      "artist": "4K Music Make",
+      "source": "youtube",
+      "source_url": "https://www.youtube.com/watch?v=_BshMLSUsW8",
+      "duration": 216,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "playlist_8976b2a8"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "original_id": "_BshMLSUsW8",
+        "original_url": "https://www.youtube.com/watch?v=_BshMLSUsW8",
+        "uploader": "4K Music Make"
+      }
+    },
+    "web_jbsou:wy:3362038053": {
+      "id": "web_jbsou:wy:3362038053",
+      "title": "Fever Pitch",
+      "artist": "Richz",
+      "source": "web_jbsou",
+      "source_url": "https://music.163.com/#/song?id=3362038053",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_jbsou_wy_3362038053_Fever_Pitch.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 2,
+      "last_played_at": "2026-06-17T19:43:26.000296",
+      "extra": {
+        "site_id": "jbsou",
+        "songid": 3362038053,
+        "source_type": "wy",
+        "stream_path": "api.php?get=url&type=wy&id=3362038053&sign=48EFlBmk72Dwg&t=1781554215",
+        "cover_path": "api.php?get=pic&type=wy&id=3362038053&sign=48EFlBmk72Dwg&t=1781554215",
+        "lrc_path": "api.php?get=lrc&type=wy&id=3362038053&sign=48EFlBmk72Dwg&t=1781554215",
+        "link": "https://music.163.com/#/song?id=3362038053",
+        "original_id": "wy:3362038053",
+        "thumbnail": "https://www.jbsou.cn/api.php?get=pic&type=wy&id=3362038053&sign=48EFlBmk72Dwg&t=1781554215"
+      }
+    },
+    "web_liumingye:netease:3368398013": {
+      "id": "web_liumingye:netease:3368398013",
+      "title": "Fever Pitch",
+      "artist": "Leo6/MXSIV",
+      "source": "web_liumingye",
+      "source_url": "https://music.163.com/#/song?id=3368398013",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_netease_3368398013_Fever_Pitch.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "site_id": "liumingye",
+        "source": "netease",
+        "song_id": "3368398013",
+        "album": "Fever Pitch",
+        "original_id": "netease:3368398013",
+        "thumbnail": "http://p4.music.126.net/aWdveLwM4EdeWjJ6gmX_PQ==/109951173022260749.jpg"
+      }
+    },
+    "web_jbsou:wy:2705752214": {
+      "id": "web_jbsou:wy:2705752214",
+      "title": "害怕",
+      "artist": "Estrella/带泪的鱼",
+      "source": "web_jbsou",
+      "source_url": "https://music.163.com/#/song?id=2705752214",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "online",
+      "path": null,
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 1,
+      "last_played_at": "2026-06-17T19:29:16.347370",
+      "extra": {
+        "site_id": "jbsou",
+        "songid": 2705752214,
+        "source_type": "wy",
+        "stream_path": "api.php?get=url&type=wy&id=2705752214&sign=90erwxrM3HTTo&t=1781555432",
+        "cover_path": "api.php?get=pic&type=wy&id=2705752214&sign=90erwxrM3HTTo&t=1781555432",
+        "lrc_path": "api.php?get=lrc&type=wy&id=2705752214&sign=90erwxrM3HTTo&t=1781555432",
+        "link": "https://music.163.com/#/song?id=2705752214",
+        "original_id": "wy:2705752214",
+        "thumbnail": "https://www.jbsou.cn/api.php?get=pic&type=wy&id=2705752214&sign=90erwxrM3HTTo&t=1781555432"
+      }
+    },
+    "web_qqmp3:101670": {
+      "id": "web_qqmp3:101670",
+      "title": "一个人唱情歌(RAP)",
+      "artist": "带泪的鱼(戴丽丽)/潘成（皮卡潘）/诺",
+      "source": "web_qqmp3",
+      "source_url": "https://www.qqmp3.vip/#rid=101670",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_qqmp3_101670_一个人唱情歌(RAP).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 2,
+      "last_played_at": null,
+      "extra": {
+        "site_id": "qqmp3",
+        "rid": "101670",
+        "pic": "https://img.qqmp3.vip/image/20250912/20250912093239_8694.webp",
+        "downurl": [
+          "MP3下载$$https://pan.quark.cn/s/fb2d41ce691a"
+        ],
+        "original_id": "101670",
+        "thumbnail": "https://img.qqmp3.vip/image/20250912/20250912093239_8694.webp"
+      }
+    },
+    "web_jbsou:wy:1885834549": {
+      "id": "web_jbsou:wy:1885834549",
+      "title": "美人鱼",
+      "artist": "Coisini小辰",
+      "source": "web_jbsou",
+      "source_url": "https://music.163.com/#/song?id=1885834549",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_jbsou_wy_1885834549_美人鱼.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 3,
+      "last_played_at": "2026-06-17T19:28:46.865417",
+      "extra": {
+        "site_id": "jbsou",
+        "songid": 1885834549,
+        "source_type": "wy",
+        "stream_path": "api.php?get=url&type=wy&id=1885834549&sign=31aCJPXNl2Fwc&t=1781556389",
+        "cover_path": "api.php?get=pic&type=wy&id=1885834549&sign=31aCJPXNl2Fwc&t=1781556389",
+        "lrc_path": "api.php?get=lrc&type=wy&id=1885834549&sign=31aCJPXNl2Fwc&t=1781556389",
+        "link": "https://music.163.com/#/song?id=1885834549",
+        "original_id": "wy:1885834549",
+        "thumbnail": "https://www.jbsou.cn/api.php?get=pic&type=wy&id=1885834549&sign=31aCJPXNl2Fwc&t=1781556389"
+      }
+    },
+    "web_fangpi:11568825": {
+      "id": "web_fangpi:11568825",
+      "title": "美人鱼",
+      "artist": "林俊杰",
+      "source": "web_fangpi",
+      "source_url": "https://www.fangpi.net/music/11568825",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_fangpi_11568825_美人鱼.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 0,
+      "last_played_at": null,
+      "extra": {
+        "site_id": "fangpi",
+        "music_id": 11568825,
+        "original_id": "11568825"
+      }
+    },
+    "web_liumingye:kuwo:3398743": {
+      "id": "web_liumingye:kuwo:3398743",
+      "title": "带泪的鱼",
+      "artist": "带泪的鱼(戴丽丽)",
+      "source": "web_liumingye",
+      "source_url": "https://www.kuwo.cn/play_detail/3398743",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_kuwo_3398743_带泪的鱼.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 1,
+      "last_played_at": null,
+      "extra": {
+        "site_id": "liumingye",
+        "source": "kuwo",
+        "rid": "3398743",
+        "album": "带泪的鱼",
+        "audio_url": "http://kw-api.cenguigui.cn?id=3398743&type=song&level=exhigh&format=mp3",
+        "original_id": "kuwo:3398743",
+        "thumbnail": "https://img4.kuwo.cn/star/albumcover/600/s4s35/61/1786435652.jpg"
+      }
+    },
+    "web_gequbao:61319817": {
+      "id": "web_gequbao:61319817",
+      "title": "海屿你",
+      "artist": "林希泽",
+      "source": "web_gequbao",
+      "source_url": "https://www.gequbao.com/music/61319817",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_gequbao_61319817_海屿你.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [
+        "web_favorites"
+      ],
+      "play_count": 3,
+      "last_played_at": null,
+      "extra": {
+        "site_id": "gequbao",
+        "original_id": "61319817"
+      }
+    },
+    "bilibili:BV1M8JM6WEXZ:p1": {
+      "id": "bilibili:BV1M8JM6WEXZ:p1",
+      "title": "lv_0_20260615094543",
+      "artist": "Baekhyunlv",
+      "source": "bilibili",
+      "source_url": "https://www.bilibili.com/video/BV1M8JM6WEXZ",
+      "duration": 10365,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/bilibili_BV1M8JM6WEXZ_lv_0_20260615094543.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 1,
+      "last_played_at": "2026-06-17T19:34:00.790391",
+      "extra": {
+        "original_id": "BV1M8JM6WEXZ",
+        "original_url": "https://www.bilibili.com/video/BV1M8JM6WEXZ",
+        "uploader": "Baekhyunlv",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/398fa6bb92a298e28740e802017d77244303ff07.jpg",
+        "cid": 39127286184,
+        "page": 1,
+        "parent_id": "bilibili:BV1M8JM6WEXZ"
+      }
+    },
+    "web_liumingye:netease:2603123296": {
+      "id": "web_liumingye:netease:2603123296",
+      "title": "一个人唱情歌（RAP）",
+      "artist": "Estrella/带泪的鱼/mc诺",
+      "source": "web_liumingye",
+      "source_url": "https://music.163.com/#/song?id=2603123296",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_netease_2603123296_一个人唱情歌（RAP）_2.mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 3,
+      "last_played_at": "2026-06-17T19:32:19.274758",
+      "extra": {
+        "site_id": "liumingye",
+        "source": "netease",
+        "song_id": "2603123296",
+        "album": "一种感觉"
+      }
+    },
+    "web_liumingye:qq:003e99P90053zT": {
+      "id": "web_liumingye:qq:003e99P90053zT",
+      "title": "一个人唱情歌 (RAP)",
+      "artist": "带泪的鱼(戴丽丽)",
+      "source": "web_liumingye",
+      "source_url": "https://y.qq.com/n/ryqq/songDetail/003e99P90053zT",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_qq_003e99P90053zT_一个人唱情歌 (RAP).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 1,
+      "last_played_at": "2026-06-17T19:32:13.172639",
+      "extra": {
+        "site_id": "liumingye",
+        "source": "qq",
+        "mid": "003e99P90053zT",
+        "qq_search_key": "带泪的鱼",
+        "pay": "付费"
+      }
+    },
+    "web_liumingye:kuwo:3371655": {
+      "id": "web_liumingye:kuwo:3371655",
+      "title": "一个人唱情歌 (RAP)",
+      "artist": "带泪的鱼(戴丽丽)&潘成（皮卡潘）&诺",
+      "source": "web_liumingye",
+      "source_url": "https://www.kuwo.cn/play_detail/3371655",
+      "duration": null,
+      "media_type": "audio",
+      "storage": "local",
+      "path": "files/web_liumingye_kuwo_3371655_一个人唱情歌 (RAP).mp3",
+      "cover_path": null,
+      "lyrics_path": null,
+      "playlists": [],
+      "play_count": 1,
+      "last_played_at": "2026-06-17T19:32:29.471292",
+      "extra": {
+        "site_id": "liumingye",
+        "source": "kuwo",
+        "rid": "3371655",
+        "album": "假象",
+        "audio_url": "http://kw-api.cenguigui.cn?id=3371655&type=song&level=exhigh&format=mp3"
+      }
+    }
+  }
+}
