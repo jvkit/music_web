@@ -4,15 +4,15 @@
 
 import { els } from '../dom.js';
 import { state } from '../state.js';
-import { showToast } from '../utils.js';
+import { showToast, filterByMediaType, createMediaTypeFilter } from '../utils.js';
 import { icon } from '../icons.js';
-import { createPlaylist, deletePlaylist, fetchPlaylists } from '../api.js';
+import { createPlaylist, deletePlaylist } from '../api.js';
 import { createTrackCard } from '../components/trackCard.js';
+import { refreshLibrary } from '../playlistOps.js';
 
 export async function loadPlaylists() {
     try {
-        const data = await fetchPlaylists();
-        state.playlists = data.items || [];
+        await refreshLibrary();
         renderSettingsTargetPlaylist();
         if (state.currentTab === 'playlists') renderPlaylists();
     } catch (err) {
@@ -45,12 +45,21 @@ export function renderPlaylists() {
     const container = els.playlistTracks;
     container.innerHTML = '';
 
-    if (!playlist.tracks || playlist.tracks.length === 0) {
-        container.innerHTML = '<div class="py-12 text-center text-base-content/40 text-sm">暂无歌曲</div>';
+    // 筛选按钮
+    const filterContainer = createMediaTypeFilter(state.mediaTypeFilter.playlist, (type) => {
+        state.mediaTypeFilter.playlist = type;
+        renderPlaylists();
+    });
+    container.appendChild(filterContainer);
+
+    const tracks = filterByMediaType(playlist.tracks, state.mediaTypeFilter.playlist);
+
+    if (tracks.length === 0) {
+        container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无歌曲</div>');
         return;
     }
 
-    playlist.tracks.forEach(track => {
+    tracks.forEach(track => {
         const card = createTrackCard(track, { selectable: true, showSource: true, context: 'playlist' });
         container.appendChild(card);
     });

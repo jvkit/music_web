@@ -4,19 +4,20 @@
     music search "QUERY" [--limit N] [--source youtube|netease|bilibili|soundcloud] [--proxy URL]
     music preview INDEX [--type audio|video] [--proxy URL]
     music download INDEX [--type audio|video] [--output DIR] [--proxy URL]
+    music library list
+    music library cleanup [--dry-run] [--yes]
     music cache list
     music cache play ID [--type audio|video]
     music cache delete ID [--type audio|video]
     music cache clear
-    music config [--proxy URL] [--default-source SOURCE] [--download-dir DIR]
+    music config [--proxy URL] [--default-source SOURCE] [--download-dir DIR] [--library-dir DIR]
     music sync [--dry-run] [--host HOST] [--api-url URL] [--remote-dir DIR]
     music serve [--host HOST] [--port PORT]
 
 设计说明：
 - 搜索结果被持久化到配置文件目录，供 preview / download 按序号使用。
-- preview 会先把曲目下载到缓存目录，再调用本地播放器。
-- download 优先从缓存复制；若缓存不存在则重新下载。
-- 缓存上限 1GB，超出时自动淘汰最久未访问的文件。
+- preview 优先播放音乐库中的本地文件；没有本地文件时， direct_stream 音源直接打印流地址，否则下载到音乐库后播放。
+- download 直接下载到音乐库 files/ 目录，并在 library.json 中登记。
 - 支持 --proxy 覆盖配置中的默认代理。
 - 支持 --type audio|video 切换音频/视频。
 - music serve 启动 FastAPI 后端，供 H5/小程序调用。
@@ -24,6 +25,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,8 +37,9 @@ from rich.console import Console
 from rich.table import Table
 
 from music_cli.cache import CacheManager
-from music_cli.config import get_cache_dir, get_config_dir, get_download_dir
+from music_cli.config import get_cache_dir, get_config_dir, get_download_dir, get_library_dir
 from music_cli.ffmpeg import find_ffmpeg
+from music_cli.library import Library, Playlist, Song
 from music_cli.models import MediaType, Track
 from music_cli.player import Player
 from music_cli.settings import Settings, load_settings, save_settings
@@ -46,6 +49,8 @@ from music_cli.sync import run_sync
 app = typer.Typer(help="多音源音乐搜索、试听与下载 CLI")
 cache_app = typer.Typer(help="缓存管理")
 app.add_typer(cache_app, name="cache")
+library_app = typer.Typer(help="音乐库管理")
+app.add_typer(library_app, name="library")
 
 console = Console()
 
@@ -113,6 +118,40 @@ def _resolve_download_dir(output: Optional[Path]) -> Path:
     return settings.download_dir or get_download_dir()
 
 
+def _resolve_library_dir() -> Path:
+    settings = load_settings()
+    return settings.library_dir or get_library_dir()
+
+
+def _safe_filename(name: str) -> str:
+    """把字符串转为安全的文件名，保留中文，替换 Windows 非法字符"""
+    name = re.sub(r'[<>:"/\\|?*]', "_", name)
+    return name.strip(". ") or "unknown"
+
+
+def _media_ext(media_type: MediaType) -> str:
+    return ".mp4" if media_type == MediaType.VIDEO else ".mp3"
+
+
+def _original_id(track: Track) -> str:
+    """从 track 中提取平台原始 ID"""
+    original_id = track.extra.get("original_id") if track.extra else None
+    if original_id:
+        return str(original_id)
+    if ":" in track.id:
+        return track.id.split(":", 1)[1]
+    return track.id
+
+
+def _library_filename(track: Track, media_type: MediaType) -> str:
+    """生成音乐库文件名称：{source}_{original_id}_{safe_title}.{ext}"""
+    ext = _media_ext(media_type)
+    source = _safe_filename(track.source)
+    original_id = _safe_filename(_original_id(track))
+    safe_title = _safe_filename(track.title)
+    return f"{source}_{original_id}_{safe_title}{ext}"
+
+
 def _resolve_media_type(media_type: Optional[str]) -> MediaType:
     if media_type is None:
         return MediaType.AUDIO
@@ -176,31 +215,70 @@ def preview(
     source: Optional[str] = typer.Option(None, "--source", "-s", help="音源：youtube / netease / bilibili / soundcloud"),
     proxy: Optional[str] = typer.Option(None, "--proxy", "-p", help="代理地址"),
 ) -> None:
-    """试听/试看指定序号的曲目（会先下载到缓存）"""
+    """试听/试看指定序号的曲目（优先使用音乐库本地文件）"""
     track = _track_by_index(index)
     media_type = _resolve_media_type(type)
-    source_name = _resolve_source(source)
+    source_name = source or track.source
     proxy_url = _resolve_proxy(proxy)
     cookie_file = _resolve_cookie_file(None)
-    cache = CacheManager()
+    library = Library(library_dir=_resolve_library_dir())
+    files_dir = library.library_dir / "files"
     src = get_source(source_name, proxy=proxy_url, cookie_file=cookie_file)
 
-    cached = cache.get(track.id, media_type)
-    if cached is None:
-        action = "缓存视频" if media_type == MediaType.VIDEO else "缓存音频"
-        console.print(f"⬇️  正在{action}: {track.display_name()}")
-        try:
-            path = src.download(track, cache.cache_dir, media_type=media_type)
-            cached = cache.register(track, path, media_type=media_type)
-        except Exception as e:
-            console.print(f"❌ 缓存失败: {e}")
-            raise typer.Exit(1)
-    else:
-        console.print(f"💿 命中缓存: {track.display_name()} [{media_type.value}]")
+    # 1. 优先播放音乐库中的本地文件
+    song = library.get_song(track.id)
+    if song is not None and song.storage == "local":
+        local_path = library.resolve_path(song.path)
+        if local_path and local_path.exists():
+            console.print(f"💿 命中本地文件: {local_path}")
+            try:
+                Player().play(local_path)
+            except Exception as e:
+                console.print(f"❌ 播放失败: {e}")
+                raise typer.Exit(1)
+            return
 
-    console.print(f"▶️  正在播放: {cached.path}")
+    # 2. direct_stream 音源直接获取流地址
+    if getattr(src, "direct_stream", False):
+        try:
+            stream_url = src.get_stream_url(track)
+        except Exception as e:
+            console.print(f"❌ 获取流地址失败: {e}")
+            raise typer.Exit(1)
+        if stream_url:
+            console.print(f"🔗 直链地址: {stream_url}")
+            console.print("请用浏览器或播放器打开该链接试听。")
+            return
+
+    # 3. 下载到音乐库后播放
+    action = "下载视频" if media_type == MediaType.VIDEO else "下载音频"
+    console.print(f"⬇️  正在{action}: {track.display_name()}")
+    filename = _library_filename(track, media_type)
+    output_path = files_dir / filename
     try:
-        Player().play(cached.path)
+        final_path = src.download(track, output_path, media_type=media_type)
+    except Exception as e:
+        console.print(f"❌ 下载失败: {e}")
+        raise typer.Exit(1)
+
+    rel_path = f"files/{final_path.name}"
+    song = Song(
+        id=track.id,
+        title=track.title,
+        artist=track.artist,
+        source=track.source,
+        source_url=track.source_url,
+        duration=track.duration,
+        media_type=media_type.value,
+        storage="local",
+        path=rel_path,
+        extra=track.extra,
+    )
+    library.add_song(song)
+
+    console.print(f"▶️  正在播放: {final_path}")
+    try:
+        Player().play(final_path)
     except Exception as e:
         console.print(f"❌ 播放失败: {e}")
         raise typer.Exit(1)
@@ -210,36 +288,52 @@ def preview(
 def download(
     index: int = typer.Argument(..., help="搜索结果序号"),
     type: Optional[str] = typer.Option("audio", "--type", "-t", help="媒体类型：audio / video"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出目录，默认 ~/Music/musiic-cli"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出目录，默认使用音乐库 files/"),
     source: Optional[str] = typer.Option(None, "--source", "-s", help="音源：youtube / netease / bilibili / soundcloud"),
     proxy: Optional[str] = typer.Option(None, "--proxy", "-p", help="代理地址"),
 ) -> None:
-    """下载指定序号的曲目为 MP3/MP4"""
+    """下载指定序号的曲目到音乐库"""
     track = _track_by_index(index)
     media_type = _resolve_media_type(type)
-    out_dir = _resolve_download_dir(output)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    source_name = _resolve_source(source)
+    source_name = source or track.source
     proxy_url = _resolve_proxy(proxy)
     cookie_file = _resolve_cookie_file(None)
-    cache = CacheManager()
+    library = Library(library_dir=_resolve_library_dir())
+    files_dir = library.library_dir / "files"
     src = get_source(source_name, proxy=proxy_url, cookie_file=cookie_file)
 
-    cached = cache.get(track.id, media_type)
-    if cached is not None:
-        # 从缓存复制
-        target = out_dir / cached.path.name
-        shutil.copy2(str(cached.path), str(target))
-        console.print(f"✅ 已从缓存复制到: {target}")
+    action = "下载视频" if media_type == MediaType.VIDEO else "下载音频"
+    console.print(f"⬇️  正在{action}: {track.display_name()}")
+
+    if output:
+        out_dir = output.resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        filename = _library_filename(track, media_type)
+        output_path = out_dir / filename
     else:
-        action = "下载视频" if media_type == MediaType.VIDEO else "下载音频"
-        console.print(f"⬇️  正在{action}: {track.display_name()}")
-        try:
-            target = src.download(track, out_dir, media_type=media_type)
-            console.print(f"✅ 下载完成: {target}")
-        except Exception as e:
-            console.print(f"❌ 下载失败: {e}")
-            raise typer.Exit(1)
+        output_path = files_dir / _library_filename(track, media_type)
+
+    try:
+        final_path = src.download(track, output_path, media_type=media_type)
+    except Exception as e:
+        console.print(f"❌ 下载失败: {e}")
+        raise typer.Exit(1)
+
+    rel_path = f"files/{final_path.name}"
+    song = Song(
+        id=track.id,
+        title=track.title,
+        artist=track.artist,
+        source=track.source,
+        source_url=track.source_url,
+        duration=track.duration,
+        media_type=media_type.value,
+        storage="local",
+        path=rel_path,
+        extra=track.extra,
+    )
+    library.add_song(song)
+    console.print(f"✅ 已保存到音乐库: {final_path}")
 
 
 @cache_app.command("list")
@@ -319,11 +413,83 @@ def cache_clear(
     console.print(f"✅ 已清空 {count} 个缓存文件")
 
 
+@library_app.command("list")
+def library_list() -> None:
+    """列出音乐库中的所有歌曲"""
+    library = Library(library_dir=_resolve_library_dir())
+    songs = list(library.data.songs.values())
+    if not songs:
+        console.print("音乐库为空")
+        return
+
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("ID", style="dim")
+    table.add_column("标题")
+    table.add_column("艺人")
+    table.add_column("类型", width=8)
+    table.add_column("存储", width=8)
+    table.add_column("播放列表")
+
+    for song in songs:
+        playlist_names = [
+            library.data.playlists.get(pid, Playlist(id=pid, name=pid)).name
+            for pid in song.playlists
+        ]
+        table.add_row(
+            song.id,
+            song.title,
+            song.artist,
+            song.media_type,
+            song.storage,
+            ", ".join(playlist_names) if playlist_names else "-",
+        )
+
+    console.print(table)
+    console.print(f"\n共 {len(songs)} 首歌曲")
+
+
+@library_app.command("cleanup")
+def library_cleanup(
+    dry_run: bool = typer.Option(False, "--dry-run", help="仅预览不删除"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="跳过确认"),
+) -> None:
+    """清理不在任何播放列表中的本地歌曲"""
+    library = Library(library_dir=_resolve_library_dir())
+    orphans = library.cleanup_orphan_songs(dry_run=True)
+
+    if not orphans:
+        console.print("没有需要清理的孤儿歌曲")
+        return
+
+    console.print(f"发现 {len(orphans)} 首不在任何播放列表中的歌曲:")
+    for song in orphans:
+        console.print(f"  - {song.artist} - {song.title} ({song.id})")
+
+    if dry_run:
+        console.print("\n--dry-run 模式，未实际删除")
+        return
+
+    if not yes and not typer.confirm("确定删除以上歌曲及其关联文件吗？"):
+        raise typer.Abort()
+
+    # 先删除本地文件，再从库中移除记录
+    for song in orphans:
+        for rel_path in (song.path, song.cover_path, song.lyrics_path):
+            abs_path = library.resolve_path(rel_path)
+            if abs_path and abs_path.exists():
+                abs_path.unlink()
+                console.print(f"🗑️  已删除文件: {abs_path}")
+
+    library.cleanup_orphan_songs(dry_run=False)
+    console.print(f"✅ 已清理 {len(orphans)} 首歌曲")
+
+
 @app.command()
 def config(
     proxy: Optional[str] = typer.Option(None, "--proxy", "-p", help="默认代理地址"),
     default_source: Optional[str] = typer.Option(None, "--default-source", "-s", help="默认音源：youtube / netease / bilibili / soundcloud"),
     download_dir: Optional[Path] = typer.Option(None, "--download-dir", "-d", help="默认下载目录"),
+    library_dir: Optional[Path] = typer.Option(None, "--library-dir", help="音乐库目录，默认 ~/Music/musiic-cli-library"),
     cookie_file: Optional[str] = typer.Option(None, "--cookie-file", "-c", help="cookies.txt 路径，用于 YouTube / Bilibili 缓解平台限制"),
     sync_remote_host: Optional[str] = typer.Option(None, "--sync-remote-host", help="同步用 SSH 主机，如 j"),
     sync_remote_api_url: Optional[str] = typer.Option(None, "--sync-remote-api-url", help="同步用远程 API 地址，如 http://82.157.178.112/music/api"),
@@ -338,6 +504,7 @@ def config(
         console.print(f"  proxy: {settings.proxy}")
         console.print(f"  default_source: {settings.default_source}")
         console.print(f"  download_dir: {settings.download_dir}")
+        console.print(f"  library_dir: {settings.library_dir}")
         console.print(f"  cookie_file: {settings.cookie_file}")
         console.print(f"  sync_remote_host: {settings.sync_remote_host}")
         console.print(f"  sync_remote_api_url: {settings.sync_remote_api_url}")
@@ -353,6 +520,9 @@ def config(
         updated = True
     if download_dir is not None:
         settings.download_dir = download_dir
+        updated = True
+    if library_dir is not None:
+        settings.library_dir = library_dir if str(library_dir).strip() not in ("", ".") else None
         updated = True
     if cookie_file is not None:
         settings.cookie_file = cookie_file or None
@@ -371,7 +541,7 @@ def config(
         save_settings(settings)
         console.print("✅ 配置已保存")
     else:
-        console.print("使用 --show 查看配置，或使用 --proxy / --default-source / --download-dir / --cookie-file / --sync-* 修改")
+        console.print("使用 --show 查看配置，或使用 --proxy / --default-source / --download-dir / --library-dir / --cookie-file / --sync-* 修改")
 
 
 @app.command()
@@ -380,7 +550,6 @@ def sync(
     host: Optional[str] = typer.Option(None, "--host", "-h", help="远程 SSH 主机，覆盖配置"),
     api_url: Optional[str] = typer.Option(None, "--api-url", help="远程 API 地址，覆盖配置"),
     remote_dir: Optional[str] = typer.Option(None, "--remote-dir", help="远程音乐目录，覆盖配置"),
-    playlists_path: Optional[Path] = typer.Option(None, "--playlists", help="本地 playlists.json 路径"),
 ) -> None:
     """与远程服务器双向同步收藏和音乐文件"""
     settings = load_settings()
@@ -402,9 +571,6 @@ def sync(
         console.print("   music config --sync-remote-music-dir <DIR>")
         raise typer.Exit(1)
 
-    local_playlists = playlists_path or (get_config_dir() / "playlists.json")
-    local_music_dirs = [get_download_dir(), get_cache_dir()]
-
     if dry_run:
         console.print("=== DRY RUN 模式，不会实际传输文件 ===")
 
@@ -412,9 +578,7 @@ def sync(
         run_sync(
             remote_host=remote_host,
             remote_api_url=remote_api_url,
-            remote_music_dir=remote_music_dir,
-            local_playlists_path=local_playlists,
-            local_music_dirs=local_music_dirs,
+            remote_library_dir=remote_music_dir,
             dry_run=dry_run,
         )
     except Exception as e:

@@ -116,6 +116,24 @@
   - 当前搜索/播放困难：QQMP3（关键词拦截）、MusicEnc（服务端空结果/DNS 问题）、音乐客 yinyueke（API 域名失效）。
 - 依赖：新增 `beautifulsoup4` + `lxml` 用于网页解析。
 
+### 新版 Web API 前端适配（2024-06）
+
+- 背景：后端升级为 Library/Song 模型，播放列表与歌曲改由 `/api/library` 同步，本地流/删除 API 改为按 `song.id` 寻址。
+- 适配：
+  - `src/web/static/js/api.js`：`deleteLocalItem` 改为 `/api/local/{song_id}`；新增 `fetchLibrary`、`fetchFavorites`。
+  - `src/web/static/js/playlistOps.js`：通过 `/api/library` 同步完整音乐库，构造带 `tracks` 的播放列表对象，缓存 `librarySongs`。
+  - `src/web/static/js/views/playlists.js`：改用 `refreshLibrary()` 加载列表；播放列表对象现在含 `id`、`name`、`song_count`，曲目从库歌曲反算。
+  - `src/web/static/js/player.js`、`views/local.js`：所有本地流与删除 URL 由 `localItem.key` 改为 `localItem.id`（即 `song.id`）。
+- 新增体验功能：
+  - `audio/video` 筛选：`src/web/static/js/views/search.js`、`playlists.js`、`local.js` 顶部新增 `全部 | 音频 | 视频` 按钮组，按 `media_type` 过滤。
+  - 不稳定音源标签：`app.js` 中网页音源下拉菜单对 `status === 'unstable'` 显示 `（不稳定）`。
+  - 删除当前播放歌曲时先切歌：
+    - `player.js#removeCurrentLocalTrack` 删除前先 `playNext()` / `stopPlayback()`。
+    - `playlistOps.js#removeTrackFromPlaylist` 删除当前播放曲目前先切歌，并在刷新库后重建队列。
+    - `views/local.js#deleteLocalItemById` 同样先切歌/停止。
+  - 记住上次播放状态：使用 `localStorage` 保存当前歌单、歌曲、播放进度/状态、播放模式；`app.js` 初始化完成后调用 `restorePlaybackState()` 自动恢复。
+- 其他：批量选择 `selection.js` 现在按当前筛选后的可见曲目进行全选/计数。
+
 ## 常用命令
 
 ```bash

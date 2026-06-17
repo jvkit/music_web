@@ -3,10 +3,17 @@
 所有第三方网页音乐站都通过 WebAdapter 接入，统一注册到 WebSource。
 """
 
+from music_cli.sources import SOURCE_STATUS
 from music_cli.sources.web.base import WebAdapter
 from music_cli.sources.web.source import WebSource
 
 __all__ = ["WebAdapter", "WebSource"]
+
+
+def _is_adapter_available(site_id: str) -> bool:
+    """根据 SOURCE_STATUS 判断站点是否可用（unavailable / deprecated 不注册）。"""
+    meta = SOURCE_STATUS.get(site_id.lower(), {})
+    return meta.get("available", True)
 
 
 def _load_adapters() -> list[WebAdapter]:
@@ -51,8 +58,9 @@ def _load_adapters() -> list[WebAdapter]:
         yinyueke,
     ]:
         adapter = module.adapter()
-        adapters.append(adapter)
-        WebSource.register(adapter)
+        if _is_adapter_available(adapter.site_id):
+            adapters.append(adapter)
+            WebSource.register(adapter)
 
     return adapters
 

@@ -41,3 +41,8 @@ def get_download_dir() -> Path:
 def get_config_dir() -> Path:
     default = Path(user_config_dir(APP_NAME, APP_AUTHOR))
     return _env_path("MUSIC_CONFIG_DIR", default)
+
+
+def get_library_dir() -> Path:
+    default = Path.home() / "Music" / "musiic-cli-library"
+    return _env_path("MUSIC_LIBRARY_DIR", default)

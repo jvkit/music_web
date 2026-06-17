@@ -4,6 +4,10 @@
 """
 
 import mimetypes
+import re
+import shutil
+import tempfile
+import uuid
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, unquote, urlparse
@@ -16,15 +20,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from music_cli.cache import CacheManager
-from music_cli.config import get_download_dir
-from music_cli.local import LocalLibrary
-from music_cli.models import MediaType, Playlist, Track
+from music_cli.library import Library, LibraryData, Playlist as LibraryPlaylist, Song
+from music_cli.models import MediaType, Track
 from music_cli.settings import load_settings
-from music_cli.sources import get_source
+from music_cli.sources import SOURCE_STATUS, get_source
 from music_cli.sources.base import Source
 from music_cli.sources.web import WEB_ADAPTERS
 from music_cli.web.downloads import DownloadManager, write_track_sidecar
-from music_cli.web.storage import LibraryStorage
 
 
 app = FastAPI(title="music-cli API", version="0.1.0")
@@ -39,9 +41,8 @@ app.add_middleware(
 )
 
 _cache_manager = CacheManager()
-_local_library = LocalLibrary()
-_storage = LibraryStorage()
 _download_manager = DownloadManager()
+_library = Library()
 
 # 复用音源实例，保持 session/cookie 状态（如 Bilibili 的 buvid3）
 _source_cache: dict[tuple[str, Optional[str], Optional[str]], Source] = {}
@@ -74,6 +75,25 @@ class PreviewRequest(BaseModel):
     source: Optional[str] = None
     media_type: Optional[str] = "audio"
     stream: bool = True
+
+
+class PlaylistRequest(BaseModel):
+    name: Optional[str] = None
+    tracks: Optional[list[Track]] = None
+
+
+class PlaylistTrackRequest(BaseModel):
+    track: Track
+
+
+class PlayRecordRequest(BaseModel):
+    track_id: str
+    progress: float = Field(1.0, ge=0.0, le=1.0)
+    track: Optional[Track] = None
+
+
+class LyricsRequest(BaseModel):
+    track: Track
 
 
 def _resolve_media_type(media_type: Optional[str]) -> MediaType:
@@ -122,6 +142,136 @@ def _resolve_track(req: PreviewRequest) -> Track:
     raise HTTPException(status_code=400, detail="请求中缺少 track 或 track_id+source")
 
 
+def _safe_filename(name: str) -> str:
+    """将字符串转换为安全文件名。"""
+    safe = re.sub(r'[\\/:*?"<>|]+', "_", name)
+    return safe.strip() or "untitled"
+
+
+def _build_original_id(track: Track) -> str:
+    """从 Track 中提取原始平台 ID。"""
+    if track.extra:
+        original_id = track.extra.get("original_id")
+        if original_id:
+            return str(original_id)
+    if ":" in track.id:
+        return track.id.split(":", 1)[1]
+    return track.id
+
+
+def _default_ext_for_media_type(media_type: MediaType) -> str:
+    return "mp4" if media_type == MediaType.VIDEO else "mp3"
+
+
+def _build_local_filename(
+    track: Track,
+    media_type: MediaType,
+    ext: Optional[str] = None,
+) -> str:
+    """按 {source}_{original_id}_{safe_title}.{ext} 构造本地文件名。"""
+    source = track.source
+    original_id = _safe_filename(_build_original_id(track))
+    safe_title = _safe_filename(track.title)
+    if ext is None:
+        ext = _default_ext_for_media_type(media_type)
+    ext = ext.lstrip(".")
+    return f"{source}_{original_id}_{safe_title}.{ext}"
+
+
+def _guess_media_type_from_path(path: Path) -> str:
+    """根据文件扩展名推断媒体类型。"""
+    video_exts = {".mp4", ".webm", ".mkv", ".mov"}
+    if path.suffix.lower() in video_exts:
+        return "video"
+    return "audio"
+
+
+def _track_to_song(
+    track: Track,
+    media_type: str = "audio",
+    storage: str = "online",
+    path: Optional[str] = None,
+) -> Song:
+    """将 Track 转换为 Library Song。"""
+    return Song(
+        id=track.id,
+        title=track.title,
+        artist=track.artist,
+        source=track.source,
+        source_url=track.source_url,
+        duration=track.duration,
+        media_type=media_type,
+        storage=storage,
+        path=path,
+        extra=track.extra or {},
+    )
+
+
+def _song_to_track(song: Song) -> Track:
+    """将 Library Song 转换为前端 Track。"""
+    return Track(
+        id=song.id,
+        title=song.title,
+        artist=song.artist,
+        source=song.source,
+        source_url=song.source_url,
+        duration=song.duration,
+        thumbnail=None,
+        lyrics=None,
+        extra=song.extra,
+    )
+
+
+def _ensure_song(track: Track, media_type: str = "audio") -> Song:
+    """确保 Library 中存在对应 Song，不存在则创建。"""
+    song = _library.get_song(track.id)
+    if song is None:
+        song = _track_to_song(track, media_type=media_type)
+        _library.add_song(song)
+    return song
+
+
+def _download_to_library(track: Track, media_type: MediaType) -> Path:
+    """下载曲目到 library files/，创建或更新 Song，返回最终文件路径。"""
+    src = _get_source(track.source)
+    files_dir = _library.library_dir / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=files_dir) as tmpdir:
+        tmp_path = src.download(track, Path(tmpdir), media_type=media_type)
+        ext = tmp_path.suffix.lstrip(".") or _default_ext_for_media_type(media_type)
+        filename = _build_local_filename(track, media_type, ext)
+        target_path = files_dir / filename
+
+        # 处理文件名冲突
+        counter = 1
+        original_target = target_path
+        while target_path.exists():
+            target_path = original_target.with_name(
+                f"{original_target.stem}_{counter}{original_target.suffix}"
+            )
+            counter += 1
+
+        shutil.move(str(tmp_path), str(target_path))
+
+    rel_path = target_path.relative_to(_library.library_dir).as_posix()
+    media_type_str = _guess_media_type_from_path(target_path)
+
+    song = _library.get_song(track.id)
+    if song is None:
+        song = _track_to_song(
+            track, media_type=media_type_str, storage="local", path=rel_path
+        )
+    else:
+        song.storage = "local"
+        song.path = rel_path
+        song.media_type = media_type_str
+    _library.add_song(song)
+
+    write_track_sidecar(target_path, track, media_type)
+    return target_path
+
+
 @app.get("/api/search")
 def api_search(
     query: str = Query(..., description="搜索关键词"),
@@ -140,7 +290,7 @@ def api_search(
 
 @app.post("/api/preview")
 def api_preview(req: PreviewRequest):
-    """试听/试看：优先尝试返回可直接播放的流地址，否则下载到缓存后返回。
+    """试听/试看：优先尝试返回可直接播放的流地址，否则下载到库后返回本地流地址。
 
     兼容两种请求格式：
     - { track, media_type }：前端已有完整 Track。
@@ -150,49 +300,38 @@ def api_preview(req: PreviewRequest):
     """
     track = _resolve_track(req)
     media_type = _resolve_media_type(req.media_type)
-    cache_key = CacheManager._cache_key(track.id, media_type)
+    song = _ensure_song(track, media_type=media_type.value)
 
-    # 本地/缓存优先：如果文件已经存在，直接走本地流，不再请求网络。
-    cached = _cache_manager.get(track.id, media_type)
-    if cached is not None:
-        return {
-            "cache_key": cache_key,
-            "stream_url": f"/api/stream/{cache_key}",
-            "media_type": media_type.value,
-            "track": track.model_dump(),
-            "streamed": False,
-        }
-
-    local_item = _local_library.find_best_match(track, media_type)
-    if local_item is not None:
-        return {
-            "cache_key": cache_key,
-            "stream_url": f"/api/local/stream/{quote(local_item.key, safe='')}",
-            "media_type": media_type.value,
-            "track": track.model_dump(),
-            "streamed": False,
-        }
+    # 本地文件优先
+    if song.storage == "local" and song.path:
+        abs_path = _library.resolve_path(song.path)
+        if abs_path and abs_path.exists():
+            _library.record_play(song.id)
+            return {
+                "stream_url": f"/api/local/stream/{song.id}",
+                "media_type": song.media_type,
+                "track": _song_to_track(song).model_dump(),
+                "streamed": False,
+            }
 
     # 优先尝试边下边播：直接流地址或代理流地址
     if req.stream:
         try:
             src = _get_source(track.source)
-            direct_url = src.get_stream_url(track)
-            if direct_url:
-                # Bilibili/YouTube 等第三方直链需要带 Referer/Cookie，走后端代理
-                if track.source in ("bilibili", "youtube"):
-                    stream_url = f"/api/stream_proxy?url={quote(direct_url, safe='')}&source={track.source}"
-                elif track.source.startswith("web_"):
-                    # 网页音源：只有标记为 direct_stream 的才直接给前端用，否则走下载缓存兜底
-                    if getattr(src, "direct_stream", False):
+            if getattr(src, "direct_stream", False):
+                direct_url = src.get_stream_url(track)
+                if direct_url:
+                    if track.source in ("bilibili", "youtube"):
+                        stream_url = (
+                            f"/api/stream_proxy?url={quote(direct_url, safe='')}"
+                            f"&source={track.source}"
+                        )
+                    elif track.source.startswith("web_"):
                         stream_url = direct_url
                     else:
-                        direct_url = None
-                else:
-                    stream_url = direct_url
-                if direct_url:
+                        stream_url = direct_url
+                    _library.record_play(song.id)
                     return {
-                        "cache_key": cache_key,
                         "stream_url": stream_url,
                         "media_type": media_type.value,
                         "track": track.model_dump(),
@@ -202,18 +341,15 @@ def api_preview(req: PreviewRequest):
             # 获取流地址失败则回退到完整下载
             pass
 
-    cached = _cache_manager.get(track.id, media_type)
-    if cached is None:
-        try:
-            src = _get_source(track.source)
-            path = src.download(track, _cache_manager.cache_dir, media_type=media_type)
-            cached = _cache_manager.register(track, path, media_type=media_type)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"缓存失败: {e}")
+    # 下载到 library files/
+    try:
+        _download_to_library(track, media_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"缓存失败: {e}")
 
+    _library.record_play(track.id)
     return {
-        "cache_key": cache_key,
-        "stream_url": f"/api/stream/{cache_key}",
+        "stream_url": f"/api/local/stream/{track.id}",
         "media_type": media_type.value,
         "track": track.model_dump(),
         "streamed": False,
@@ -374,35 +510,33 @@ def api_stream_proxy_head(
 
 @app.post("/api/download")
 def api_download(req: PreviewRequest):
-    """提交下载任务，返回 task_id 供前端轮询进度
+    """下载曲目到 library files/，创建或更新 Song，返回保存路径。
 
     兼容 { track } 与 { track_id, source } 两种请求格式。
     """
     track = _resolve_track(req)
     media_type = _resolve_media_type(req.media_type)
-    out_dir = get_download_dir()
-    out_dir.mkdir(parents=True, exist_ok=True)
 
-    cached = _cache_manager.get(track.id, media_type)
-    if cached is not None:
-        import shutil
+    song = _library.get_song(track.id)
+    if song is not None and song.storage == "local" and song.path:
+        abs_path = _library.resolve_path(song.path)
+        if abs_path and abs_path.exists():
+            return {
+                "task_id": None,
+                "status": "completed",
+                "path": str(abs_path),
+                "from_cache": False,
+            }
 
-        target = out_dir / cached.path.name
-        shutil.copy2(str(cached.path), str(target))
-        write_track_sidecar(target, track, media_type)
-        return {
-            "task_id": None,
-            "status": "completed",
-            "path": str(target),
-            "from_cache": True,
-        }
+    try:
+        path = _download_to_library(track, media_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"下载失败: {e}")
 
-    src = _get_source(track.source)
-    task_id = _download_manager.submit(track, media_type, out_dir, src)
     return {
-        "task_id": task_id,
-        "status": "pending",
-        "path": None,
+        "task_id": None,
+        "status": "completed",
+        "path": str(path),
         "from_cache": False,
     }
 
@@ -427,98 +561,89 @@ def api_download_cancel(task_id: str):
 
 @app.get("/api/local")
 def api_local_list():
-    """列出本地音频/视频文件（缓存 + 下载目录）"""
-    items = _local_library.list()
-    return {
-        "items": [
+    """列出 library 中 storage 为 local 的音频/视频文件。"""
+    items = []
+    for song in _library.data.songs.values():
+        if song.storage != "local" or not song.path:
+            continue
+        abs_path = _library.resolve_path(song.path)
+        if not abs_path or not abs_path.exists():
+            continue
+        items.append(
             {
-                "key": i.key,
-                "track": i.track.model_dump() if i.track else None,
-                "media_type": i.media_type.value,
-                "size": i.size,
-                "path": str(i.path),
-                "is_cache": i.is_cache,
-                "downloaded_at": i.downloaded_at.isoformat() if i.downloaded_at else None,
+                "id": song.id,
+                "track": _song_to_track(song).model_dump(),
+                "path": str(abs_path),
+                "media_type": song.media_type,
+                "size": abs_path.stat().st_size,
+                "is_cache": False,
             }
-            for i in items
-        ],
-        "total_size": sum(i.size for i in items),
-    }
+        )
+    return {"items": items, "total_size": sum(i["size"] for i in items)}
 
 
-@app.get("/api/local/stream/{key}")
-def api_local_stream(key: str):
-    """流式播放本地文件"""
-    # 根据 key 找到对应文件
-    prefix = "cache:" if key.startswith("cache:") else "download:"
-    filename = key[len(prefix):]
-    if prefix == "cache:":
-        path = _local_library.cache_dir / filename
-    else:
-        path = _local_library.download_dir / filename
-
-    if not path.exists():
+@app.get("/api/local/stream/{song_id}")
+def api_local_stream(song_id: str):
+    """流式播放 library 中的本地文件。"""
+    song = _library.get_song(song_id)
+    if song is None or song.storage != "local" or not song.path:
         raise HTTPException(status_code=404, detail="本地文件不存在")
 
-    media_type, _ = mimetypes.guess_type(str(path))
+    abs_path = _library.resolve_path(song.path)
+    if not abs_path or not abs_path.exists():
+        raise HTTPException(status_code=404, detail="本地文件不存在")
+
+    media_type, _ = mimetypes.guess_type(str(abs_path))
     return FileResponse(
-        path,
+        abs_path,
         media_type=media_type or "application/octet-stream",
-        filename=path.name,
+        filename=abs_path.name,
     )
 
 
-@app.head("/api/local/stream/{key}")
-def api_local_stream_head(key: str):
+@app.head("/api/local/stream/{song_id}")
+def api_local_stream_head(song_id: str):
     """HEAD 支持"""
-    return api_local_stream(key)
+    return api_local_stream(song_id)
 
 
-@app.delete("/api/local/{key}")
-def api_local_delete(key: str):
-    """删除指定本地文件"""
-    if not _local_library.delete(key):
+@app.delete("/api/local/{song_id}")
+def api_local_delete(song_id: str):
+    """删除指定本地文件，将 Song 置为 online。"""
+    song = _library.get_song(song_id)
+    if song is None or song.storage != "local" or not song.path:
         raise HTTPException(status_code=404, detail="本地文件不存在")
+
+    abs_path = _library.resolve_path(song.path)
+    if abs_path and abs_path.exists():
+        try:
+            abs_path.unlink()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"删除失败: {e}")
+
+    song.storage = "online"
+    song.path = None
+    _library.add_song(song)
     return {"ok": True}
-
-
-@app.delete("/api/local")
-def api_local_clear():
-    """清空本地所有文件"""
-    count = _local_library.clear()
-    return {"ok": True, "count": count}
-
-
-class PlaylistRequest(BaseModel):
-    name: Optional[str] = None
-    tracks: Optional[list[Track]] = None
-
-
-class PlaylistSyncRequest(BaseModel):
-    playlist_id: str = "default"
-    tracks: list[Track]
-
-
-class PlaylistTrackRequest(BaseModel):
-    track: Track
-
-
-class PlayRecordRequest(BaseModel):
-    track_id: str
-    progress: float = Field(1.0, ge=0.0, le=1.0)
-    track: Optional[Track] = None
-
-
-class LyricsRequest(BaseModel):
-    track: Track
 
 
 # Playlists
 @app.get("/api/playlists")
 def api_playlists():
     """列出所有播放列表"""
-    playlists = _storage.list_playlists()
-    return {"items": [p.model_dump() for p in playlists]}
+    items = []
+    for playlist in _library.data.playlists.values():
+        song_count = sum(
+            1 for s in _library.data.songs.values() if playlist.id in s.playlists
+        )
+        items.append(
+            {
+                "id": playlist.id,
+                "name": playlist.name,
+                "song_count": song_count,
+            }
+        )
+    return {"items": items}
 
 
 @app.post("/api/playlists")
@@ -526,103 +651,152 @@ def api_create_playlist(req: PlaylistRequest):
     """创建播放列表"""
     if not req.name:
         raise HTTPException(status_code=400, detail="播放列表名称不能为空")
-    playlist = _storage.create_playlist(req.name)
-    return {"playlist": playlist.model_dump()}
+    playlist = LibraryPlaylist(
+        id=f"playlist_{uuid.uuid4().hex[:8]}",
+        name=req.name,
+    )
+    _library.data.playlists[playlist.id] = playlist
+    _library._persist()
+    return {"playlist": {"id": playlist.id, "name": playlist.name}}
 
 
 @app.put("/api/playlists/{playlist_id}")
 def api_update_playlist(playlist_id: str, req: PlaylistRequest):
-    """更新播放列表名称或曲目"""
-    updated = _storage.update_playlist(
-        playlist_id,
-        name=req.name,
-        tracks=req.tracks,
-    )
-    if updated is None:
+    """更新播放列表名称"""
+    playlist = _library.data.playlists.get(playlist_id)
+    if playlist is None:
         raise HTTPException(status_code=404, detail="播放列表不存在")
-    return {"playlist": updated.model_dump()}
+    if req.name is not None:
+        playlist.name = req.name
+    _library._persist()
+    return {"playlist": {"id": playlist.id, "name": playlist.name}}
 
 
 @app.delete("/api/playlists/{playlist_id}")
 def api_delete_playlist(playlist_id: str):
     """删除播放列表（默认播放列表不可删除）"""
-    if not _storage.delete_playlist(playlist_id):
-        raise HTTPException(status_code=404, detail="播放列表不存在或不可删除")
-    return {"ok": True}
-
-
-@app.post("/api/playlists/sync")
-def api_sync_playlist(req: PlaylistSyncRequest):
-    """同步端点：用请求中的曲目列表替换目标播放列表的曲目"""
-    updated = _storage.update_playlist(req.playlist_id, tracks=req.tracks)
-    if updated is None:
+    if playlist_id == "default":
+        raise HTTPException(status_code=400, detail="默认播放列表不可删除")
+    if playlist_id not in _library.data.playlists:
         raise HTTPException(status_code=404, detail="播放列表不存在")
-    return {"playlist": updated.model_dump()}
+
+    del _library.data.playlists[playlist_id]
+    for song in _library.data.songs.values():
+        if playlist_id in song.playlists:
+            song.playlists.remove(playlist_id)
+    _library._persist()
+    return {"ok": True}
 
 
 @app.post("/api/playlists/{playlist_id}/tracks")
 def api_add_track_to_playlist(playlist_id: str, req: PlaylistTrackRequest):
-    """添加曲目到播放列表"""
-    added = _storage.add_track_to_playlist(playlist_id, req.track)
-    if not added:
-        # 可能已存在或播放列表不存在
-        playlist = _storage.get_playlist(playlist_id)
-        if playlist is None:
-            raise HTTPException(status_code=404, detail="播放列表不存在")
+    """添加曲目到播放列表；如 Song 不在 library 中则先创建。"""
+    if playlist_id not in _library.data.playlists:
+        raise HTTPException(status_code=404, detail="播放列表不存在")
+
+    track = req.track
+    song = _library.get_song(track.id)
+    if song is None:
+        song = _track_to_song(track)
+        _library.add_song(song)
+
+    if playlist_id in song.playlists:
         return {"added": False, "reason": "曲目已存在"}
+
+    song.playlists.append(playlist_id)
+    _library.add_song(song)
     return {"added": True}
 
 
-@app.delete("/api/playlists/{playlist_id}/tracks/{track_id}")
-def api_remove_track_from_playlist(playlist_id: str, track_id: str):
+@app.delete("/api/playlists/{playlist_id}/tracks/{song_id}")
+def api_remove_track_from_playlist(playlist_id: str, song_id: str):
     """从播放列表移除曲目"""
-    removed = _storage.remove_track_from_playlist(playlist_id, track_id)
-    if not removed:
+    if playlist_id not in _library.data.playlists:
+        raise HTTPException(status_code=404, detail="播放列表不存在")
+
+    song = _library.get_song(song_id)
+    if song is None or playlist_id not in song.playlists:
         raise HTTPException(status_code=404, detail="曲目不存在")
+
+    song.playlists.remove(playlist_id)
+    _library.add_song(song)
     return {"ok": True}
 
 
 # Favorites: 兼容旧 API，映射到默认播放列表
 @app.get("/api/favorites")
 def api_favorites():
-    favorites = _storage.list_favorites()
-    return {"items": [f.track.model_dump() for f in favorites]}
+    songs = _library.get_songs_in_playlist("default")
+    return {"items": [_song_to_track(s).model_dump() for s in songs]}
 
 
 @app.post("/api/favorites")
 def api_add_favorite(req: TrackRequest):
-    added = _storage.add_favorite(req.track)
-    return {"added": added}
+    track = req.track
+    song = _library.get_song(track.id)
+    if song is None:
+        song = _track_to_song(track)
+        _library.add_song(song)
+
+    if "default" in song.playlists:
+        return {"added": False}
+
+    _library.add_song_to_playlist(track.id, "default")
+    return {"added": True}
 
 
-@app.delete("/api/favorites/{track_id}")
-def api_remove_favorite(track_id: str):
-    removed = _storage.remove_favorite(track_id)
-    if not removed:
+@app.delete("/api/favorites/{song_id}")
+def api_remove_favorite(song_id: str):
+    if not _library.remove_song_from_playlist(song_id, "default"):
         raise HTTPException(status_code=404, detail="收藏不存在")
+    return {"ok": True}
+
+
+# Library sync
+@app.get("/api/library")
+def api_library_get():
+    """返回完整 library 数据，用于同步。"""
+    return _library.data.model_dump(mode="json")
+
+
+@app.post("/api/library")
+def api_library_post(data: LibraryData):
+    """接受完整 library 数据并覆盖本地 library.json，用于同步。"""
+    _library._data = data
+    _library._persist()
     return {"ok": True}
 
 
 # Play counts / listening frequency
 @app.post("/api/plays")
 def api_record_play(req: PlayRecordRequest):
-    """记录播放进度；progress >= 0.8 时增加收听频率计数"""
-    count = _storage.record_play(req.track_id, req.progress)
-    if req.track is not None:
-        _storage.add_history(req.track)
-    return {"track_id": req.track_id, "count": count}
+    """记录一次播放。"""
+    try:
+        _library.record_play(req.track_id)
+    except KeyError:
+        # 如果提供了 track 元数据则先创建 Song
+        if req.track is not None:
+            song = _track_to_song(req.track)
+            _library.add_song(song)
+            _library.record_play(req.track_id)
+        else:
+            raise HTTPException(status_code=404, detail="曲目不存在")
+
+    song = _library.get_song(req.track_id)
+    return {"track_id": req.track_id, "count": song.play_count if song else 0}
 
 
 @app.get("/api/plays/{track_id}")
 def api_get_play_count(track_id: str):
-    """获取指定曲目的收听频率"""
-    return {"track_id": track_id, "count": _storage.get_play_count(track_id)}
+    """获取指定曲目的播放次数"""
+    song = _library.get_song(track_id)
+    return {"track_id": track_id, "count": song.play_count if song else 0}
 
 
 @app.get("/api/plays")
 def api_list_play_counts():
-    """获取所有收听频率统计"""
-    return {"items": _storage.list_play_counts()}
+    """获取所有播放次数统计"""
+    return {"items": {s.id: s.play_count for s in _library.data.songs.values()}}
 
 
 @app.post("/api/lyrics")
@@ -643,9 +817,17 @@ def api_lyrics(req: LyricsRequest):
     }
 
 
+def _web_source_status(site_id: str) -> str:
+    """获取网页音源状态：normal / unstable / unavailable / deprecated。"""
+    meta = SOURCE_STATUS.get(site_id.lower(), {})
+    if not meta.get("available", True):
+        return meta.get("reason", "unavailable")
+    return meta.get("status", "normal")
+
+
 @app.get("/api/web_sources")
 def api_web_sources():
-    """列出已注册的网页音源"""
+    """列出已注册的网页音源（不包含 unavailable / deprecated）"""
     return {
         "items": [
             {
@@ -654,6 +836,7 @@ def api_web_sources():
                 "display_name": a.display_name,
                 "site_url": a.site_url,
                 "direct_stream": a.direct_stream,
+                "status": _web_source_status(a.site_id),
             }
             for a in sorted(WEB_ADAPTERS, key=lambda x: x.display_name)
         ]

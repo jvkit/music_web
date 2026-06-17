@@ -5,10 +5,10 @@
 import { DEFAULT_THUMBNAIL, getThumbnailUrl } from '../config.js';
 import { els } from '../dom.js';
 import { state } from '../state.js';
-import { escapeHtml, formatDate, formatSize, showToast } from '../utils.js';
+import { escapeHtml, formatDate, formatSize, showToast, filterByMediaType, createMediaTypeFilter } from '../utils.js';
 import { icon } from '../icons.js';
-import { clearLocalItems, deleteLocalItem, fetchLocalItems } from '../api.js';
-import { playLocalItem, updatePlayerRemoveButton } from '../player.js';
+import { deleteLocalItem, fetchLocalItems } from '../api.js';
+import { playLocalItem, updatePlayerRemoveButton, playNext, stopPlayback } from '../player.js';
 import { toggleFavorite } from '../playlistOps.js';
 
 export async function loadLocal() {
@@ -28,12 +28,21 @@ export function renderLocal() {
     const container = els.localList;
     container.innerHTML = '';
 
-    if (state.localItems.length === 0) {
-        container.innerHTML = '<div class="py-12 text-center text-base-content/40 text-sm">暂无本地音乐</div>';
+    // 筛选按钮
+    const filterContainer = createMediaTypeFilter(state.mediaTypeFilter.local, (type) => {
+        state.mediaTypeFilter.local = type;
+        renderLocal();
+    });
+    container.appendChild(filterContainer);
+
+    const items = filterByMediaType(state.localItems, state.mediaTypeFilter.local);
+
+    if (items.length === 0) {
+        container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无本地音乐</div>');
         return;
     }
 
-    state.localItems.forEach(item => {
+    items.forEach(item => {
         const track = item.track || {};
         const div = document.createElement('div');
         div.className = 'card card-side bg-base-100/80 backdrop-blur shadow-sm border border-base-200/60 p-3 gap-3 items-center hover:shadow-md transition';
@@ -60,29 +69,30 @@ export function renderLocal() {
 
         div.querySelector('.btn-play-local').addEventListener('click', () => playLocalItem(item));
         div.querySelector('.btn-fav-local').addEventListener('click', () => { if (item.track) toggleFavorite(item.track); });
-        div.querySelector('.btn-delete-local').addEventListener('click', () => deleteLocalItemByKey(item.key));
+        div.querySelector('.btn-delete-local').addEventListener('click', () => deleteLocalItemById(item));
         container.appendChild(div);
     });
 }
 
-async function deleteLocalItemByKey(key) {
+async function deleteLocalItemById(item) {
     if (!confirm('确定删除该本地文件吗？')) return;
+
+    if (item.track && state.currentTrack && state.currentTrack.id === item.track.id) {
+        if (state.queue.length > 1) playNext();
+        else stopPlayback();
+    }
+
     try {
-        await deleteLocalItem(key);
+        await deleteLocalItem(item.id);
         showToast('已删除', 'success');
         await loadLocal();
+        // 如果当前队列来自本地列表，刷新队列避免残留已删文件
+        if (state.queue.length > 0 && state.localItems.some(i => i.track && state.queue.some(t => t.id === i.track.id))) {
+            const currentId = state.currentTrack ? state.currentTrack.id : null;
+            state.queue = state.localItems.filter(i => i.track).map(i => i.track);
+            state.queueIndex = currentId ? state.queue.findIndex(t => t.id === currentId) : -1;
+        }
     } catch (err) {
         showToast('删除失败', 'error');
-    }
-}
-
-export async function handleClearLocal() {
-    if (!confirm('确定清空所有本地文件吗？此操作不可恢复。')) return;
-    try {
-        await clearLocalItems();
-        showToast('已清空', 'success');
-        await loadLocal();
-    } catch (err) {
-        showToast('清空失败', 'error');
     }
 }

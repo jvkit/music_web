@@ -99,8 +99,18 @@ export async function fetchWebSources() {
     return response.json();
 }
 
-export async function deleteLocalItem(key) {
-    return apiFetch(`/local/${encodeURIComponent(key)}`, { method: 'DELETE' });
+export async function fetchLibrary() {
+    const response = await apiFetch('/library');
+    return response.json();
+}
+
+export async function fetchFavorites() {
+    const response = await apiFetch('/favorites');
+    return response.json();
+}
+
+export async function deleteLocalItem(songId) {
+    return apiFetch(`/local/${encodeURIComponent(songId)}`, { method: 'DELETE' });
 }
 
 export async function clearLocalItems() {

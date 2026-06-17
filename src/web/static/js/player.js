@@ -2,12 +2,14 @@
  * 播放器核心：音频/视频播放、队列、播放模式、歌词同步
  */
 
-import { API_BASE, MODE_LABELS, PLAYBACK_MODES } from './config.js';
+import { API_BASE, DEFAULT_THUMBNAIL, LS_PLAYBACK_STATE_KEY, MODE_LABELS, PLAYBACK_MODES } from './config.js';
 import { els } from './dom.js';
 import { state } from './state.js';
 import {
     formatTime,
     getThumbnailUrl,
+    loadFromStorage,
+    saveToStorage,
     showToast
 } from './utils.js';
 import { icon } from './icons.js';
@@ -19,6 +21,8 @@ import {
 } from './api.js';
 import { isTrackInPlaylist, getCurrentPlaylistTracks } from './playlistOps.js';
 import { loadLocal } from './views/local.js';
+
+let lastPlaybackSaveTime = 0;
 
 // ===================== 播放控制 =====================
 
@@ -32,6 +36,7 @@ export function togglePlayPause() {
         state.isPlaying = true;
     }
     updatePlayButton();
+    savePlaybackState();
 }
 
 export function updatePlayButton() {
@@ -130,14 +135,39 @@ export function updatePlayerRemoveButton() {
     if (els.lyricsRemoveBtn) els.lyricsRemoveBtn.classList.toggle('hidden', !localItem);
 }
 
+export function stopPlayback() {
+    els.audioPlayer.pause();
+    els.audioPlayer.src = '';
+    els.audioPlayer.currentTime = 0;
+    state.currentTrack = null;
+    state.isPlaying = false;
+    state.queueIndex = -1;
+    state.streamFallback = null;
+    updatePlayButton();
+    els.playerTitle.textContent = '未在播放';
+    els.playerArtist.textContent = '-';
+    els.playerThumbnail.src = DEFAULT_THUMBNAIL;
+    updatePlayerRemoveButton();
+    savePlaybackState();
+}
+
 export async function removeCurrentLocalTrack() {
     if (!state.currentTrack) return;
     const localItem = state.localItems.find(i => i.track && i.track.id === state.currentTrack.id);
     if (!localItem) return;
     if (!confirm('确定删除该本地文件吗？')) return;
+
+    const deletingId = localItem.id;
+
+    // 删除当前播放歌曲时先切歌或停止
+    if (state.currentTrack.id === deletingId) {
+        if (state.queue.length > 1) playNext();
+        else stopPlayback();
+    }
+
     try {
         const { deleteLocalItem } = await import('./api.js');
-        await deleteLocalItem(localItem.key);
+        await deleteLocalItem(deletingId);
         showToast('已删除', 'success');
         const { loadLocal } = await import('./views/local.js');
         await loadLocal();
@@ -161,7 +191,7 @@ async function tryPlayLocal(track, context = 'search') {
     state.isPlaying = true;
     state.playRecordedForTrackId = null;
     state.streamFallback = null;
-    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.id)}`;
     els.audioPlayer.play().catch(err => {
         console.error('本地播放失败:', err);
         showToast('本地播放失败', 'error');
@@ -171,6 +201,7 @@ async function tryPlayLocal(track, context = 'search') {
     updatePlayerInfo();
     updatePlayButton();
     updatePlayerRemoveButton();
+    savePlaybackState();
     return true;
 }
 
@@ -192,7 +223,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
         state.streamFallback = null;
-        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.id)}`;
         els.audioPlayer.play().catch(err => {
             console.error('播放失败:', err);
             showToast('播放失败', 'error');
@@ -201,6 +232,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         });
         updatePlayerInfo();
         updatePlayButton();
+        savePlaybackState();
         return;
     }
 
@@ -222,6 +254,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
 
         updatePlayerInfo();
         updatePlayButton();
+        savePlaybackState();
     } catch (err) {
         console.error('网络加载失败，尝试本地文件:', err);
         const played = await tryPlayLocal(track, context);
@@ -259,7 +292,7 @@ export async function playLocalItem(item) {
 
     if (item.media_type === 'video') {
         els.videoTitle.textContent = `${item.track.artist} - ${item.track.title}`;
-        els.videoPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.key)}`;
+        els.videoPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.id)}`;
         els.videoModal.classList.remove('hidden');
         els.videoPlayer.play().catch(err => {
             console.error('视频播放失败:', err);
@@ -276,7 +309,7 @@ export async function playLocalItem(item) {
     state.streamFallback = null;
     state.playRecordedForTrackId = null;
 
-    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.key)}`;
+    els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.id)}`;
     els.audioPlayer.play().catch(err => {
         console.error('播放失败:', err);
         showToast('播放失败', 'error');
@@ -286,6 +319,7 @@ export async function playLocalItem(item) {
 
     updatePlayerInfo();
     updatePlayButton();
+    savePlaybackState();
 }
 
 // ===================== 队列与播放模式 =====================
@@ -294,6 +328,7 @@ export function togglePlaybackMode() {
     const idx = PLAYBACK_MODES.indexOf(state.playbackMode);
     state.playbackMode = PLAYBACK_MODES[(idx + 1) % PLAYBACK_MODES.length];
     renderPlaybackMode();
+    savePlaybackState();
 }
 
 export function renderPlaybackMode() {
@@ -319,6 +354,7 @@ export function playPrev() {
     }
     state.queueIndex = (state.queueIndex - 1 + state.queue.length) % state.queue.length;
     playTrackByQueueTrack(state.queue[state.queueIndex]);
+    savePlaybackState();
 }
 
 export function playNext() {
@@ -335,11 +371,13 @@ export function playNext() {
         }
         state.randomHistory.push(nextTrack.id);
         playTrackByQueueTrack(nextTrack);
+        savePlaybackState();
         return;
     }
 
     state.queueIndex = (state.queueIndex + 1) % state.queue.length;
     playTrackByQueueTrack(state.queue[state.queueIndex]);
+    savePlaybackState();
 }
 
 export async function playTrackByQueueTrack(track, preferStream = null) {
@@ -352,7 +390,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
 
     const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
     if (localItem) {
-        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.key)}`;
+        els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.id)}`;
         state.streamFallback = null;
     } else {
         try {
@@ -382,6 +420,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
 
     updatePlayerInfo();
     updatePlayButton();
+    savePlaybackState();
 }
 
 export function handleTrackEnded() {
@@ -410,6 +449,12 @@ export function updateProgress() {
     }
 
     syncLyrics(audio.currentTime);
+
+    const now = Date.now();
+    if (now - lastPlaybackSaveTime > 5000) {
+        savePlaybackState();
+        lastPlaybackSaveTime = now;
+    }
 }
 
 export function updateDuration() {
@@ -422,6 +467,7 @@ export function seekProgress(e) {
     const rect = els.progressContainer.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     audio.currentTime = pct * audio.duration;
+    savePlaybackState();
 }
 
 export async function openLyricsPage() {
@@ -570,6 +616,101 @@ export async function refreshPlayCounts() {
         document.dispatchEvent(new CustomEvent('musiic:playcounts-updated'));
     } catch (err) {
         console.error('加载收听频率失败', err);
+    }
+}
+
+// ===================== 播放状态持久化 =====================
+
+export function savePlaybackState() {
+    if (!state.currentTrack) {
+        saveToStorage(LS_PLAYBACK_STATE_KEY, null);
+        return;
+    }
+    const payload = {
+        playlistId: state.currentPlaylistId,
+        track: state.currentTrack,
+        isPlaying: state.isPlaying,
+        currentTime: els.audioPlayer.currentTime || 0,
+        playbackMode: state.playbackMode,
+        queueIndex: state.queueIndex,
+        timestamp: Date.now(),
+    };
+    saveToStorage(LS_PLAYBACK_STATE_KEY, payload);
+}
+
+export async function restorePlaybackState() {
+    const saved = loadFromStorage(LS_PLAYBACK_STATE_KEY, null);
+    if (!saved) {
+        state.currentPlaylistId = state.currentPlaylistId || 'default';
+        return;
+    }
+
+    if (saved.playbackMode && PLAYBACK_MODES.includes(saved.playbackMode)) {
+        state.playbackMode = saved.playbackMode;
+        renderPlaybackMode();
+    }
+
+    state.currentPlaylistId = saved.playlistId || 'default';
+
+    if (saved.track) {
+        // 重建队列
+        const playlist = state.playlists.find(p => p.id === state.currentPlaylistId);
+        if (playlist && playlist.tracks.length > 0) {
+            state.queue = [...playlist.tracks];
+        } else {
+            state.queue = [saved.track];
+        }
+        state.queueIndex = Math.max(0, state.queue.findIndex(t => t.id === saved.track.id));
+
+        state.currentTrack = saved.track;
+        updatePlayerInfo();
+        updatePlayerFavorite();
+        updatePlayerRemoveButton();
+
+        try {
+            const localItem = state.localItems.find(i => i.track && i.track.id === saved.track.id);
+            if (localItem) {
+                els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(localItem.id)}`;
+            } else {
+                const data = await previewTrack(saved.track, 'audio', true);
+                els.audioPlayer.src = data.stream_url;
+            }
+
+            const resume = () => {
+                if (saved.currentTime) {
+                    try { els.audioPlayer.currentTime = saved.currentTime; } catch (e) {}
+                }
+                if (saved.isPlaying) {
+                    state.isPlaying = true;
+                    els.audioPlayer.play().catch(() => {
+                        state.isPlaying = false;
+                        updatePlayButton();
+                    });
+                } else {
+                    state.isPlaying = false;
+                }
+                updatePlayButton();
+            };
+
+            if (els.audioPlayer.readyState >= 1) {
+                resume();
+            } else {
+                const onLoaded = () => {
+                    els.audioPlayer.removeEventListener('loadedmetadata', onLoaded);
+                    resume();
+                };
+                els.audioPlayer.addEventListener('loadedmetadata', onLoaded);
+            }
+        } catch (err) {
+            console.error('恢复播放状态失败:', err);
+            state.isPlaying = false;
+            updatePlayButton();
+        }
+    }
+
+    if (state.currentTab === 'playlists') {
+        const { renderPlaylists } = await import('./views/playlists.js');
+        renderPlaylists();
     }
 }
 

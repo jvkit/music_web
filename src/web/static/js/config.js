@@ -8,6 +8,7 @@ export const DEFAULT_THUMBNAIL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3
 
 export const LS_PLAYLISTS_KEY = 'musiic_playlists';
 export const LS_SETTINGS_KEY = 'musiic_settings';
+export const LS_PLAYBACK_STATE_KEY = 'musiic_playback_state';
 
 export const DEFAULT_SETTINGS = {
     targetPlaylistId: 'default',

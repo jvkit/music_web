@@ -4,7 +4,7 @@
 
 import { els } from '../dom.js';
 import { state } from '../state.js';
-import { showToast } from '../utils.js';
+import { showToast, filterByMediaType, createMediaTypeFilter } from '../utils.js';
 import { searchTracks } from '../api.js';
 import { createTrackCard } from '../components/trackCard.js';
 
@@ -41,8 +41,17 @@ export function renderSearchResults() {
     const container = els.searchResults;
     container.innerHTML = '';
 
-    if (state.searchResults.length === 0) {
-        container.innerHTML = '<div class="py-12 text-center text-base-content/40 text-sm">暂无搜索结果</div>';
+    // 筛选按钮
+    const filterContainer = createMediaTypeFilter(state.mediaTypeFilter.search, (type) => {
+        state.mediaTypeFilter.search = type;
+        renderSearchResults();
+    });
+    container.appendChild(filterContainer);
+
+    const tracks = filterByMediaType(state.searchResults, state.mediaTypeFilter.search);
+
+    if (tracks.length === 0) {
+        container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无搜索结果</div>');
         els.batchBar.classList.add('hidden');
         return;
     }
@@ -50,7 +59,7 @@ export function renderSearchResults() {
     els.batchBar.classList.remove('hidden');
     document.dispatchEvent(new CustomEvent('musiic:selection-changed'));
 
-    state.searchResults.forEach(track => {
+    tracks.forEach(track => {
         const card = createTrackCard(track, { selectable: true, showSource: true, context: 'search' });
         container.appendChild(card);
     });

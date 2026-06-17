@@ -18,6 +18,29 @@ export function saveToStorage(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
 }
 
+export function getMediaType(item) {
+    return item.media_type || 'audio';
+}
+
+export function filterByMediaType(items, filter) {
+    if (filter === 'all') return items;
+    return items.filter(item => getMediaType(item) === filter);
+}
+
+export function createMediaTypeFilter(currentFilter, onChange) {
+    const container = document.createElement('div');
+    container.className = 'flex gap-2 mb-3';
+    const labels = { all: '全部', audio: '音频', video: '视频' };
+    Object.entries(labels).forEach(([type, label]) => {
+        const btn = document.createElement('button');
+        btn.className = `btn btn-xs ${currentFilter === type ? 'btn-primary' : 'btn-ghost'}`;
+        btn.textContent = label;
+        btn.addEventListener('click', () => onChange(type));
+        container.appendChild(btn);
+    });
+    return container;
+}
+
 export function loadSettings() {
     const saved = loadFromStorage(LS_SETTINGS_KEY, {});
     state.settings = {

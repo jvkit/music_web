@@ -6,7 +6,7 @@ import { cacheElements, els } from './dom.js';
 import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
 import { fetchWebSources } from './api.js';
-import { refreshPlayCounts } from './player.js';
+import { refreshPlayCounts, restorePlaybackState, savePlaybackState } from './player.js';
 import { toggleFavorite } from './playlistOps.js';
 import { loadPlaylists, renderPlaylists, handleCreatePlaylist, handleDeletePlaylist } from './views/playlists.js';
 import { loadLocal } from './views/local.js';
@@ -33,19 +33,20 @@ import {
     handleTrackEnded
 } from './player.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initPasswordGate();
     cacheElements();
     bindEvents();
     loadSettings();
-    loadPlaylists();
+    await loadPlaylists();
     refreshPlayCounts();
-    loadLocal();
-    loadWebSources();
+    await loadLocal();
+    await loadWebSources();
     renderTabs();
     renderSettings();
     renderPlaybackMode();
     renderSourceChips();
+    await restorePlaybackState();
 });
 
 function bindEvents() {
@@ -118,7 +119,14 @@ function bindEvents() {
     els.audioPlayer.addEventListener('loadedmetadata', updateDuration);
     els.audioPlayer.addEventListener('ended', handleTrackEnded);
     els.audioPlayer.addEventListener('error', handleAudioError);
+    els.audioPlayer.addEventListener('pause', () => {
+        savePlaybackState();
+    });
     els.progressContainer.addEventListener('click', seekProgress);
+
+    window.addEventListener('beforeunload', () => {
+        savePlaybackState();
+    });
 }
 
 // ===================== Tab 切换 =====================
@@ -177,6 +185,7 @@ function renderWebSourceMenu() {
         <li>
             <a class="web-source-item" data-value="${s.id}" data-name="${s.display_name}">
                 <span class="flex-1">${s.display_name}</span>
+                ${s.status === 'unstable' ? '<span class="text-orange-500 text-xs">（不稳定）</span>' : ''}
                 ${s.direct_stream ? '<span class="text-yellow-500">⭐</span>' : ''}
             </a>
         </li>
@@ -204,7 +213,7 @@ function renderSourceChips() {
         const selected = state.webSources.find(s => s.id === state.searchSource);
         const label = els.webSourceDropdownBtn.querySelector('span');
         if (label) {
-            label.textContent = selected ? `网页：${selected.display_name}${selected.direct_stream ? '⭐' : ''}` : '网页音源';
+            label.textContent = selected ? `网页：${selected.display_name}${selected.status === 'unstable' ? '（不稳定）' : ''}${selected.direct_stream ? '⭐' : ''}` : '网页音源';
         }
     }
 }

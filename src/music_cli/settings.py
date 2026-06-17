@@ -5,6 +5,7 @@
 - proxy: 代理地址，如 http://127.0.0.1:7890
 - default_source: 默认音源，如 youtube / netease / bilibili / soundcloud
 - download_dir: 默认下载目录
+- library_dir: 音乐库目录，默认 ~/Music/musiic-cli-library
 - cookie_file: cookies.txt 路径，用于 YouTube / Bilibili 缓解平台限制
 """
 
@@ -25,6 +26,9 @@ class Settings(BaseModel):
 
     # 网页音源独立收藏列表，为空时默认使用「网页收藏」
     web_favorite_playlist_id: Optional[str] = None
+
+    # 音乐库目录，默认 ~/Music/musiic-cli-library
+    library_dir: Optional[Path] = None
 
     # 同步配置
     sync_remote_host: Optional[str] = None  # SSH 主机别名或地址，如 j

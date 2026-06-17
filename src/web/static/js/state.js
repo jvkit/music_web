@@ -26,6 +26,16 @@ export const state = {
     // 本地
     localItems: [],
 
+    // 音乐库歌曲缓存（song_id -> song）
+    librarySongs: {},
+
+    // 媒体类型筛选：all | audio | video
+    mediaTypeFilter: {
+        search: 'all',
+        playlist: 'all',
+        local: 'all',
+    },
+
     // 播放器队列与模式
     queue: [],
     queueIndex: -1,
