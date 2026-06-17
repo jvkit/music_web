@@ -40,6 +40,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    """对前端 HTML/JS/CSS 禁用浏览器缓存，避免更新后客户端仍用旧版本"""
+    response = await call_next(request)
+    path = request.url.path.lower()
+    if path.endswith((".html", ".js", ".css")) or path == "/" or path == "/music" or path.startswith("/music/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 _cache_manager = CacheManager()
 _download_manager = DownloadManager()
 _library = Library()
