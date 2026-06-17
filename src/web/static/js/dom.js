@@ -6,7 +6,7 @@ export const els = {};
 
 export function cacheElements() {
     const ids = [
-        'sourceChips', 'searchInput', 'searchBtn', 'webSourceDropdownBtn', 'webSourceMenu',
+        'sourceChips', 'searchInput', 'searchBtn', 'sourceSelect',
         'batchBar', 'selectAll', 'selectedCount', 'copyToPlaylistBtn',
         'tabNav', 'searchView', 'playlistsView', 'localView', 'settingsView',
         'searchLoading', 'searchEmpty', 'searchResults',

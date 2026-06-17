@@ -73,22 +73,12 @@
                 <button id="searchBtn" class="btn btn-primary join-item px-6">搜索</button>
             </div>
 
-            <!-- 音源筛选 -->
-            <div id="sourceChips" class="flex flex-wrap gap-2 pb-1 items-center">
-                <button class="source-chip btn btn-sm btn-primary" data-value="youtube">YouTube</button>
-                <button class="source-chip btn btn-sm btn-ghost" data-value="netease">网易云</button>
-                <button class="source-chip btn btn-sm btn-ghost" data-value="bilibili">Bilibili</button>
-                <button class="source-chip btn btn-sm btn-ghost" data-value="soundcloud">SoundCloud</button>
-
-                <div class="dropdown dropdown-end flex-shrink-0">
-                    <button id="webSourceDropdownBtn" tabindex="0" class="btn btn-sm btn-ghost gap-1">
-                        <span>网页音源</span>
-                        <i class="ph ph-caret-down"></i>
-                    </button>
-                    <ul id="webSourceMenu" tabindex="0" class="dropdown-content menu z-[1] p-2 shadow bg-base-100 rounded-box w-56 max-h-72 overflow-y-auto border border-base-200">
-                        <li class="disabled"><a>加载中…</a></li>
-                    </ul>
-                </div>
+            <!-- 音源筛选：四类音源 -->
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-base-content/60 whitespace-nowrap">音源</label>
+                <select id="sourceSelect" class="select select-bordered select-sm bg-base-100/80 flex-1 min-w-0">
+                    <option value="">加载中…</option>
+                </select>
             </div>
         </div>
 
@@ -390,6 +380,6 @@
         })();
     </script>
 
-    <script type="module" src="js/app.js?v=2"></script>
+    <script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>

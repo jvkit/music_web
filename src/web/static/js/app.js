@@ -6,6 +6,37 @@ import { cacheElements, els } from './dom.js';
 import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
 import { fetchWebSources } from './api.js';
+
+// 音源四大分类
+const SOURCE_GROUPS = [
+    {
+        id: 'direct',
+        name: '稳定直连源',
+        sources: ['web_zz123', 'web_fangpi', 'web_jbsou', 'web_netease_fe_mm']
+    },
+    {
+        id: 'stable',
+        name: '非直连但基本稳定的源',
+        sources: ['netease', 'bilibili', 'web_gequbao', 'web_liumingye', 'web_tonzhon', 'web_tonzhon_whamon']
+    },
+    {
+        id: 'unstable',
+        name: '不稳定源',
+        sources: ['web_qqmp3', 'web_musicenc', 'web_yinyueke', 'web_lvyueyang']
+    },
+    {
+        id: 'foreign',
+        name: '外网源',
+        sources: ['youtube', 'soundcloud']
+    }
+];
+
+const NATIVE_SOURCE_NAMES = {
+    youtube: 'YouTube',
+    netease: '网易云',
+    bilibili: 'Bilibili',
+    soundcloud: 'SoundCloud'
+};
 import { refreshPlayCounts, restorePlaybackState, savePlaybackState } from './player.js';
 import { toggleFavorite } from './playlistOps.js';
 import { loadPlaylists, renderPlaylists, handleCreatePlaylist, handleDeletePlaylist } from './views/playlists.js';
@@ -47,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTabs();
     renderSettings();
     renderPlaybackMode();
-    renderSourceChips();
+    renderSourceSelect();
     await restorePlaybackState();
 });
 
@@ -59,21 +90,10 @@ function bindEvents() {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    document.querySelectorAll('.source-chip').forEach(chip => {
-        chip.addEventListener('click', () => setSearchSource(chip.dataset.value));
-    });
-
-    if (els.webSourceDropdownBtn) {
-        els.webSourceDropdownBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            const dropdown = els.webSourceDropdownBtn.closest('.dropdown');
-            if (dropdown) dropdown.classList.toggle('dropdown-open');
-        });
-        document.addEventListener('click', e => {
-            const dropdown = els.webSourceDropdownBtn.closest('.dropdown');
-            if (dropdown && !dropdown.contains(e.target)) {
-                dropdown.classList.remove('dropdown-open');
-            }
+    if (els.sourceSelect) {
+        els.sourceSelect.addEventListener('change', () => {
+            const value = els.sourceSelect.value;
+            if (value) setSearchSource(value);
         });
     }
 
@@ -163,15 +183,24 @@ function renderTabs() {
 
 function setSearchSource(source) {
     state.searchSource = source;
-    renderSourceChips();
+    renderSourceSelect();
+}
+
+function getSourceName(sourceId) {
+    if (NATIVE_SOURCE_NAMES[sourceId]) return NATIVE_SOURCE_NAMES[sourceId];
+    const ws = state.webSources.find(s => s.id === sourceId);
+    if (!ws) return sourceId;
+    let name = ws.display_name;
+    if (ws.direct_stream) name += ' ⭐';
+    if (ws.status === 'unstable') name += '（不稳定）';
+    return name;
 }
 
 async function loadWebSources() {
     try {
         const data = await fetchWebSources();
         state.webSources = data.items || [];
-        renderWebSourceMenu();
-        renderSourceChips();
+        renderSourceSelect();
         // 音源分类播放列表依赖 webSources 元数据，加载后重新构建
         await refreshLibrary();
     } catch (err) {
@@ -179,47 +208,22 @@ async function loadWebSources() {
     }
 }
 
-function renderWebSourceMenu() {
-    if (!els.webSourceMenu) return;
-    if (state.webSources.length === 0) {
-        els.webSourceMenu.innerHTML = '<li class="disabled"><a>暂无网页音源</a></li>';
-        return;
-    }
-    els.webSourceMenu.innerHTML = state.webSources.map(s => `
-        <li>
-            <a class="web-source-item" data-value="${s.id}" data-name="${s.display_name}">
-                <span class="flex-1">${s.display_name}</span>
-                ${s.status === 'unstable' ? '<span class="text-orange-500 text-xs">（不稳定）</span>' : ''}
-                ${s.direct_stream ? '<span class="text-yellow-500">⭐</span>' : ''}
-            </a>
-        </li>
-    `).join('');
+function renderSourceSelect() {
+    if (!els.sourceSelect) return;
 
-    els.webSourceMenu.querySelectorAll('.web-source-item').forEach(item => {
-        item.addEventListener('click', () => {
-            setSearchSource(item.dataset.value);
-            showToast(`已切换到 ${item.dataset.name}`);
-        });
-    });
-}
+    const options = SOURCE_GROUPS.map(group => {
+        const opts = group.sources
+            .filter(id => state.webSources.length === 0 || id.startsWith('web_') ? state.webSources.some(s => s.id === id) : true)
+            .map(id => {
+                const selected = state.searchSource === id ? 'selected' : '';
+                return `<option value="${id}" ${selected}>${getSourceName(id)}</option>`;
+            })
+            .join('');
+        return `<optgroup label="${group.name}">${opts}</optgroup>`;
+    }).join('');
 
-function renderSourceChips() {
-    document.querySelectorAll('.source-chip').forEach(chip => {
-        const active = chip.dataset.value === state.searchSource;
-        chip.classList.toggle('btn-primary', active);
-        chip.classList.toggle('btn-ghost', !active);
-    });
-
-    if (els.webSourceDropdownBtn) {
-        const isWeb = state.searchSource.startsWith('web_');
-        els.webSourceDropdownBtn.classList.toggle('btn-primary', isWeb);
-        els.webSourceDropdownBtn.classList.toggle('btn-ghost', !isWeb);
-        const selected = state.webSources.find(s => s.id === state.searchSource);
-        const label = els.webSourceDropdownBtn.querySelector('span');
-        if (label) {
-            label.textContent = selected ? `网页：${selected.display_name}${selected.status === 'unstable' ? '（不稳定）' : ''}${selected.direct_stream ? '⭐' : ''}` : '网页音源';
-        }
-    }
+    els.sourceSelect.innerHTML = options;
+    els.sourceSelect.value = state.searchSource;
 }
 
 export { switchTab, renderTabs, setSearchSource };

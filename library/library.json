@@ -1990,7 +1990,9 @@
       "path": "files/web_liumingye_kuwo_3371655_一个人唱情歌 (RAP).mp3",
       "cover_path": null,
       "lyrics_path": null,
-      "playlists": [],
+      "playlists": [
+        "web_favorites"
+      ],
       "play_count": 1,
       "last_played_at": "2026-06-17T19:32:29.471292",
       "extra": {
@@ -2013,7 +2015,9 @@
       "path": "files/web_liumingye_kuwo_243826_龙卷风.mp3",
       "cover_path": null,
       "lyrics_path": null,
-      "playlists": [],
+      "playlists": [
+        "web_favorites"
+      ],
       "play_count": 1,
       "last_played_at": "2026-06-17T20:29:36.353948",
       "extra": {

@@ -8,7 +8,7 @@ export const state = {
     currentTab: 'search',
     searchResults: [],
     searchQuery: '',
-    searchSource: 'youtube',
+    searchSource: 'web_zz123',
     searchOffset: 0,
     searchHasMore: true,
     webSources: [],
