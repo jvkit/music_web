@@ -27,7 +27,7 @@ const SOURCE_GROUPS = [
     {
         id: 'unstable',
         name: '不稳定 / 备选',
-        sources: ['web_qqmp3', 'web_musicenc', 'web_tonzhon', 'web_tonzhon_whamon', 'web_zz123']
+        sources: ['web_qqmp3', 'web_musicenc', 'web_tonzhon', 'web_tonzhon_whamon']
     },
     {
         id: 'foreign',

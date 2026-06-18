@@ -40,7 +40,6 @@ def _load_adapters() -> list[WebAdapter]:
         tonzhon,
         tonzhon_whamon,
         yinyueke,
-        zz123,
     )
 
     for module in [
@@ -53,7 +52,6 @@ def _load_adapters() -> list[WebAdapter]:
         musicenc,
         jbsou,
         netease_fe_mm,
-        zz123,
         lvyueyang,
         yinyueke,
     ]:

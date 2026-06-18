@@ -12,7 +12,6 @@ SOURCE_STATUS = {
     "yinyueke": {"available": False, "reason": "unavailable"},
     "qqmp3": {"available": True, "status": "unstable"},
     "musicenc": {"available": True, "status": "unstable"},
-    "zz123": {"available": False, "reason": "unavailable"},
 }
 
 
