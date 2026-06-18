@@ -25,6 +25,12 @@ dist/
 output/
 .python-version
 
+# User data / runtime
+library/
+data/
+cache/
+config/*.json
+
 # Node / frontend
 node_modules/
 package-lock.json
