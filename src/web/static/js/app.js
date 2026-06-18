@@ -10,19 +10,24 @@ import { fetchWebSources } from './api.js';
 // 音源四大分类
 const SOURCE_GROUPS = [
     {
-        id: 'direct',
-        name: '稳定直连源',
-        sources: ['web_fangpi', 'web_jbsou', 'web_netease_fe_mm']
+        id: 'recommended',
+        name: '强烈推荐',
+        sources: ['web_liumingye']
     },
     {
         id: 'stable',
-        name: '非直连但基本稳定的源',
-        sources: ['netease', 'bilibili', 'web_gequbao', 'web_liumingye', 'web_tonzhon', 'web_tonzhon_whamon']
+        name: '稳定源',
+        sources: ['netease', 'bilibili', 'web_gequbao', 'web_fangpi']
+    },
+    {
+        id: 'direct',
+        name: '直连源（可播性一般）',
+        sources: ['web_jbsou', 'web_netease_fe_mm']
     },
     {
         id: 'unstable',
-        name: '不稳定源',
-        sources: ['web_zz123', 'web_qqmp3', 'web_musicenc', 'web_yinyueke', 'web_lvyueyang']
+        name: '不稳定 / 备选',
+        sources: ['web_qqmp3', 'web_musicenc', 'web_tonzhon', 'web_tonzhon_whamon', 'web_zz123']
     },
     {
         id: 'foreign',
@@ -257,6 +262,7 @@ async function loadWebSources() {
     try {
         const data = await fetchWebSources();
         state.webSources = data.items || [];
+        state.hiddenSources = data.hidden_sources || [];
         renderSourceSelect();
         // 音源分类播放列表依赖 webSources 元数据，加载后重新构建
         await refreshLibrary();
@@ -268,19 +274,24 @@ async function loadWebSources() {
 function renderSourceSelect() {
     if (!els.sourceSelect) return;
 
+    const hidden = new Set(state.hiddenSources || []);
+
     const options = SOURCE_GROUPS.map(group => {
         const opts = group.sources
+            .filter(id => !hidden.has(id))
             .filter(id => state.webSources.length === 0 || id.startsWith('web_') ? state.webSources.some(s => s.id === id) : true)
             .map(id => {
                 const selected = state.searchSource === id ? 'selected' : '';
                 return `<option value="${id}" ${selected}>${getSourceName(id)}</option>`;
             })
             .join('');
-        return `<optgroup label="${group.name}">${opts}</optgroup>`;
+        return opts ? `<optgroup label="${group.name}">${opts}</optgroup>` : '';
     }).join('');
 
-    els.sourceSelect.innerHTML = options;
-    els.sourceSelect.value = state.searchSource;
+    els.sourceSelect.innerHTML = options || '<option value="">无可用音源</option>';
+    if (state.searchSource && !hidden.has(state.searchSource)) {
+        els.sourceSelect.value = state.searchSource;
+    }
 }
 
 export { switchTab, renderTabs, setSearchSource };

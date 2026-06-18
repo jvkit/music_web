@@ -35,6 +35,13 @@ class Settings(BaseModel):
     sync_remote_api_url: Optional[str] = None  # 远程 API 地址，如 http://82.157.178.112/music/api
     sync_remote_music_dir: Optional[str] = None  # 远程音乐目录，如 ~/workspace/music/data
 
+    # 聚合搜索配置
+    aggregate_sources: Optional[list[str]] = None  # 参与聚合搜索的源，null 表示使用默认精选源
+    aggregate_validate: bool = True  # 是否对聚合搜索结果做可播放验证
+
+    # 前端隐藏的音源（如下拉菜单），但仍可播放本地已下载文件
+    hidden_sources: list[str] = Field(default_factory=list)
+
     class Config:
         arbitrary_types_allowed = True
 

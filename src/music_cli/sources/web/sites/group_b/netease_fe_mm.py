@@ -67,6 +67,12 @@ class NeteaseFeMmAdapter(WebAdapter):
         if not song_id:
             return None
 
+        # fee: 0 免费, 1 VIP, 4 付费专辑, 8 低音质免费
+        # 过滤 VIP / 付费专辑，避免返回大量不可播放结果
+        fee = song.get("fee")
+        if fee in (1, 4):
+            return None
+
         title = song.get("name") or "未知歌曲"
         artists = song.get("ar") or []
         artist = ", ".join(a.get("name", "") for a in artists if a.get("name"))

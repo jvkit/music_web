@@ -12,6 +12,7 @@ export const state = {
     searchOffset: 0,
     searchHasMore: true,
     webSources: [],
+    hiddenSources: [],
     selectedIds: new Set(),
     currentTrack: null,
     isPlaying: false,

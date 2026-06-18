@@ -26,6 +26,7 @@ from music_cli.settings import load_settings
 from music_cli.sources import SOURCE_STATUS, get_source
 from music_cli.sources.base import Source
 from music_cli.sources.web import WEB_ADAPTERS
+from music_cli.web.aggregate import aggregate_search
 from music_cli.web.downloads import DownloadManager, write_track_sidecar
 from music_cli.web.rooms import router as rooms_router
 
@@ -843,7 +844,9 @@ def _web_source_status(site_id: str) -> str:
 
 @app.get("/api/web_sources")
 def api_web_sources():
-    """列出已注册的网页音源（不包含 unavailable / deprecated）"""
+    """列出已注册的网页音源（不包含 unavailable / deprecated / hidden）"""
+    settings = load_settings()
+    hidden = set(settings.hidden_sources or [])
     return {
         "items": [
             {
@@ -855,7 +858,9 @@ def api_web_sources():
                 "status": _web_source_status(a.site_id),
             }
             for a in sorted(WEB_ADAPTERS, key=lambda x: x.display_name)
-        ]
+            if f"web_{a.site_id}" not in hidden
+        ],
+        "hidden_sources": sorted(hidden),
     }
 
 
