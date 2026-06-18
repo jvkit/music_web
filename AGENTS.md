@@ -134,6 +134,47 @@
   - 记住上次播放状态：使用 `localStorage` 保存当前歌单、歌曲、播放进度/状态、播放模式；`app.js` 初始化完成后调用 `restorePlaybackState()` 自动恢复。
 - 其他：批量选择 `selection.js` 现在按当前筛选后的可见曲目进行全选/计数。
 
+### 管理密码与系统源分类列表（2024-06）
+
+- 管理密码：
+  - 密码：`jvkit123`。
+  - 受保护操作：删除播放列表、从列表移除歌曲、取消收藏、删除本地文件、保存设置。
+  - 实现：`src/web/static/js/passwordGate.js` 提供 `requireAdminPassword(actionName)`，验证状态存在 `sessionStorage`。
+- 4 个系统源分类播放列表：
+  - 在 `playlistOps.js#buildPlaylistsFromLibrary` 中根据 `state.webSources` 的 `direct_stream` 和 `status` 自动构建。
+  - 列表 ID：`source_direct`、`source_stable`、`source_unstable`、`source_foreign`。
+  - 系统列表 `is_system: true`，不可删除、不可手动添加/移除；在复制到列表、设置目标列表等 UI 中已过滤掉。
+
+### 手机端紧凑布局（2024-06）
+
+- 目标：小屏下一屏显示更多条目。
+- 实现：`styles.css` 中 `@media (max-width: 640px)` 减小卡片内边距、封面、字体、按钮尺寸；操作按钮改为横向排列；底部播放器更矮。
+
+### 一起听歌房间同步（WebSocket）
+
+- 后端：`src/music_cli/web/rooms.py` 提供房间管理与 WebSocket 端点 `/api/rooms/{room_id}/ws`。
+- 前端：`src/web/static/js/room.js` + `components/roomPanel.js`。
+- 约定：
+  - 仅同步控制信号（play/pause/seek/next/prev/join/leave/chat）。
+  - 不传输音频流；每个客户端从自己的 Library 或网络加载音频。
+  - 房主（创建者）拥有切歌/暂停/进度控制权；加入者同步接收控制事件。
+
+### 代码与数据分离
+
+- 用户数据（`library/`、`data/`、`cache/`、`config/*.json`）已加入 `.gitignore`。
+- **不要**把这些数据 commit 到仓库；部署时这些数据保留在服务器本地，不参与代码同步。
+- 如果 pull 时提示数据文件会覆盖，优先 `git reset --hard` 或 stash，但事后需要从备份/历史恢复 `library.json`。
+
+## 关键 API 契约
+
+- `/api/library`：返回 `{ version, playlists: {id: Playlist}, songs: {id: Song} }`，前端据此构建播放列表与本地列表。
+- `/api/local`：返回 `{ items: [{ id, track, path, media_type, size, is_cache, ... }], total_size }`。
+- `/api/local/stream/{song_id}`：返回音频/视频流。
+- `/api/playlists/{id}/tracks`：POST 添加曲目；DELETE `/api/playlists/{id}/tracks/{track_id}` 移除曲目。
+- `/api/web_sources`：返回 `{ items: [{ id, name, direct_stream, status, ... }] }`，`status` 为 `normal`/`unstable`/`unavailable`。
+- 前端 `Track.id` 与后端 `Song.id` 一致，格式为 `{source}:{original_id}`。
+- 系统播放列表是前端虚拟构造，不参与后端写入。
+
 ## 常用命令
 
 ```bash
