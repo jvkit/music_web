@@ -15,13 +15,26 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#38bdf8">
     <!-- OG_META -->
+    <style>
+        /* 从分享链接进入时，先隐藏主界面，避免闪现搜索页 */
+        .share-entry header,
+        .share-entry main,
+        .share-entry #tabNav,
+        .share-entry #playerBar {
+            display: none !important;
+        }
+    </style>
 </head>
 <body class="bg-base-200 text-base-content pb-40">
+    <script>
+        // 分享链接触发：立即隐藏主界面，后续由 JS 打开歌词页
+        (function () {
+            if (/[?&](share|song)=/.test(location.search)) {
+                document.documentElement.classList.add('share-entry');
+            }
+        })();
+    </script>
     <!-- SHARE_COVER -->
-    <div id="shareSplash" class="fixed inset-0 z-[80] hidden bg-black flex-col items-center justify-center text-white">
-        <div class="w-14 h-14 rounded-full border-4 border-white/20 border-t-sky-400 animate-spin mb-4"></div>
-        <p class="text-sm text-white/70">正在打开分享歌曲...</p>
-    </div>
     <!-- 入站密码验证（已临时关闭）
     <div id="passwordGate" class="fixed inset-0 z-[100] bg-base-200 flex items-center justify-center p-4">
         <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
@@ -421,6 +434,6 @@
     </script>
     -->
 
-    <script type="module" src="js/app.js?v=15"></script>
+    <script type="module" src="js/app.js?v=17"></script>
 </body>
 </html>

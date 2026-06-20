@@ -66,6 +66,7 @@ import {
     updateDuration,
     seekProgress,
     openLyricsPage,
+    updatePlayerInfo,
     closeVideoModal,
     closeLyricsPage,
     renderPlaybackMode,
@@ -94,6 +95,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     initRoomUI();
     promptJoinFromUrl();
 });
+
+function exitShareEntry() {
+    document.documentElement.classList.remove('share-entry');
+}
 
 async function handleShareFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -124,11 +129,19 @@ async function handleShareFromUrl() {
         return;
     }
 
-    // 立即显示启动屏，挡住搜索首页，避免先闪现再跳转
-    if (els.shareSplash) els.shareSplash.classList.remove('hidden');
+    // 直接用分享信息把歌词页呈现出来，不闪现首页、不加 loading 屏
+    state.currentTrack = track;
+    updatePlayerInfo();
+    openLyricsPage();
+    // 歌词页已占满屏幕，主界面可以显示出来（被盖住，不影响体验）
+    exitShareEntry();
 
-    const hideSplash = () => {
-        if (els.shareSplash) els.shareSplash.classList.add('hidden');
+    // 后台尝试还原完整 track 并播放
+    const tryPlay = async (candidate) => {
+        state.currentTrack = candidate;
+        updatePlayerInfo();
+        await playTrack(candidate, 'search', null);
+        openLyricsPage();
     };
 
     // 1) 优先按 id 从本地库找
@@ -137,9 +150,7 @@ async function handleShareFromUrl() {
         const locals = localData.items || [];
         const localItem = locals.find(i => i.track && i.track.id === track.id);
         if (localItem && localItem.track) {
-            await playTrack(localItem.track, 'local', null);
-            openLyricsPage();
-            hideSplash();
+            await tryPlay(localItem.track);
             return;
         }
     } catch {
@@ -152,9 +163,7 @@ async function handleShareFromUrl() {
         if (resp.ok) {
             const resolved = await resp.json();
             if (resolved && resolved.title && resolved.title !== resolved.id) {
-                await playTrack(resolved, 'search', null);
-                openLyricsPage();
-                hideSplash();
+                await tryPlay(resolved);
                 return;
             }
         }
@@ -168,16 +177,13 @@ async function handleShareFromUrl() {
         const results = data.tracks || [];
         const matched = results.find(t => t.id === track.id) || results[0];
         if (matched) {
-            await playTrack(matched, 'search', null);
-            openLyricsPage();
-            hideSplash();
+            await tryPlay(matched);
             return;
         }
     } catch (err) {
         console.error('分享歌曲搜索兜底失败:', err);
     }
 
-    hideSplash();
     showToast('分享歌曲无法播放，请手动搜索', 'error');
 }
 
