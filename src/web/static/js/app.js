@@ -5,7 +5,8 @@
 import { cacheElements, els } from './dom.js';
 import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
-import { fetchWebSources, searchTracks } from './api.js';
+import { API_BASE } from './config.js';
+import { fetchWebSources, searchTracks, fetchLocalItems } from './api.js';
 
 // 音源四大分类
 const SOURCE_GROUPS = [
@@ -104,7 +105,6 @@ async function handleShareFromUrl() {
         const base64 = shareParam.replace(/-/g, '+').replace(/_/g, '/');
         const json = decodeURIComponent(escape(atob(base64)));
         const data = JSON.parse(json);
-        // 精简分享字段映射
         track = {
             id: data.i || data.id,
             title: data.t || data.title,
@@ -124,25 +124,51 @@ async function handleShareFromUrl() {
         return;
     }
 
-    showToast('正在播放分享歌曲...');
+    showToast('正在打开分享歌曲...');
+
+    // 1) 优先按 id 从本地库找
     try {
-        await playTrack(track, 'search', null);
-        return;
+        const localData = await fetchLocalItems();
+        const locals = localData.items || [];
+        const localItem = locals.find(i => i.track && i.track.id === track.id);
+        if (localItem && localItem.track) {
+            await playTrack(localItem.track, 'local', null);
+            openLyricsPage();
+            return;
+        }
     } catch {
-        // 最小化 track 可能缺少 extra，尝试按歌名搜索兜底
+        // ignore
     }
 
+    // 2) 尝试通过 source+id 解析完整 track
+    try {
+        const resp = await fetch(`${API_BASE}/track_resolve?source=${encodeURIComponent(track.source)}&track_id=${encodeURIComponent(track.id)}`);
+        if (resp.ok) {
+            const resolved = await resp.json();
+            if (resolved && resolved.title && resolved.title !== resolved.id) {
+                await playTrack(resolved, 'search', null);
+                openLyricsPage();
+                return;
+            }
+        }
+    } catch (err) {
+        console.error('分享 track 解析失败:', err);
+    }
+
+    // 3) 按歌名+歌手搜索兜底
     try {
         const data = await searchTracks(`${track.title} ${track.artist || ''}`.trim(), track.source, 5, 0);
         const results = data.tracks || [];
         const matched = results.find(t => t.id === track.id) || results[0];
         if (matched) {
             await playTrack(matched, 'search', null);
+            openLyricsPage();
             return;
         }
     } catch (err) {
         console.error('分享歌曲搜索兜底失败:', err);
     }
+
     showToast('分享歌曲无法播放，请手动搜索', 'error');
 }
 
