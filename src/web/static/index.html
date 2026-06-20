@@ -259,10 +259,10 @@
     </div>
 
     <!-- 歌词/播放页弹窗 -->
-    <div id="lyricsModal" class="fixed inset-0 z-[75] hidden bg-black/95 flex flex-col">
+    <div id="lyricsModal" class="fixed inset-0 z-[75] hidden bg-black flex flex-col">
         <div class="relative flex-1 flex flex-col overflow-hidden">
-            <div id="lyricsBackground" class="absolute inset-0 bg-cover bg-center opacity-30 blur-xl transition-all duration-700"></div>
-            <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black/90"></div>
+            <div id="lyricsBackground" class="absolute inset-0 bg-cover bg-center transition-all duration-700"></div>
+            <div class="absolute inset-0 lyrics-glass-overlay transition-all duration-700"></div>
 
             <div class="relative z-10 flex items-center justify-between p-4 text-white">
                 <div class="min-w-0">
@@ -416,6 +416,6 @@
     </script>
     -->
 
-    <script type="module" src="js/app.js?v=12"></script>
+    <script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

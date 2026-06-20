@@ -61,11 +61,9 @@ class LiumingyeAdapter(WebAdapter):
         per_source = max(limit, 10)
         need = offset + limit
 
-        tracks: list[Track] = []
-        # 有任意源快速返回即可先展示，整体最多等 6 秒，避免最慢源拖垮体验。
+        # 并发搜索三个源，整体最多等 6 秒，避免最慢源拖垮体验。
         overall_timeout = 6
-        started = time.time()
-
+        grouped: dict[str, list[Track]] = {"kuwo": [], "netease": [], "qq": []}
         pool = ThreadPoolExecutor(max_workers=3)
         futures = {
             pool.submit(self._search_kuwo, query, per_source, page): "kuwo",
@@ -74,22 +72,23 @@ class LiumingyeAdapter(WebAdapter):
         }
         try:
             for future in as_completed(futures, timeout=overall_timeout):
+                src = futures[future]
                 try:
-                    tracks.extend(future.result())
+                    grouped[src] = future.result() or []
                 except Exception:
-                    pass
-                if len(tracks) >= need:
-                    break
-                if time.time() - started >= overall_timeout:
-                    break
+                    grouped[src] = []
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
 
-        # 交错合并各源结果，避免前几条全部来自同一源。
-        grouped: dict[str, list[Track]] = {name: [] for name in ("kuwo", "netease", "qq")}
-        for t in tracks:
-            src = t.extra.get("source") or "kuwo"
-            grouped.setdefault(src, []).append(t)
+        # QQ 搜索不返回封面，补一次详情接口取 album_pic。
+        if grouped["qq"]:
+            grouped["qq"] = self._enrich_qq_thumbnails(grouped["qq"], need)
+
+        # 每个源截断到 need，避免某一源过多。
+        for src in grouped:
+            grouped[src] = grouped[src][:need]
+
+        # 交错合并：kuwo -> netease -> qq，让有封面的源排在前面。
         merged: list[Track] = []
         max_len = max(len(lst) for lst in grouped.values()) if grouped else 0
         for i in range(max_len):
@@ -99,6 +98,44 @@ class LiumingyeAdapter(WebAdapter):
                     merged.append(lst[i])
 
         return merged[offset:offset + limit]
+
+    def _enrich_qq_thumbnails(self, tracks: list[Track], need: int) -> list[Track]:
+        """为 QQ 搜索结果补封面，只处理前 need 条以控制耗时。"""
+        to_enrich = tracks[:need]
+        enriched: list[Track] = []
+
+        def _fetch_cover(track: Track) -> Track:
+            mid = track.extra.get("mid")
+            if not mid:
+                return track
+            try:
+                url = (
+                    f"https://tang.api.s01s.cn/music_open_api.php?"
+                    f"{urlencode({'msg': track.extra.get('qq_search_key') or track.title, 'type': 'json', 'mid': mid})}"
+                )
+                resp = self._session.get(url, timeout=3)
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, dict) and data.get("album_pic"):
+                    track.thumbnail = data["album_pic"]
+            except Exception:
+                pass
+            return track
+
+        pool = ThreadPoolExecutor(max_workers=5)
+        try:
+            futures = [pool.submit(_fetch_cover, t) for t in to_enrich]
+            for future in as_completed(futures, timeout=5):
+                try:
+                    enriched.append(future.result())
+                except Exception:
+                    pass
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+        # 保持原顺序
+        mid_to_track = {t.id: t for t in enriched}
+        return [mid_to_track.get(t.id, t) for t in tracks]
 
     def _search_kuwo(self, query: str, limit: int, page: int) -> list[Track]:
         url = f"https://kw-api.cenguigui.cn/?{urlencode({'name': query, 'page': page, 'limit': limit})}"
