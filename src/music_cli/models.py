@@ -37,6 +37,7 @@ class Track(BaseModel):
     source: str
     source_url: Optional[str] = None
     thumbnail: Optional[str] = None
+    cover_url: Optional[str] = None
     lyrics: Optional[str] = None
     extra: dict[str, Any] = Field(default_factory=dict)
 

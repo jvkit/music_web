@@ -25,6 +25,21 @@ import { isInRoom, sendChangeTrack, sendPlay, sendPause, sendSeek } from './room
 
 let lastPlaybackSaveTime = 0;
 
+function setShareUrl(track) {
+    try {
+        const json = JSON.stringify(track);
+        const base64 = btoa(unescape(encodeURIComponent(json)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+        const url = new URL(window.location.href);
+        url.searchParams.set('song', base64);
+        history.replaceState(null, '', url.toString());
+    } catch {
+        // 分享 URL 不是关键路径，失败静默
+    }
+}
+
 // ===================== 加载状态（防重复点击） =====================
 
 export function setTrackLoading(trackId) {
@@ -65,6 +80,9 @@ export function togglePlayPause() {
 export function updatePlayButton() {
     els.playPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
     els.lyricsPlayPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
+    if (els.lyricsCover) {
+        els.lyricsCover.classList.toggle('lyrics-cover-paused', !state.isPlaying);
+    }
     updateMediaSession();
 }
 
@@ -252,6 +270,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     if (localItem) {
         finishTrackLoading();
         state.currentTrack = track;
+        setShareUrl(track);
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
         state.streamFallback = null;
@@ -274,6 +293,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         const data = await previewTrack(track, 'audio', useStream);
         if (state.loadingTrackId !== track.id) return; // 已切歌，丢弃旧结果
         state.currentTrack = track;
+        setShareUrl(track);
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
         state.streamFallback = data.streamed ? { track, context, isVideo: false, tried: !useStream } : null;
@@ -343,6 +363,7 @@ export async function playLocalItem(item) {
     }
 
     state.currentTrack = item.track;
+    setShareUrl(item.track);
     state.isPlaying = true;
     state.queue = state.localItems.filter(i => i.track).map(i => i.track);
     state.queueIndex = state.queue.findIndex(t => t.id === item.track.id);
@@ -428,6 +449,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
     setTrackLoading(track.id);
 
     state.currentTrack = track;
+    setShareUrl(track);
     state.isPlaying = true;
     state.playRecordedForTrackId = null;
 
@@ -528,6 +550,8 @@ export async function openLyricsPage() {
     els.lyricsTitle.textContent = track.title;
     els.lyricsArtist.textContent = track.artist;
     els.lyricsBackground.style.backgroundImage = `url(${getThumbnailUrl(track.thumbnail)})`;
+    els.lyricsCover.src = getThumbnailUrl(track.thumbnail);
+    els.lyricsCover.classList.toggle('lyrics-cover-paused', !state.isPlaying);
     els.lyricsModal.classList.remove('hidden');
     updatePlayerFavorite();
     updatePlayerRemoveButton();
@@ -558,10 +582,9 @@ export function renderLyrics() {
 
     if (!state.lyrics || state.lyrics.length === 0) {
         container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full py-20 text-white/80">
-                <div class="text-5xl mb-4">${icon('music', { className: 'text-white/80' })}</div>
-                <p class="text-lg font-medium">暂无歌词</p>
-                <p class="text-sm text-white/50 mt-1">${state.lyricsSource ? '该音源暂未提供歌词' : '欣赏音乐吧'}</p>
+            <div class="text-center py-6 text-white/60">
+                <p class="text-sm">暂无歌词</p>
+                <p class="text-xs text-white/40 mt-1">${state.lyricsSource ? '该音源暂未提供歌词' : '欣赏音乐吧'}</p>
             </div>
         `;
         return;

@@ -33,7 +33,7 @@ export function createTrackCard(track, options = {}) {
     div.innerHTML = `
         ${left ? `<div class="flex-shrink-0">${left}</div>` : ''}
         <figure class="relative flex-shrink-0 m-0">
-            <img src="${getThumbnailUrl(track.thumbnail)}" alt="cover" loading="lazy" class="w-16 h-16 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
+            <img src="${track.cover_url || getThumbnailUrl(track.thumbnail)}" alt="cover" loading="lazy" class="w-16 h-16 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
             ${isCurrent ? `<div class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">${icon('music', { className: 'text-white text-lg' })}</div>` : ''}
         </figure>
         <div class="flex-1 min-w-0">

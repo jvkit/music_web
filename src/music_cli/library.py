@@ -31,7 +31,8 @@ class Song(BaseModel):
     media_type: str = "audio"  # "audio" 或 "video"
     storage: str = "online"  # "local" 或 "online"
     path: Optional[str] = None  # 相对 library 根目录，如 "files/xxx.mp3"
-    cover_path: Optional[str] = None  # 相对路径，如 "assets/covers/xxx.jpg"
+    thumbnail: Optional[str] = None  # 原始高清封面 URL
+    cover_path: Optional[str] = None  # 压缩封面相对路径，如 "assets/covers/xxx.jpg"
     lyrics_path: Optional[str] = None  # 相对路径，如 "assets/lyrics/xxx.lrc"
     playlists: list[str] = Field(default_factory=list)
     play_count: int = 0

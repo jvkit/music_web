@@ -3,10 +3,14 @@
 为 H5 / 小程序提供 REST API，封装 music_cli 的核心能力。
 """
 
+import base64
+import html
+import json
 import logging
 import mimetypes
 import re
 import shutil
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -18,7 +22,7 @@ logger = logging.getLogger(__name__)
 import requests
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -223,12 +227,18 @@ def _track_to_song(
         media_type=media_type,
         storage=storage,
         path=path,
+        thumbnail=track.thumbnail,
         extra=track.extra or {},
     )
 
 
 def _song_to_track(song: Song) -> Track:
     """将 Library Song 转换为前端 Track。"""
+    cover_url = None
+    if song.cover_path:
+        cover_url = f"api/local/cover/{song.id}"
+    elif song.thumbnail:
+        cover_url = f"api/thumbnail?url={quote(song.thumbnail, safe='')}"
     return Track(
         id=song.id,
         title=song.title,
@@ -236,7 +246,8 @@ def _song_to_track(song: Song) -> Track:
         source=song.source,
         source_url=song.source_url,
         duration=song.duration,
-        thumbnail=None,
+        thumbnail=song.thumbnail,
+        cover_url=cover_url,
         lyrics=None,
         extra=song.extra,
     )
@@ -289,7 +300,70 @@ def _download_to_library(track: Track, media_type: MediaType) -> Path:
     _library.add_song(song)
 
     write_track_sidecar(target_path, track, media_type)
+    _ensure_cover(track, song)
     return target_path
+
+
+def _ensure_cover(track: Track, song: Song) -> None:
+    """下载并压缩歌曲封面到 library/assets/covers。
+
+    - 原始图保存为 {id}_orig.jpg
+    - 压缩图（300px）保存为 {id}.jpg，用于列表/卡片
+    """
+    if not track.thumbnail or not track.thumbnail.startswith(("http://", "https://")):
+        return
+
+    safe_id = re.sub(r"[^a-zA-Z0-9_-]", "_", song.id)[:120]
+    covers_dir = _library.library_dir / "assets" / "covers"
+    covers_dir.mkdir(parents=True, exist_ok=True)
+    original_path = covers_dir / f"{safe_id}_orig.jpg"
+    cover_path = covers_dir / f"{safe_id}.jpg"
+
+    if cover_path.exists():
+        song.cover_path = cover_path.relative_to(_library.library_dir).as_posix()
+        song.thumbnail = track.thumbnail
+        _library.add_song(song)
+        return
+
+    try:
+        resp = requests.get(
+            track.thumbnail,
+            timeout=15,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                "Referer": track.source_url or "https://www.google.com/",
+            },
+        )
+        resp.raise_for_status()
+        original_path.write_bytes(resp.content)
+
+        # 用 ffmpeg 压缩为 300px 的 JPG
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i",
+                str(original_path),
+                "-vf",
+                "scale=300:300:force_original_aspect_ratio=decrease",
+                "-q:v",
+                "2",
+                str(cover_path),
+                "-y",
+            ],
+            check=True,
+            timeout=30,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        song.cover_path = cover_path.relative_to(_library.library_dir).as_posix()
+        song.thumbnail = track.thumbnail
+        _library.add_song(song)
+    except Exception as e:
+        logger.warning(f"封面下载/压缩失败 {song.id}: {e}")
 
 
 @app.get("/api/search")
@@ -626,6 +700,27 @@ def api_local_stream_head(song_id: str):
     return api_local_stream(song_id)
 
 
+@app.get("/api/local/cover/{song_id}")
+def api_local_cover(song_id: str):
+    """返回歌曲压缩封面；不存在则回退到远程缩略图代理或默认图标。"""
+    song = _library.get_song(song_id)
+    if song and song.cover_path:
+        abs_path = _library.resolve_path(song.cover_path)
+        if abs_path and abs_path.exists():
+            return FileResponse(abs_path, media_type="image/jpeg")
+
+    if song and song.thumbnail:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            f"api/thumbnail?url={quote(song.thumbnail, safe='')}", status_code=302
+        )
+
+    icon_path = _static_dir / "icons" / "icon-192.png"
+    if icon_path.exists():
+        return FileResponse(icon_path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="封面不存在")
+
+
 @app.delete("/api/local/{song_id}")
 def api_local_delete(song_id: str):
     """删除指定本地文件，将 Song 置为 online。"""
@@ -718,6 +813,8 @@ def api_add_track_to_playlist(playlist_id: str, req: PlaylistTrackRequest):
     if song is None:
         song = _track_to_song(track)
         _library.add_song(song)
+
+    _ensure_cover(track, song)
 
     if playlist_id in song.playlists:
         return {"added": False, "reason": "曲目已存在"}
@@ -910,6 +1007,77 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
 
 # 一起听歌房间 WebSocket / REST API
 app.include_router(rooms_router, prefix="/api")
+
+
+def _decode_share_track(payload: str) -> Optional[Track]:
+    """解码 ?song= 分享参数。"""
+    try:
+        # base64url 长度补齐
+        padded = payload + "=" * (-len(payload) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
+        return Track(**data)
+    except Exception:
+        return None
+
+
+@app.get("/")
+def api_root(request: Request, song: Optional[str] = Query(None, description="分享歌曲 base64")):
+    """返回 H5 首页；若带 ?song= 则注入微信 Open Graph 分享卡片标签。"""
+    index_path = _static_dir / "index.html"
+    if not song:
+        return FileResponse(index_path)
+
+    track = _decode_share_track(song)
+    if track is None:
+        return FileResponse(index_path)
+
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", request.url.hostname or "localhost")
+    prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
+    base = f"{scheme}://{host}{prefix}/"
+
+    if track.thumbnail and track.thumbnail.startswith(("http://", "https://")):
+        image_url = track.thumbnail
+    elif track.cover_url:
+        image_url = (
+            track.cover_url
+            if track.cover_url.startswith(("http://", "https://"))
+            else base + track.cover_url.lstrip("/")
+        )
+    else:
+        image_url = base + "icons/icon-192.png"
+
+    raw_path = request.scope.get("path", "/")
+    path = raw_path.removeprefix(prefix) if prefix else raw_path
+    if not path:
+        path = "/"
+    share_url = f"{scheme}://{host}{prefix}{path}"
+    if song:
+        share_url += f"?song={song}"
+
+    title = f"{track.title} - {track.artist}" if track.artist else track.title
+    desc = f"在 Musiic 收听《{track.title}》"
+
+    meta = f"""<meta property="og:title" content="{html.escape(title)}">
+<meta property="og:description" content="{html.escape(desc)}">
+<meta property="og:image" content="{html.escape(image_url)}">
+<meta property="og:url" content="{html.escape(share_url)}">
+<meta property="og:type" content="music.song">
+<meta name="twitter:card" content="summary_large_image">
+"""
+
+    text = index_path.read_text(encoding="utf-8")
+    text = re.sub(r"<title>.*?</title>", f"<title>{html.escape(title)}</title>", text, count=1, flags=re.S)
+    text = re.sub(
+        r'<meta name="description" content=".*?">',
+        f'<meta name="description" content="{html.escape(desc)}">',
+        text,
+        count=1,
+        flags=re.S,
+    )
+    text = text.replace("<!-- OG_META -->", meta)
+    return HTMLResponse(text)
+
 
 # 静态文件：H5 前端
 # api.py 位于 <project_root>/src/music_cli/web/api.py

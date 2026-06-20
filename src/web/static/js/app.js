@@ -59,6 +59,7 @@ import {
     togglePlayPause,
     playPrev,
     playNext,
+    playTrack,
     togglePlaybackMode,
     updateProgress,
     updateDuration,
@@ -88,9 +89,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderPlaybackMode();
     renderSourceSelect();
     await restorePlaybackState();
+    await handleShareFromUrl();
     initRoomUI();
     promptJoinFromUrl();
 });
+
+async function handleShareFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const songParam = params.get('song');
+    if (!songParam) return;
+    try {
+        const base64 = songParam.replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(escape(atob(base64)));
+        const track = JSON.parse(json);
+        if (!track.id || !track.title) return;
+        await playTrack(track, 'search', null);
+    } catch (err) {
+        console.error('分享链接解析失败:', err);
+    }
+}
 
 async function promptJoinFromUrl() {
     const params = new URLSearchParams(window.location.search);

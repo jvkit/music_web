@@ -12,6 +12,9 @@ import {
 } from './api.js';
 
 export function songToTrack(song) {
+    const coverUrl = song.cover_path
+        ? `api/local/cover/${song.id}`
+        : (song.thumbnail ? `api/thumbnail?url=${encodeURIComponent(song.thumbnail)}` : null);
     return {
         id: song.id,
         title: song.title,
@@ -19,7 +22,8 @@ export function songToTrack(song) {
         source: song.source,
         source_url: song.source_url || null,
         duration: song.duration || null,
-        thumbnail: null,
+        thumbnail: song.thumbnail || null,
+        cover_url: coverUrl,
         lyrics: null,
         extra: song.extra || {},
         media_type: song.media_type || 'audio',

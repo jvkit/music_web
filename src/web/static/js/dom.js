@@ -16,6 +16,7 @@ export function cacheElements() {
         'roomModal', 'roomModalTitle', 'roomModalBody', 'roomModalClose',
         'roomBanner', 'roomBannerCode', 'roomBannerCount', 'roomBannerExit',
         'videoModal', 'videoPlayer', 'videoTitle', 'videoModalClose',
+        'lyricsCover', 'lyricsCoverWrap',
         'lyricsModal', 'lyricsModalClose', 'lyricsTitle', 'lyricsArtist', 'lyricsBackground',
         'lyricsScroller', 'lyricsContainer',
         'lyricsPrevBtn', 'lyricsPlayPauseBtn', 'lyricsNextBtn', 'lyricsModeBtn', 'lyricsFavoriteBtn', 'lyricsRemoveBtn',
