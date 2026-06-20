@@ -124,7 +124,12 @@ async function handleShareFromUrl() {
         return;
     }
 
-    showToast('正在打开分享歌曲...');
+    // 立即显示启动屏，挡住搜索首页，避免先闪现再跳转
+    if (els.shareSplash) els.shareSplash.classList.remove('hidden');
+
+    const hideSplash = () => {
+        if (els.shareSplash) els.shareSplash.classList.add('hidden');
+    };
 
     // 1) 优先按 id 从本地库找
     try {
@@ -134,6 +139,7 @@ async function handleShareFromUrl() {
         if (localItem && localItem.track) {
             await playTrack(localItem.track, 'local', null);
             openLyricsPage();
+            hideSplash();
             return;
         }
     } catch {
@@ -148,6 +154,7 @@ async function handleShareFromUrl() {
             if (resolved && resolved.title && resolved.title !== resolved.id) {
                 await playTrack(resolved, 'search', null);
                 openLyricsPage();
+                hideSplash();
                 return;
             }
         }
@@ -163,12 +170,14 @@ async function handleShareFromUrl() {
         if (matched) {
             await playTrack(matched, 'search', null);
             openLyricsPage();
+            hideSplash();
             return;
         }
     } catch (err) {
         console.error('分享歌曲搜索兜底失败:', err);
     }
 
+    hideSplash();
     showToast('分享歌曲无法播放，请手动搜索', 'error');
 }
 
