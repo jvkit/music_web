@@ -5,7 +5,7 @@
 import { cacheElements, els } from './dom.js';
 import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
-import { fetchWebSources } from './api.js';
+import { fetchWebSources, searchTracks } from './api.js';
 
 // 音源四大分类
 const SOURCE_GROUPS = [
@@ -96,17 +96,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function handleShareFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    const songParam = params.get('song');
-    if (!songParam) return;
+    const shareParam = params.get('share') || params.get('song');
+    if (!shareParam) return;
+
+    let track;
     try {
-        const base64 = songParam.replace(/-/g, '+').replace(/_/g, '/');
+        const base64 = shareParam.replace(/-/g, '+').replace(/_/g, '/');
         const json = decodeURIComponent(escape(atob(base64)));
-        const track = JSON.parse(json);
+        const data = JSON.parse(json);
+        // 精简分享字段映射
+        track = {
+            id: data.i || data.id,
+            title: data.t || data.title,
+            artist: data.a || data.artist,
+            source: data.s || data.source,
+            source_url: data.u || data.source_url,
+            thumbnail: data.p || data.thumbnail,
+            cover_url: data.c || data.cover_url,
+            duration: data.d || data.duration,
+            extra: data.extra || {},
+            lyrics: null,
+            media_type: 'audio',
+        };
         if (!track.id || !track.title) return;
-        await playTrack(track, 'search', null);
     } catch (err) {
         console.error('分享链接解析失败:', err);
+        return;
     }
+
+    showToast('正在播放分享歌曲...');
+    try {
+        await playTrack(track, 'search', null);
+        return;
+    } catch {
+        // 最小化 track 可能缺少 extra，尝试按歌名搜索兜底
+    }
+
+    try {
+        const data = await searchTracks(`${track.title} ${track.artist || ''}`.trim(), track.source, 5, 0);
+        const results = data.tracks || [];
+        const matched = results.find(t => t.id === track.id) || results[0];
+        if (matched) {
+            await playTrack(matched, 'search', null);
+            return;
+        }
+    } catch (err) {
+        console.error('分享歌曲搜索兜底失败:', err);
+    }
+    showToast('分享歌曲无法播放，请手动搜索', 'error');
 }
 
 async function promptJoinFromUrl() {
