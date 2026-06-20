@@ -77,6 +77,9 @@ class LiumingyeAdapter(WebAdapter):
                     grouped[src] = future.result() or []
                 except Exception:
                     grouped[src] = []
+        except TimeoutError:
+            # 整体超时，使用已返回的源结果即可
+            pass
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
 
