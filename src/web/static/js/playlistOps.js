@@ -26,33 +26,33 @@ export function songToTrack(song) {
     };
 }
 
-const SYSTEM_SOURCE_PLAYLISTS = [
-    { id: 'source_direct', name: '稳定直连源', category: 'direct', is_system: true },
-    { id: 'source_stable', name: '非直连但基本稳定的源', category: 'stable', is_system: true },
-    { id: 'source_unstable', name: '不稳定源', category: 'unstable', is_system: true },
-    { id: 'source_foreign', name: '外网源', category: 'foreign', is_system: true },
-];
+// 四个系统来源歌单已临时关闭，后续如需按来源自动归类可再开启
+// const SYSTEM_SOURCE_PLAYLISTS = [
+//     { id: 'source_direct', name: '稳定直连源', category: 'direct', is_system: true },
+//     { id: 'source_stable', name: '非直连但基本稳定的源', category: 'stable', is_system: true },
+//     { id: 'source_unstable', name: '不稳定源', category: 'unstable', is_system: true },
+//     { id: 'source_foreign', name: '外网源', category: 'foreign', is_system: true },
+// ];
 
-function getSourceCategory(source, webSources) {
-    const s = (source || '').toLowerCase();
-    if (s === 'youtube' || s === 'soundcloud') return 'foreign';
-
-    const ws = webSources.find(ws => ws.id === s);
-    if (ws) {
-        if (ws.status === 'unstable') return 'unstable';
-        if (ws.direct_stream) return 'direct';
-        return 'stable';
-    }
-
-    if (s === 'netease' || s === 'bilibili') return 'stable';
-    return null;
-}
+// function getSourceCategory(source, webSources) {
+//     const s = (source || '').toLowerCase();
+//     if (s === 'youtube' || s === 'soundcloud') return 'foreign';
+//
+//     const ws = webSources.find(ws => ws.id === s);
+//     if (ws) {
+//         if (ws.status === 'unstable') return 'unstable';
+//         if (ws.direct_stream) return 'direct';
+//         return 'stable';
+//     }
+//
+//     if (s === 'netease' || s === 'bilibili') return 'stable';
+//     return null;
+// }
 
 export function buildPlaylistsFromLibrary(library) {
     const playlistsMap = library.playlists || {};
     const songsMap = library.songs || {};
     const songs = Object.values(songsMap);
-    const webSources = state.webSources || [];
 
     const userPlaylists = Object.values(playlistsMap).map(p => ({
         ...p,
@@ -60,16 +60,10 @@ export function buildPlaylistsFromLibrary(library) {
         tracks: songs
             .filter(s => (s.playlists || []).includes(p.id))
             .map(s => songToTrack(s))
+            .reverse()
     }));
 
-    const systemPlaylists = SYSTEM_SOURCE_PLAYLISTS.map(sp => ({
-        ...sp,
-        tracks: songs
-            .filter(s => getSourceCategory(s.source, webSources) === sp.category)
-            .map(s => songToTrack(s))
-    }));
-
-    return [...systemPlaylists, ...userPlaylists];
+    return userPlaylists;
 }
 
 export function isTrackInPlaylist(trackId, playlistId) {

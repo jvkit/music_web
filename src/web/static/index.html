@@ -16,7 +16,7 @@
     <meta name="theme-color" content="#38bdf8">
 </head>
 <body class="bg-base-200 text-base-content pb-40">
-    <!-- 入站密码验证 -->
+    <!-- 入站密码验证（已临时关闭）
     <div id="passwordGate" class="fixed inset-0 z-[100] bg-base-200 flex items-center justify-center p-4">
         <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
             <div class="card-body items-center text-center">
@@ -32,6 +32,7 @@
             </div>
         </div>
     </div>
+    -->
 
     <!-- 管理密码弹窗（删除/取消收藏/改设置等敏感操作） -->
     <div id="adminPasswordModal" class="fixed inset-0 z-[110] bg-base-200/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
@@ -366,7 +367,7 @@
         <div class="text-sm font-medium"></div>
     </div>
 
-    <!-- 入站密码保护：内联兜底，确保即使 JS 模块出错也能解锁 -->
+    <!-- 入站密码保护：内联兜底（已临时关闭）
     <script>
         (function () {
             const SITE_PASSWORD = 'junvon';
@@ -406,7 +407,8 @@
             });
         })();
     </script>
+    -->
 
-    <script type="module" src="js/app.js?v=10"></script>
+    <script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>

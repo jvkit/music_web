@@ -3,6 +3,7 @@
 为 H5 / 小程序提供 REST API，封装 music_cli 的核心能力。
 """
 
+import logging
 import mimetypes
 import re
 import shutil
@@ -11,6 +12,8 @@ import uuid
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, unquote, urlparse
+
+logger = logging.getLogger(__name__)
 
 import requests
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -325,40 +328,39 @@ def api_preview(req: PreviewRequest):
         if abs_path and abs_path.exists():
             _library.record_play(song.id)
             return {
-                "stream_url": f"/api/local/stream/{song.id}",
+                "stream_url": f"api/local/stream/{song.id}",
                 "media_type": song.media_type,
                 "track": _song_to_track(song).model_dump(),
                 "streamed": False,
             }
 
-    # 优先尝试边下边播：直接流地址或代理流地址
+    # 优先尝试流式代理：只要能拿到流地址，就直接转发给前端，边下边播
     if req.stream:
         try:
             src = _get_source(track.source)
-            if getattr(src, "direct_stream", False):
-                direct_url = src.get_stream_url(track)
-                if direct_url:
-                    if track.source in ("bilibili", "youtube"):
-                        stream_url = (
-                            f"/api/stream_proxy?url={quote(direct_url, safe='')}"
-                            f"&source={track.source}"
-                        )
-                    elif track.source.startswith("web_"):
-                        stream_url = direct_url
-                    else:
-                        stream_url = direct_url
-                    _library.record_play(song.id)
-                    return {
-                        "stream_url": stream_url,
-                        "media_type": media_type.value,
-                        "track": track.model_dump(),
-                        "streamed": True,
-                    }
-        except Exception:
+            direct_url = src.get_stream_url(track)
+            if direct_url:
+                # 直连网页音源仍可直接播放，减少服务器带宽；其他全部走代理
+                if getattr(src, "direct_stream", False) and track.source.startswith("web_"):
+                    stream_url = direct_url
+                else:
+                    stream_url = (
+                        f"api/stream_proxy?url={quote(direct_url, safe='')}"
+                        f"&source={track.source}"
+                    )
+                _library.record_play(song.id)
+                return {
+                    "stream_url": stream_url,
+                    "media_type": media_type.value,
+                    "track": track.model_dump(),
+                    "streamed": True,
+                }
+        except Exception as e:
             # 获取流地址失败则回退到完整下载
+            logger.warning(f"stream url failed for {track.source}: {e}")
             pass
 
-    # 下载到 library files/
+    # 流地址也拿不到时，完整下载到 library files/
     try:
         _download_to_library(track, media_type)
     except Exception as e:
@@ -366,7 +368,7 @@ def api_preview(req: PreviewRequest):
 
     _library.record_play(track.id)
     return {
-        "stream_url": f"/api/local/stream/{track.id}",
+        "stream_url": f"api/local/stream/{track.id}",
         "media_type": media_type.value,
         "track": track.model_dump(),
         "streamed": False,

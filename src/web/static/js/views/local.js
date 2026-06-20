@@ -36,7 +36,7 @@ export function renderLocal() {
     });
     container.appendChild(filterContainer);
 
-    const items = filterByMediaType(state.localItems, state.mediaTypeFilter.local);
+    const items = filterByMediaType(state.localItems, state.mediaTypeFilter.local).slice().reverse();
 
     if (items.length === 0) {
         container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无本地音乐</div>');
