@@ -7,6 +7,30 @@
 
 const DEBUG = /music[4-6]/.test(window.location.pathname) || new URLSearchParams(window.location.search).has('qqdebug');
 
+function copyText(text, onSuccess, onError) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(onError);
+        return;
+    }
+    // HTTP 环境降级用 textarea + execCommand
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        ok ? onSuccess() : onError();
+    } catch (err) {
+        document.body.removeChild(textarea);
+        onError();
+    }
+}
+
 function log(...args) {
     console.log('[QQShare]', ...args);
     if (DEBUG) renderDebug(args.join(' '));
@@ -37,10 +61,10 @@ function renderDebug(text) {
                 e.stopPropagation();
                 const content = document.getElementById('qq-debug-content');
                 const lines = Array.from(content.children).map(n => n.textContent).join('\n');
-                navigator.clipboard.writeText(lines).then(() => {
+                copyText(lines, () => {
                     e.target.textContent = '已复制';
                     setTimeout(() => (e.target.textContent = '复制'), 1500);
-                }).catch(() => {
+                }, () => {
                     e.target.textContent = '失败';
                 });
                 return;
