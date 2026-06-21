@@ -7,7 +7,7 @@ import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
 import { API_BASE } from './config.js';
 import { fetchWebSources, searchTracks, fetchLocalItems } from './api.js';
-import { updateQQShare } from './qqShare.js';
+import { shareTrack, updateQQShare } from './qqShare.js';
 
 // 音源四大分类
 const SOURCE_GROUPS = [
@@ -275,6 +275,11 @@ function bindEvents() {
     els.playerLyricsBtn.addEventListener('click', openLyricsPage);
     els.playerRemoveBtn.addEventListener('click', removeCurrentLocalTrack);
     els.lyricsModalClose.addEventListener('click', closeLyricsPage);
+    if (els.lyricsShareBtn) {
+        els.lyricsShareBtn.addEventListener('click', () => {
+            shareTrack(state.currentTrack, 0);
+        });
+    }
     els.lyricsPrevBtn.addEventListener('click', playPrev);
     els.lyricsNextBtn.addEventListener('click', playNext);
     els.lyricsPlayPauseBtn.addEventListener('click', togglePlayPause);

@@ -245,6 +245,43 @@ async function doUpdate(track = null) {
     return ok1 || ok2;
 }
 
+export async function shareTrack(track = null, shareType = 0) {
+    if (typeof window === 'undefined') return;
+    await loadQQApi();
+    const info = buildShareInfo(track);
+    log('manual share, type=' + shareType, JSON.stringify(info));
+
+    if (window.mqq && window.mqq.ui && typeof window.mqq.ui.shareMessage === 'function') {
+        try {
+            window.mqq.ui.shareMessage({
+                title: info.title,
+                desc: info.desc,
+                share_type: shareType,
+                share_url: info.share_url || window.location.href,
+                image_url: info.image_url,
+                back: true,
+            }, function (result) {
+                log('manual shareMessage callback:', JSON.stringify(result));
+            });
+            return;
+        } catch (err) {
+            log('manual shareMessage error:', err.message);
+        }
+    }
+
+    // 降级：Web Share API 或复制链接
+    const url = info.share_url || window.location.href;
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: info.title, text: info.desc, url });
+        } catch {
+            // ignore cancel
+        }
+    } else {
+        copyText(url, () => alert('分享链接已复制'), () => alert('复制失败'));
+    }
+}
+
 export function updateQQShare(track = null) {
     doUpdate(track);
 }

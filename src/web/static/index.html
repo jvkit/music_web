@@ -289,7 +289,10 @@
                     <h3 id="lyricsTitle" class="text-base font-semibold truncate">歌曲标题</h3>
                     <p id="lyricsArtist" class="text-xs text-white/70 truncate">歌手</p>
                 </div>
-                <button id="lyricsModalClose" class="btn btn-circle btn-ghost text-white"><i class="ph ph-x"></i></button>
+                <div class="flex items-center gap-1">
+                    <button id="lyricsShareBtn" class="btn btn-circle btn-ghost text-white" title="分享"><i class="ph ph-share-network"></i></button>
+                    <button id="lyricsModalClose" class="btn btn-circle btn-ghost text-white"><i class="ph ph-x"></i></button>
+                </div>
             </div>
 
             <div class="relative z-10 flex-1 overflow-y-auto px-6 py-4" id="lyricsScroller">
@@ -436,6 +439,6 @@
     </script>
     -->
 
-    <script type="module" src="js/app.js?v=28"></script>
+    <script type="module" src="js/app.js?v=29"></script>
 </body>
 </html>
