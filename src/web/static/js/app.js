@@ -7,7 +7,7 @@ import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
 import { API_BASE } from './config.js';
 import { fetchWebSources, searchTracks, fetchLocalItems } from './api.js';
-import { shareTrack, updateQQShare } from './qqShare.js';
+import { shareTrack } from './qqShare.js';
 
 // 音源四大分类
 const SOURCE_GROUPS = [
@@ -93,12 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderSourceSelect();
     await restorePlaybackState();
     await handleShareFromUrl();
-    // 只有歌词页打开时才用歌曲信息更新 QQ 分享，否则用品牌默认
-    updateQQShare(
-        !document.getElementById('lyricsModal').classList.contains('hidden')
-            ? state.currentTrack
-            : null
-    );
     initRoomUI();
     promptJoinFromUrl();
 });

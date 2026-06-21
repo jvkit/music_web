@@ -1217,7 +1217,9 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     desc = f"在 音河 收听《{track.title}》"
 
     meta = f"""<meta itemprop="name" content="{html.escape(title)}">
-<meta name="description" itemprop="description" content="{html.escape(desc)}">
+<meta name="description" content="{html.escape(desc)}">
+<meta name="Description" content="{html.escape(desc)}">
+<meta itemprop="description" content="{html.escape(desc)}">
 <meta itemprop="image" content="{html.escape(image_url)}">
 <meta property="og:site_name" content="音河">
 <meta property="og:locale" content="zh_CN">
@@ -1229,8 +1231,12 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
 <meta property="og:url" content="{html.escape(share_url)}">
 <meta property="og:type" content="music.song">
 """
-    # body 最上方放一张隐藏封面，作为部分爬虫/微信的兜底取图
-    cover_tag = f'<div style="display:none;"><img src="{html.escape(image_url)}" alt="cover"></div>'
+    # body 最上方放隐藏内容，作为部分爬虫/QQ 的兜底取图/取标题
+    cover_tag = f'''<div style="display:none;">
+<h1>{html.escape(title)}</h1>
+<p>{html.escape(desc)}</p>
+<img src="{html.escape(image_url)}" alt="cover">
+</div>'''
     return meta, cover_tag
 
 
@@ -1371,7 +1377,9 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
     desc = "音河 - 在线音乐搜索、试听与分享"
 
     meta = f"""<meta itemprop="name" content="{html.escape(title)}">
-<meta name="description" itemprop="description" content="{html.escape(desc)}">
+<meta name="description" content="{html.escape(desc)}">
+<meta name="Description" content="{html.escape(desc)}">
+<meta itemprop="description" content="{html.escape(desc)}">
 <meta itemprop="image" content="{html.escape(image_url)}">
 <meta property="og:site_name" content="音河">
 <meta property="og:locale" content="zh_CN">
@@ -1383,7 +1391,11 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
 <meta property="og:url" content="{html.escape(share_url)}">
 <meta property="og:type" content="website">
 """
-    cover_tag = f'<div style="display:none;"><img src="{html.escape(image_url)}" alt="cover"></div>'
+    cover_tag = f'''<div style="display:none;">
+<h1>{html.escape(title)}</h1>
+<p>{html.escape(desc)}</p>
+<img src="{html.escape(image_url)}" alt="cover">
+</div>'''
     return meta, cover_tag
 
 
