@@ -8,10 +8,12 @@ import html
 import json
 import logging
 import mimetypes
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -37,6 +39,59 @@ from music_cli.sources.web import WEB_ADAPTERS
 from music_cli.web.aggregate import aggregate_search
 from music_cli.web.downloads import DownloadManager, write_track_sidecar
 from music_cli.web.rooms import router as rooms_router
+
+
+# 短分享码：把长 ?share= 换成短 ?c=，方便 QQ/微信分享
+_SHARE_CODES_PATH = Path.home() / ".config" / "musiic-cli" / "share_codes.json"
+_SHARE_CODE_TTL_SECONDS = 7 * 24 * 3600
+
+
+def _load_share_codes() -> dict:
+    if not _SHARE_CODES_PATH.exists():
+        return {}
+    try:
+        return json.loads(_SHARE_CODES_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_share_codes(codes: dict) -> None:
+    _SHARE_CODES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _SHARE_CODES_PATH.write_text(json.dumps(codes, ensure_ascii=False), encoding="utf-8")
+
+
+def _create_share_code(track: dict) -> str:
+    codes = _load_share_codes()
+    now = time.time()
+    codes = {k: v for k, v in codes.items() if v.get("exp", now) > now}
+    code = base64.urlsafe_b64encode(os.urandom(6)).decode().rstrip("=")
+    codes[code] = {"track": track, "exp": now + _SHARE_CODE_TTL_SECONDS}
+    _save_share_codes(codes)
+    return code
+
+
+def _get_share_track(code: str) -> Optional[Track]:
+    codes = _load_share_codes()
+    data = codes.get(code)
+    if not data or data.get("exp", 0) < time.time():
+        return None
+    t = data["track"]
+    try:
+        return Track(**t)
+    except Exception:
+        required = {"id", "title", "artist", "source"}
+        if not required.issubset(t.keys()):
+            return None
+        return Track(
+            id=t["id"],
+            title=t["title"],
+            artist=t["artist"],
+            source=t["source"],
+            source_url=t.get("source_url"),
+            thumbnail=t.get("thumbnail"),
+            cover_url=t.get("cover_url"),
+            extra=t.get("extra") or {},
+        )
 
 
 app = FastAPI(title="music-cli API", version="0.1.0")
@@ -1009,6 +1064,37 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
     return api_thumbnail(url)
 
 
+def _convert_image_to_jpeg(image_bytes: bytes) -> bytes:
+    """用 ffmpeg 把任意图片字节流转成 500x500 JPEG 字节。"""
+    proc = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-i",
+            "-",
+            "-vf",
+            "scale=500:500:force_original_aspect_ratio=decrease",
+            "-q:v",
+            "2",
+            "-f",
+            "image2",
+            "-",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    stdout, _ = proc.communicate(input=image_bytes, timeout=30)
+    if proc.returncode != 0 or not stdout:
+        raise RuntimeError("ffmpeg 转换失败")
+    return stdout
+
+
+@app.head("/api/og_image")
+def api_og_image_head(url: Optional[str] = Query(None, description="原始封面 URL")):
+    """部分爬虫会先 HEAD 探测，直接复用 GET 逻辑。"""
+    return api_og_image(url)
+
+
 @app.get("/api/og_image")
 def api_og_image(url: Optional[str] = Query(None, description="原始封面 URL")):
     """微信/QQ 分享卡片图片代理：统一转 JPEG，兼容性和速度更好。"""
@@ -1032,41 +1118,12 @@ def api_og_image(url: Optional[str] = Query(None, description="原始封面 URL"
     }
     proxies = {"http": proxy, "https": proxy} if proxy else None
 
-    tmp_dir = None
     try:
         resp = requests.get(decoded, headers=headers, proxies=proxies, timeout=20)
         resp.raise_for_status()
-
-        tmp_dir = tempfile.mkdtemp(prefix="og_img_")
-        tmp_in = Path(tmp_dir) / "in"
-        tmp_out = Path(tmp_dir) / "out.jpg"
-        tmp_in.write_bytes(resp.content)
-
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-i",
-                str(tmp_in),
-                "-vf",
-                "scale=500:500:force_original_aspect_ratio=decrease",
-                "-q:v",
-                "2",
-                "-y",
-                str(tmp_out),
-            ],
-            check=True,
-            timeout=30,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return FileResponse(
-            str(tmp_out),
-            media_type="image/jpeg",
-            background=BackgroundTask(shutil.rmtree, tmp_dir),
-        )
+        jpeg = _convert_image_to_jpeg(resp.content)
+        return StreamingResponse(iter([jpeg]), media_type="image/jpeg")
     except Exception as e:
-        if tmp_dir:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
         logger.warning(f"og_image 转换失败，回退到 Logo: {e}")
         if logo_path.exists():
             return FileResponse(logo_path, media_type="image/png")
@@ -1137,7 +1194,10 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
     base = f"{scheme}://{host}{prefix}/"
 
-    if track.thumbnail and track.thumbnail.startswith(("http://", "https://")):
+    if query_key == "c" and query_value:
+        # 短分享码用极短封面接口，URL 短、稳定、已转 JPEG
+        image_url = f"{base}api/share_image?code={query_value}"
+    elif track.thumbnail and track.thumbnail.startswith(("http://", "https://")):
         # 微信分享卡片用自己的图片代理，避免第三方 CDN 拒绝爬虫
         image_url = f"{base}api/og_image?url={quote(track.thumbnail, safe='')}"
     elif track.cover_url:
@@ -1185,11 +1245,47 @@ def api_track_resolve(source: str = Query(...), track_id: str = Query(..., alias
         raise HTTPException(status_code=500, detail=f"解析曲目失败: {e}")
 
 
+@app.post("/api/share")
+def api_create_share(track: dict):
+    """为歌曲创建短分享码，返回 ?c=xxx 用的 code。"""
+    if not track or not track.get("id") or not track.get("title") or not track.get("source"):
+        raise HTTPException(status_code=400, detail="缺少必要字段")
+    code = _create_share_code(track)
+    return {"code": code}
+
+
+@app.get("/api/share")
+def api_get_share(code: str = Query(..., description="分享码")):
+    """根据短分享码获取歌曲信息。"""
+    track = _get_share_track(code)
+    if not track:
+        raise HTTPException(status_code=404, detail="分享已过期或不存在")
+    return {"track": track.model_dump()}
+
+
+@app.head("/api/share_image")
+def api_share_image_head(code: str = Query(..., description="分享码")):
+    return api_share_image(code)
+
+
+@app.get("/api/share_image")
+def api_share_image(code: str = Query(..., description="分享码")):
+    """根据短分享码返回歌曲封面 JPEG，URL 极短，适合微信/QQ 卡片。"""
+    logo_path = _static_dir / "icons" / "icon-512.png"
+    track = _get_share_track(code)
+    if not track or not track.thumbnail:
+        if logo_path.exists():
+            return FileResponse(logo_path, media_type="image/png")
+        raise HTTPException(status_code=404, detail="无封面")
+    return api_og_image(url=track.thumbnail)
+
+
 @app.get("/")
 def api_root(
     request: Request,
     song: Optional[str] = Query(None, description="完整分享歌曲 base64（兼容旧链接）"),
     share: Optional[str] = Query(None, description="精简分享参数 base64"),
+    c: Optional[str] = Query(None, description="短分享码"),
 ):
     """返回 H5 首页；若带 ?share= 或 ?song= 则注入微信 Open Graph 分享卡片标签。"""
     index_path = _static_dir / "index.html"
@@ -1197,7 +1293,11 @@ def api_root(
     query_key = "share"
     query_value = ""
 
-    if share:
+    if c:
+        track = _get_share_track(c)
+        query_key = "c"
+        query_value = c
+    elif share:
         track = _decode_minimal_share(share)
         query_value = share
     elif song:

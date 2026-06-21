@@ -26,30 +26,23 @@ import { isInRoom, sendChangeTrack, sendPlay, sendPause, sendSeek } from './room
 
 let lastPlaybackSaveTime = 0;
 
-function setShareUrl(track) {
+async function setShareUrl(track) {
     try {
-        // 只传必要字段，尽量缩短 URL，避免微信爬虫截断/丢参
-        const payload = {
-            s: track.source,
-            i: track.id,
-            t: track.title,
-            a: track.artist,
-        };
-        if (track.source_url) payload.u = track.source_url;
-        if (track.thumbnail) payload.p = track.thumbnail;
-        if (track.cover_url) payload.c = track.cover_url;
-        if (track.duration) payload.d = track.duration;
-        const json = JSON.stringify(payload);
-        const base64 = btoa(unescape(encodeURIComponent(json)))
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
+        // 用服务端短分享码替代长 base64，QQ/微信对 URL 长度敏感
+        const resp = await fetch(`${API_BASE}/share`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(track),
+        });
+        if (!resp.ok) throw new Error('创建分享码失败');
+        const { code } = await resp.json();
         const url = new URL(window.location.href);
-        url.searchParams.set('share', base64);
+        url.searchParams.set('c', code);
+        url.searchParams.delete('share');
         url.searchParams.delete('song');
         history.replaceState(null, '', url.toString());
-    } catch {
-        // 分享 URL 不是关键路径，失败静默
+    } catch (err) {
+        console.error('setShareUrl 失败:', err);
     }
 }
 
@@ -149,7 +142,7 @@ export function updatePlayerInfo() {
     updatePlayerFavorite();
     updatePlayerRemoveButton();
 
-    // 歌词页打开时同步更新其 UI
+    // 歌词页打开时同步更新其 UI，同时刷新 QQ 分享卡片
     if (!els.lyricsModal.classList.contains('hidden')) {
         els.lyricsTitle.textContent = t.title;
         els.lyricsArtist.textContent = t.artist;
@@ -157,9 +150,8 @@ export function updatePlayerInfo() {
         if (els.lyricsCover) {
             els.lyricsCover.src = getThumbnailUrl(t.thumbnail);
         }
+        updateQQShare(t);
     }
-
-    updateQQShare(t);
 }
 
 function getFavoriteTargetId(track) {
@@ -578,7 +570,7 @@ export async function openLyricsPage() {
     els.lyricsCover.classList.toggle('lyrics-cover-paused', !state.isPlaying);
     els.lyricsModal.classList.remove('hidden');
     document.title = `${track.title} - ${track.artist} | 音河`;
-    setShareUrl(track);
+    await setShareUrl(track);
     updateQQShare(track);
     updatePlayerFavorite();
     updatePlayerRemoveButton();

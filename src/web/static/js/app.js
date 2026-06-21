@@ -93,7 +93,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderSourceSelect();
     await restorePlaybackState();
     await handleShareFromUrl();
-    updateQQShare(state.currentTrack);
+    // 只有歌词页打开时才用歌曲信息更新 QQ 分享，否则用品牌默认
+    updateQQShare(
+        !document.getElementById('lyricsModal').classList.contains('hidden')
+            ? state.currentTrack
+            : null
+    );
     initRoomUI();
     promptJoinFromUrl();
 });
@@ -105,35 +110,49 @@ function exitShareEntry() {
 async function handleShareFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const shareParam = params.get('share') || params.get('song');
-    if (!shareParam) {
+    const code = params.get('c');
+
+    let track;
+    if (code) {
+        try {
+            const resp = await fetch(`${API_BASE}/share?code=${encodeURIComponent(code)}`);
+            if (!resp.ok) throw new Error('分享码失效');
+            const data = await resp.json();
+            track = { ...data.track, lyrics: null, media_type: 'audio' };
+        } catch (err) {
+            console.error('分享码解析失败:', err);
+            exitShareEntry();
+            return;
+        }
+    } else if (shareParam) {
+        try {
+            const base64 = shareParam.replace(/-/g, '+').replace(/_/g, '/');
+            const json = decodeURIComponent(escape(atob(base64)));
+            const data = JSON.parse(json);
+            track = {
+                id: data.i || data.id,
+                title: data.t || data.title,
+                artist: data.a || data.artist,
+                source: data.s || data.source,
+                source_url: data.u || data.source_url,
+                thumbnail: data.p || data.thumbnail,
+                cover_url: data.c || data.cover_url,
+                duration: data.d || data.duration,
+                extra: data.extra || {},
+                lyrics: null,
+                media_type: 'audio',
+            };
+        } catch (err) {
+            console.error('分享链接解析失败:', err);
+            exitShareEntry();
+            return;
+        }
+    } else {
         exitShareEntry();
         return;
     }
 
-    let track;
-    try {
-        const base64 = shareParam.replace(/-/g, '+').replace(/_/g, '/');
-        const json = decodeURIComponent(escape(atob(base64)));
-        const data = JSON.parse(json);
-        track = {
-            id: data.i || data.id,
-            title: data.t || data.title,
-            artist: data.a || data.artist,
-            source: data.s || data.source,
-            source_url: data.u || data.source_url,
-            thumbnail: data.p || data.thumbnail,
-            cover_url: data.c || data.cover_url,
-            duration: data.d || data.duration,
-            extra: data.extra || {},
-            lyrics: null,
-            media_type: 'audio',
-        };
-        if (!track.id || !track.title) {
-            exitShareEntry();
-            return;
-        }
-    } catch (err) {
-        console.error('分享链接解析失败:', err);
+    if (!track || !track.id || !track.title) {
         exitShareEntry();
         return;
     }

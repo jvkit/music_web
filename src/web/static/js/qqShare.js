@@ -21,8 +21,19 @@ function getAppIconUrl() {
     return toAbsoluteUrl('icons/icon-512.png');
 }
 
+function getShareCode() {
+    try {
+        return new URL(window.location.href).searchParams.get('c');
+    } catch {
+        return null;
+    }
+}
+
 function pickImageUrl(track) {
-    // 优先用歌曲封面；解析失败/不存在则用 App 图标，绝不用 data URI（QQ 不认）
+    const code = getShareCode();
+    if (code) {
+        return toAbsoluteUrl(`api/share_image?code=${encodeURIComponent(code)}`);
+    }
     return toAbsoluteUrl(track?.thumbnail || track?.cover_url) || getAppIconUrl();
 }
 
@@ -44,7 +55,6 @@ function doUpdate(track = null) {
             desc,
             image_url,
         };
-        // share_url 限制 120 字节，超长时不传，让 QQ 用当前页面 URL
         const shareUrl = window.location.href;
         if (shareUrl.length <= 120) {
             params.share_url = shareUrl;
@@ -60,10 +70,8 @@ function doUpdate(track = null) {
 export function updateQQShare(track = null) {
     if (typeof window === 'undefined') return;
 
-    // 立即试一次
     if (doUpdate(track)) return;
 
-    // mqq 可能还没注入，最多重试 3 次
     let attempts = 0;
     const timer = setInterval(() => {
         attempts += 1;
