@@ -245,55 +245,64 @@ async function doUpdate(track = null) {
     return ok1 || ok2;
 }
 
-export async function shareTrack(track = null, shareType = 0) {
+export function shareTrack(track = null, shareType = 0) {
     if (typeof window === 'undefined') return;
     log('shareTrack clicked, track=' + (track ? track.title : 'null'));
-    await loadQQApi();
+
+    const mqq = window.mqq;
+    if (!mqq || !mqq.ui) {
+        log('mqq not ready, loading qqapi.js...');
+        loadQQApi().then(() => shareTrack(track, shareType));
+        return;
+    }
+
     const info = buildShareInfo(track);
     log('manual share, type=' + shareType, JSON.stringify(info));
 
-    const mqq = window.mqq;
-    if (mqq && mqq.ui) {
-        if (typeof mqq.ui.shareMessage === 'function') {
-            try {
-                log('trying mqq.ui.shareMessage');
-                mqq.ui.shareMessage({
-                    title: info.title,
-                    desc: info.desc,
-                    share_type: shareType,
-                    share_url: info.share_url || window.location.href,
-                    image_url: info.image_url,
-                    back: true,
-                }, function (result) {
-                    log('manual shareMessage callback:', JSON.stringify(result));
-                });
-                return;
-            } catch (err) {
-                log('manual shareMessage error:', err.message);
-            }
+    if (typeof mqq.ui.shareMessage === 'function') {
+        try {
+            log('trying mqq.ui.shareMessage');
+            mqq.ui.shareMessage({
+                title: info.title,
+                desc: info.desc,
+                share_type: shareType,
+                share_url: info.share_url || window.location.href,
+                image_url: info.image_url,
+                back: true,
+            }, function (result) {
+                log('manual shareMessage callback:', JSON.stringify(result));
+            });
+            return;
+        } catch (err) {
+            log('manual shareMessage error:', err.message);
         }
-        if (typeof mqq.ui.showShareMenu === 'function') {
-            try {
-                log('trying mqq.ui.showShareMenu');
-                mqq.ui.showShareMenu();
-                return;
-            } catch (err) {
-                log('showShareMenu error:', err.message);
-            }
+    }
+    if (typeof mqq.ui.showShareMenu === 'function') {
+        try {
+            log('trying mqq.ui.showShareMenu');
+            mqq.ui.showShareMenu();
+            return;
+        } catch (err) {
+            log('showShareMenu error:', err.message);
         }
     }
 
-    // 降级：Web Share API 或复制链接
-    const url = info.share_url || window.location.href;
-    if (navigator.share) {
-        try {
-            await navigator.share({ title: info.title, text: info.desc, url });
-        } catch {
-            // ignore cancel
-        }
-    } else {
-        copyText(url, () => alert('分享链接已复制'), () => alert('复制失败'));
+    // 降级：QQ URL Scheme 唤起分享
+    try {
+        const titleB64 = btoa(unescape(encodeURIComponent(info.title)));
+        const descB64 = btoa(unescape(encodeURIComponent(info.desc)));
+        const urlB64 = btoa(unescape(encodeURIComponent(info.share_url || window.location.href)));
+        const scheme = `mqqapi://share/to_fri?src_type=web&version=1&file_type=news&title=${titleB64}&url=${urlB64}&description=${descB64}`;
+        log('trying url scheme');
+        window.location.assign(scheme);
+        return;
+    } catch (err) {
+        log('url scheme error:', err.message);
     }
+
+    // 最后一招：复制链接
+    const url = info.share_url || window.location.href;
+    copyText(url, () => alert('分享链接已复制'), () => alert('复制失败'));
 }
 
 export function updateQQShare(track = null) {
