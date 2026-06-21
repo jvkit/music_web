@@ -103,7 +103,10 @@ function exitShareEntry() {
 async function handleShareFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const shareParam = params.get('share') || params.get('song');
-    if (!shareParam) return;
+    if (!shareParam) {
+        exitShareEntry();
+        return;
+    }
 
     let track;
     try {
@@ -123,9 +126,13 @@ async function handleShareFromUrl() {
             lyrics: null,
             media_type: 'audio',
         };
-        if (!track.id || !track.title) return;
+        if (!track.id || !track.title) {
+            exitShareEntry();
+            return;
+        }
     } catch (err) {
         console.error('分享链接解析失败:', err);
+        exitShareEntry();
         return;
     }
 
@@ -184,6 +191,7 @@ async function handleShareFromUrl() {
         console.error('分享歌曲搜索兜底失败:', err);
     }
 
+    exitShareEntry();
     showToast('分享歌曲无法播放，请手动搜索', 'error');
 }
 

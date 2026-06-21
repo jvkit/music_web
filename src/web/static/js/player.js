@@ -148,12 +148,14 @@ export function updatePlayerInfo() {
     updatePlayerFavorite();
     updatePlayerRemoveButton();
 
-    // 歌词页打开时同步更新
+    // 歌词页打开时同步更新其 UI
     if (!els.lyricsModal.classList.contains('hidden')) {
         els.lyricsTitle.textContent = t.title;
         els.lyricsArtist.textContent = t.artist;
         els.lyricsBackground.style.backgroundImage = `url(${getThumbnailUrl(t.thumbnail)})`;
-        openLyricsPage();
+        if (els.lyricsCover) {
+            els.lyricsCover.src = getThumbnailUrl(t.thumbnail);
+        }
     }
 }
 
@@ -594,6 +596,7 @@ export async function openLyricsPage() {
 }
 
 export function closeLyricsPage() {
+    if (els.lyricsModal.classList.contains('hidden')) return;
     els.lyricsModal.classList.add('hidden');
     clearShareUrl();
     document.title = '音河 - 在线音乐';
