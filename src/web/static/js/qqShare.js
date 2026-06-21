@@ -247,25 +247,39 @@ async function doUpdate(track = null) {
 
 export async function shareTrack(track = null, shareType = 0) {
     if (typeof window === 'undefined') return;
+    log('shareTrack clicked, track=' + (track ? track.title : 'null'));
     await loadQQApi();
     const info = buildShareInfo(track);
     log('manual share, type=' + shareType, JSON.stringify(info));
 
-    if (window.mqq && window.mqq.ui && typeof window.mqq.ui.shareMessage === 'function') {
-        try {
-            window.mqq.ui.shareMessage({
-                title: info.title,
-                desc: info.desc,
-                share_type: shareType,
-                share_url: info.share_url || window.location.href,
-                image_url: info.image_url,
-                back: true,
-            }, function (result) {
-                log('manual shareMessage callback:', JSON.stringify(result));
-            });
-            return;
-        } catch (err) {
-            log('manual shareMessage error:', err.message);
+    const mqq = window.mqq;
+    if (mqq && mqq.ui) {
+        if (typeof mqq.ui.shareMessage === 'function') {
+            try {
+                log('trying mqq.ui.shareMessage');
+                mqq.ui.shareMessage({
+                    title: info.title,
+                    desc: info.desc,
+                    share_type: shareType,
+                    share_url: info.share_url || window.location.href,
+                    image_url: info.image_url,
+                    back: true,
+                }, function (result) {
+                    log('manual shareMessage callback:', JSON.stringify(result));
+                });
+                return;
+            } catch (err) {
+                log('manual shareMessage error:', err.message);
+            }
+        }
+        if (typeof mqq.ui.showShareMenu === 'function') {
+            try {
+                log('trying mqq.ui.showShareMenu');
+                mqq.ui.showShareMenu();
+                return;
+            } catch (err) {
+                log('showShareMenu error:', err.message);
+            }
         }
     }
 
