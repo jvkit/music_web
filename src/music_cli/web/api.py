@@ -23,6 +23,7 @@ import requests
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -1010,19 +1011,66 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
 
 @app.get("/api/og_image")
 def api_og_image(url: Optional[str] = Query(None, description="原始封面 URL")):
-    """微信分享卡片专用图片代理；失败或无 URL 时返回应用 Logo。"""
+    """微信/QQ 分享卡片图片代理：统一转 JPEG，兼容性和速度更好。"""
     logo_path = _static_dir / "icons" / "icon-512.png"
     if not url:
         if logo_path.exists():
             return FileResponse(logo_path, media_type="image/png")
         raise HTTPException(status_code=404, detail="无默认 Logo")
 
+    decoded = unquote(url)
+    parsed = urlparse(decoded)
+    referer = f"{parsed.scheme}://{parsed.netloc}"
+    proxy = _resolve_proxy()
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Referer": referer,
+    }
+    proxies = {"http": proxy, "https": proxy} if proxy else None
+
+    tmp_dir = None
     try:
-        return api_thumbnail(url)
-    except Exception:
+        resp = requests.get(decoded, headers=headers, proxies=proxies, timeout=20)
+        resp.raise_for_status()
+
+        tmp_dir = tempfile.mkdtemp(prefix="og_img_")
+        tmp_in = Path(tmp_dir) / "in"
+        tmp_out = Path(tmp_dir) / "out.jpg"
+        tmp_in.write_bytes(resp.content)
+
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i",
+                str(tmp_in),
+                "-vf",
+                "scale=500:500:force_original_aspect_ratio=decrease",
+                "-q:v",
+                "2",
+                "-y",
+                str(tmp_out),
+            ],
+            check=True,
+            timeout=30,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return FileResponse(
+            str(tmp_out),
+            media_type="image/jpeg",
+            background=BackgroundTask(shutil.rmtree, tmp_dir),
+        )
+    except Exception as e:
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        logger.warning(f"og_image 转换失败，回退到 Logo: {e}")
         if logo_path.exists():
             return FileResponse(logo_path, media_type="image/png")
-        raise
+        raise HTTPException(status_code=502, detail="图片处理失败")
 
 
 @app.head("/api/og_image")

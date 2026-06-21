@@ -39,13 +39,17 @@ function doUpdate(track = null) {
             : '在线音乐搜索、试听与分享';
         const image_url = pickImageUrl(track);
 
-        mqq.invoke('data', 'setShareInfo', {
+        const params = {
             title,
             desc,
             image_url,
-            // 显式指定分享 URL，避免部分 QQ 版本不识别 history.replaceState 后的地址
-            share_url: window.location.href,
-        });
+        };
+        // share_url 限制 120 字节，超长时不传，让 QQ 用当前页面 URL
+        const shareUrl = window.location.href;
+        if (shareUrl.length <= 120) {
+            params.share_url = shareUrl;
+        }
+        mqq.invoke('data', 'setShareInfo', params);
         return true;
     } catch (err) {
         console.error('QQ setShareInfo 失败:', err);
