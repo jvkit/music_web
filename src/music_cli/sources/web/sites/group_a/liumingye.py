@@ -1,4 +1,4 @@
-"""刘明野工具箱 适配器
+"""音河搜索 适配器（原刘明野工具箱）
 
 站点首页是工具导航页，其中“音乐广场”链向皮卡丘音乐站（Pikachu Music）。
 该音乐站聚合了多个第三方音乐 API；本适配器直接使用其调用的后端接口，
@@ -25,7 +25,7 @@ class LiumingyeAdapter(WebAdapter):
 
     @property
     def display_name(self) -> str:
-        return "刘明野工具箱"
+        return "音河搜索"
 
     @property
     def site_url(self) -> str:

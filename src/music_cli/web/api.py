@@ -1064,17 +1064,17 @@ def api_thumbnail_head(url: str = Query(..., description="原始封面 URL")):
     return api_thumbnail(url)
 
 
-def _convert_image_to_jpeg(image_bytes: bytes) -> bytes:
-    """用 ffmpeg 把任意图片字节流转成 500x500 JPEG 字节。"""
+def _convert_image_to_jpeg(image_bytes: bytes, width: int = 500, height: int = 500, quality: int = 2) -> bytes:
+    """用 ffmpeg 把任意图片字节流转成指定尺寸 JPEG 字节。"""
     proc = subprocess.Popen(
         [
             "ffmpeg",
             "-i",
             "-",
             "-vf",
-            "scale=500:500:force_original_aspect_ratio=decrease",
+            f"scale={width}:{height}:force_original_aspect_ratio=decrease",
             "-q:v",
-            "2",
+            str(quality),
             "-f",
             "image2",
             "-",
@@ -1090,13 +1090,23 @@ def _convert_image_to_jpeg(image_bytes: bytes) -> bytes:
 
 
 @app.head("/api/og_image")
-def api_og_image_head(url: Optional[str] = Query(None, description="原始封面 URL")):
+def api_og_image_head(
+    url: Optional[str] = Query(None, description="原始封面 URL"),
+    w: int = Query(500, description="目标宽度", ge=1, le=1200),
+    h: int = Query(500, description="目标高度", ge=1, le=1200),
+    q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
+):
     """部分爬虫会先 HEAD 探测，直接复用 GET 逻辑。"""
-    return api_og_image(url)
+    return api_og_image(url, w, h, q)
 
 
 @app.get("/api/og_image")
-def api_og_image(url: Optional[str] = Query(None, description="原始封面 URL")):
+def api_og_image(
+    url: Optional[str] = Query(None, description="原始封面 URL"),
+    w: int = Query(500, description="目标宽度", ge=1, le=1200),
+    h: int = Query(500, description="目标高度", ge=1, le=1200),
+    q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
+):
     """微信/QQ 分享卡片图片代理：统一转 JPEG，兼容性和速度更好。"""
     logo_path = _static_dir / "icons" / "icon-512.png"
     if not url:
@@ -1121,7 +1131,7 @@ def api_og_image(url: Optional[str] = Query(None, description="原始封面 URL"
     try:
         resp = requests.get(decoded, headers=headers, proxies=proxies, timeout=20)
         resp.raise_for_status()
-        jpeg = _convert_image_to_jpeg(resp.content)
+        jpeg = _convert_image_to_jpeg(resp.content, width=w, height=h, quality=q)
         return StreamingResponse(iter([jpeg]), media_type="image/jpeg")
     except Exception as e:
         logger.warning(f"og_image 转换失败，回退到 Logo: {e}")
@@ -1190,9 +1200,11 @@ def _decode_minimal_share(payload: str) -> Optional[Track]:
 def _build_share_meta(track: Track, request: Request, query_key: str, query_value: str) -> tuple[str, str]:
     """构造注入首页的 Open Graph / 微信分享卡片 meta 标签，以及 body 首图 fallback。
 
-    微信对 og:image 比较挑剔：HTTP/IP 代理图容易 fallback 到站点图标。
-    因此当检测到微信爬虫且原图是 HTTPS 时，直接让 og:image 指向原图；
-    其他场景（QQ 等）继续用我们自己的代理图，保证稳定性和 URL 长度可控。
+    微信对 og:image 比较挑剔：大图/HTTP 原图容易被降级成站点图标。
+    策略：
+    - QQ 用正常尺寸代理图（500x500），兼容性和速度最好。
+    - 微信用更小、更压缩的同域代理图（300x300, q=30），文件小、加载快，
+      且 URL 与 QQ 不同，能绕过微信对旧图/站点图标的缓存。
     """
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("host", request.url.hostname or "localhost")
@@ -1202,7 +1214,7 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     ua = request.headers.get("user-agent", "")
     is_wechat = "MicroMessenger" in ua
 
-    # 代理图：URL 短、统一转 JPEG，QQ 用这个效果最好
+    # 基础代理图：URL 短、统一转 JPEG，QQ 用这个效果最好
     if query_key == "c" and query_value:
         proxy_image_url = f"{base}api/share_image?code={query_value}"
     elif track.thumbnail and track.thumbnail.startswith(("http://", "https://")):
@@ -1216,17 +1228,11 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     else:
         proxy_image_url = base + "icons/icon-512.png"
 
-    # 微信优先使用 HTTPS 原图，避免被降级成站点图标
-    direct_https = None
-    if track.thumbnail and track.thumbnail.startswith("https://"):
-        direct_https = track.thumbnail
-    elif track.cover_url and track.cover_url.startswith("https://"):
-        direct_https = track.cover_url
-
-    if is_wechat and direct_https:
-        image_url = direct_https
-        img_width = "600"
-        img_height = "600"
+    # 微信用更小尺寸的同域压缩图，降低被抓取失败/被缓存成站点图标的概率
+    if is_wechat and query_key == "c" and query_value:
+        image_url = f"{base}api/share_image?code={query_value}&w=300&h=300&q=30"
+        img_width = "300"
+        img_height = "300"
     else:
         image_url = proxy_image_url
         img_width = "500"
@@ -1273,10 +1279,11 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
 </script>
 """
     # body 最上方放隐藏内容，作为部分爬虫/QQ 的兜底取图/取标题
-    cover_tag = f'''<div style="display:none;">
+    # 不用 display:none，部分爬虫会忽略；改用 off-screen 但仍在文档流里
+    cover_tag = f'''<div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
 <h1>{html.escape(title)}</h1>
 <p>{html.escape(desc)}</p>
-<img src="{html.escape(image_url)}" alt="cover">
+<img src="{html.escape(image_url)}" alt="cover" width="300" height="300">
 </div>'''
     return meta, cover_tag
 
@@ -1311,12 +1318,22 @@ def api_get_share(code: str = Query(..., description="分享码")):
 
 
 @app.head("/api/share_image")
-def api_share_image_head(code: str = Query(..., description="分享码")):
-    return api_share_image(code)
+def api_share_image_head(
+    code: str = Query(..., description="分享码"),
+    w: int = Query(500, description="目标宽度", ge=1, le=1200),
+    h: int = Query(500, description="目标高度", ge=1, le=1200),
+    q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
+):
+    return api_share_image(code, w, h, q)
 
 
 @app.get("/api/share_image")
-def api_share_image(code: str = Query(..., description="分享码")):
+def api_share_image(
+    code: str = Query(..., description="分享码"),
+    w: int = Query(500, description="目标宽度", ge=1, le=1200),
+    h: int = Query(500, description="目标高度", ge=1, le=1200),
+    q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
+):
     """根据短分享码返回歌曲封面 JPEG，URL 极短，适合微信/QQ 卡片。"""
     logo_path = _static_dir / "icons" / "icon-512.png"
     track = _get_share_track(code)
@@ -1324,7 +1341,7 @@ def api_share_image(code: str = Query(..., description="分享码")):
         if logo_path.exists():
             return FileResponse(logo_path, media_type="image/png")
         raise HTTPException(status_code=404, detail="无封面")
-    return api_og_image(url=track.thumbnail)
+    return api_og_image(url=track.thumbnail, w=w, h=h, q=q)
 
 
 @app.get("/")
