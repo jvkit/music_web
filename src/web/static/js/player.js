@@ -52,6 +52,17 @@ function setShareUrl(track) {
     }
 }
 
+function clearShareUrl() {
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('share');
+        url.searchParams.delete('song');
+        history.replaceState(null, '', url.toString());
+    } catch {
+        // ignore
+    }
+}
+
 // ===================== 加载状态（防重复点击） =====================
 
 export function setTrackLoading(trackId) {
@@ -282,7 +293,6 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     if (localItem) {
         finishTrackLoading();
         state.currentTrack = track;
-        setShareUrl(track);
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
         state.streamFallback = null;
@@ -305,7 +315,6 @@ export async function playTrack(track, context = 'search', preferStream = null) 
         const data = await previewTrack(track, 'audio', useStream);
         if (state.loadingTrackId !== track.id) return; // 已切歌，丢弃旧结果
         state.currentTrack = track;
-        setShareUrl(track);
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
         state.streamFallback = data.streamed ? { track, context, isVideo: false, tried: !useStream } : null;
@@ -375,7 +384,6 @@ export async function playLocalItem(item) {
     }
 
     state.currentTrack = item.track;
-    setShareUrl(item.track);
     state.isPlaying = true;
     state.queue = state.localItems.filter(i => i.track).map(i => i.track);
     state.queueIndex = state.queue.findIndex(t => t.id === item.track.id);
@@ -461,7 +469,6 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
     setTrackLoading(track.id);
 
     state.currentTrack = track;
-    setShareUrl(track);
     state.isPlaying = true;
     state.playRecordedForTrackId = null;
 
@@ -565,6 +572,8 @@ export async function openLyricsPage() {
     els.lyricsCover.src = getThumbnailUrl(track.thumbnail);
     els.lyricsCover.classList.toggle('lyrics-cover-paused', !state.isPlaying);
     els.lyricsModal.classList.remove('hidden');
+    document.title = `${track.title} - ${track.artist} | 音河`;
+    setShareUrl(track);
     updatePlayerFavorite();
     updatePlayerRemoveButton();
 
@@ -586,6 +595,8 @@ export async function openLyricsPage() {
 
 export function closeLyricsPage() {
     els.lyricsModal.classList.add('hidden');
+    clearShareUrl();
+    document.title = '音河 - 在线音乐';
 }
 
 export function renderLyrics() {

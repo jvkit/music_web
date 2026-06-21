@@ -1108,12 +1108,12 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     share_url = f"{scheme}://{host}{prefix}{path}?{query_key}={query_value}"
 
     title = f"{track.title} - {track.artist}" if track.artist else track.title
-    desc = f"在 Musiic 收听《{track.title}》"
+    desc = f"在 音河 收听《{track.title}》"
 
     meta = f"""<meta itemprop="name" content="{html.escape(title)}">
 <meta itemprop="description" content="{html.escape(desc)}">
 <meta itemprop="image" content="{html.escape(image_url)}">
-<meta property="og:site_name" content="Musiic">
+<meta property="og:site_name" content="音河">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="{html.escape(title)}">
 <meta property="og:description" content="{html.escape(desc)}">
@@ -1163,15 +1163,28 @@ def api_root(
         query_key = "song"
         query_value = song
 
+    text = index_path.read_text(encoding="utf-8")
+
     if track is None:
-        return FileResponse(index_path)
+        # 无分享参数时返回品牌默认卡片
+        default_meta, default_cover = _build_default_meta(request)
+        text = re.sub(r"<title>.*?</title>", f"<title>{html.escape('音河 - 在线音乐')}</title>", text, count=1, flags=re.S)
+        text = re.sub(
+            r'<meta name="description" content=".*?">',
+            '<meta name="description" content="音河 - 在线音乐搜索、试听与分享">',
+            text,
+            count=1,
+            flags=re.S,
+        )
+        text = text.replace("<!-- OG_META -->", default_meta)
+        text = text.replace("<!-- SHARE_COVER -->", default_cover)
+        return HTMLResponse(text)
 
     meta, cover_tag = _build_share_meta(track, request, query_key, query_value)
 
     title = f"{track.title} - {track.artist}" if track.artist else track.title
-    desc = f"在 Musiic 收听《{track.title}》"
+    desc = f"在 音河 收听《{track.title}》"
 
-    text = index_path.read_text(encoding="utf-8")
     text = re.sub(r"<title>.*?</title>", f"<title>{html.escape(title)}</title>", text, count=1, flags=re.S)
     text = re.sub(
         r'<meta name="description" content=".*?">',
@@ -1183,6 +1196,44 @@ def api_root(
     text = text.replace("<!-- OG_META -->", meta)
     text = text.replace("<!-- SHARE_COVER -->", cover_tag)
     return HTMLResponse(text)
+
+
+def _build_default_meta(request: Request) -> tuple[str, str]:
+    """无分享歌曲时返回音河品牌默认卡片。"""
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", request.url.hostname or "localhost")
+    prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
+    base = f"{scheme}://{host}{prefix}/"
+    image_url = base + "icons/icon-512.png"
+
+    raw_path = request.scope.get("path", "/")
+    path = raw_path.removeprefix(prefix) if prefix else raw_path
+    if not path:
+        path = "/"
+    share_url = f"{scheme}://{host}{prefix}{path}"
+
+    title = "音河 - 在线音乐"
+    desc = "音河 - 在线音乐搜索、试听与分享"
+
+    meta = f"""<meta itemprop="name" content="{html.escape(title)}">
+<meta itemprop="description" content="{html.escape(desc)}">
+<meta itemprop="image" content="{html.escape(image_url)}">
+<meta property="og:site_name" content="音河">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="{html.escape(title)}">
+<meta property="og:description" content="{html.escape(desc)}">
+<meta property="og:image" content="{html.escape(image_url)}">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:url" content="{html.escape(share_url)}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{html.escape(title)}">
+<meta name="twitter:description" content="{html.escape(desc)}">
+<meta name="twitter:image" content="{html.escape(image_url)}">
+"""
+    cover_tag = f'<div style="display:none;"><img src="{html.escape(image_url)}" alt="cover"></div>'
+    return meta, cover_tag
 
 
 # 静态文件：H5 前端

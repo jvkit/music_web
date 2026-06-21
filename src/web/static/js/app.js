@@ -304,6 +304,9 @@ function bindEvents() {
 // ===================== Tab 切换 =====================
 
 function switchTab(tab) {
+    // 切 tab 时关闭歌词页并清理分享 URL，确保常规页面不带歌曲参数
+    closeLyricsPage();
+
     state.currentTab = tab;
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
