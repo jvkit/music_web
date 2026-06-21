@@ -1101,10 +1101,8 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     else:
         image_url = base + "icons/icon-512.png"
 
-    raw_path = request.scope.get("path", "/")
-    path = raw_path.removeprefix(prefix) if prefix else raw_path
-    if not path:
-        path = "/"
+    # 分享落地页总是根路径，避免 uvicorn root_path 与 X-Forwarded-Prefix 不一致导致路径重复
+    path = "/"
     share_url = f"{scheme}://{host}{prefix}{path}?{query_key}={query_value}"
 
     title = f"{track.title} - {track.artist}" if track.artist else track.title
@@ -1217,10 +1215,8 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
     # 加版本号强制刷新 QQ/微信 对默认首页的卡片缓存
     image_url = base + "icons/icon-512.png?v=2"
 
-    raw_path = request.scope.get("path", "/")
-    path = raw_path.removeprefix(prefix) if prefix else raw_path
-    if not path:
-        path = "/"
+    # 分享落地页总是根路径
+    path = "/"
     share_url = f"{scheme}://{host}{prefix}{path}?_v=2"
 
     title = "音河 - 在线音乐"
