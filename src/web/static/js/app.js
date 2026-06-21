@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { loadSettings, showToast } from './utils.js';
 import { API_BASE } from './config.js';
 import { fetchWebSources, searchTracks, fetchLocalItems } from './api.js';
+import { updateQQShare } from './qqShare.js';
 
 // 音源四大分类
 const SOURCE_GROUPS = [
@@ -92,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderSourceSelect();
     await restorePlaybackState();
     await handleShareFromUrl();
+    updateQQShare(state.currentTrack);
     initRoomUI();
     promptJoinFromUrl();
 });

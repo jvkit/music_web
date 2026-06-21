@@ -13,6 +13,7 @@ import {
     showToast
 } from './utils.js';
 import { icon } from './icons.js';
+import { updateQQShare } from './qqShare.js';
 import {
     fetchPlayCounts,
     previewTrack,
@@ -157,6 +158,8 @@ export function updatePlayerInfo() {
             els.lyricsCover.src = getThumbnailUrl(t.thumbnail);
         }
     }
+
+    updateQQShare(t);
 }
 
 function getFavoriteTargetId(track) {
@@ -576,6 +579,7 @@ export async function openLyricsPage() {
     els.lyricsModal.classList.remove('hidden');
     document.title = `${track.title} - ${track.artist} | 音河`;
     setShareUrl(track);
+    updateQQShare(track);
     updatePlayerFavorite();
     updatePlayerRemoveButton();
 
@@ -600,6 +604,7 @@ export function closeLyricsPage() {
     els.lyricsModal.classList.add('hidden');
     clearShareUrl();
     document.title = '音河 - 在线音乐';
+    updateQQShare();
 }
 
 export function renderLyrics() {
