@@ -22,7 +22,7 @@ function renderDebug(text) {
         const header = document.createElement('div');
         header.id = 'qq-debug-header';
         header.style.cssText = 'background:rgba(0,0,0,0.88);color:#0f0;padding:6px 10px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;';
-        header.innerHTML = '<span>QQ分享诊断 <span id="qq-debug-count" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span></span><span id="qq-debug-toggle">▶</span>';
+        header.innerHTML = '<span>QQ分享诊断 <span id="qq-debug-count" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span></span><span><span id="qq-debug-copy" style="margin-right:10px;color:#38bdf8;">复制</span><span id="qq-debug-toggle">▶</span></span>';
 
         const content = document.createElement('div');
         content.id = 'qq-debug-content';
@@ -32,7 +32,19 @@ function renderDebug(text) {
         box.appendChild(content);
         document.body.appendChild(box);
 
-        header.addEventListener('click', () => {
+        header.addEventListener('click', (e) => {
+            if (e.target.id === 'qq-debug-copy') {
+                e.stopPropagation();
+                const content = document.getElementById('qq-debug-content');
+                const lines = Array.from(content.children).map(n => n.textContent).join('\n');
+                navigator.clipboard.writeText(lines).then(() => {
+                    e.target.textContent = '已复制';
+                    setTimeout(() => (e.target.textContent = '复制'), 1500);
+                }).catch(() => {
+                    e.target.textContent = '失败';
+                });
+                return;
+            }
             const content = document.getElementById('qq-debug-content');
             const toggle = document.getElementById('qq-debug-toggle');
             const isHidden = content.style.display === 'none';
@@ -81,9 +93,10 @@ function getShareCode() {
 
 function getStrategy() {
     const path = window.location.pathname;
+    if (path.includes('/music4')) return 'set-share-info-only';
     if (path.includes('/music5')) return 'meta-only';
     if (path.includes('/music6')) return 'on-share-handler';
-    return 'default'; // music4 或主站：全部尝试
+    return 'default'; // 主站：全部尝试
 }
 
 function pickImageUrl(track) {
@@ -192,6 +205,10 @@ async function doUpdate(track = null) {
     if (strategy === 'meta-only') {
         log('meta-only strategy: rely on server meta tags');
         return true;
+    }
+
+    if (strategy === 'set-share-info-only') {
+        return callSetShareInfo(info);
     }
 
     if (strategy === 'on-share-handler') {
