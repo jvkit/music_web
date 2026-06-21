@@ -1188,26 +1188,49 @@ def _decode_minimal_share(payload: str) -> Optional[Track]:
 
 
 def _build_share_meta(track: Track, request: Request, query_key: str, query_value: str) -> tuple[str, str]:
-    """构造注入首页的 Open Graph / 微信分享卡片 meta 标签，以及 body 首图 fallback。"""
+    """构造注入首页的 Open Graph / 微信分享卡片 meta 标签，以及 body 首图 fallback。
+
+    微信对 og:image 比较挑剔：HTTP/IP 代理图容易 fallback 到站点图标。
+    因此当检测到微信爬虫且原图是 HTTPS 时，直接让 og:image 指向原图；
+    其他场景（QQ 等）继续用我们自己的代理图，保证稳定性和 URL 长度可控。
+    """
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("host", request.url.hostname or "localhost")
     prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
     base = f"{scheme}://{host}{prefix}/"
 
+    ua = request.headers.get("user-agent", "")
+    is_wechat = "MicroMessenger" in ua
+
+    # 代理图：URL 短、统一转 JPEG，QQ 用这个效果最好
     if query_key == "c" and query_value:
-        # 短分享码用极短封面接口，URL 短、稳定、已转 JPEG
-        image_url = f"{base}api/share_image?code={query_value}"
+        proxy_image_url = f"{base}api/share_image?code={query_value}"
     elif track.thumbnail and track.thumbnail.startswith(("http://", "https://")):
-        # 微信分享卡片用自己的图片代理，避免第三方 CDN 拒绝爬虫
-        image_url = f"{base}api/og_image?url={quote(track.thumbnail, safe='')}"
+        proxy_image_url = f"{base}api/og_image?url={quote(track.thumbnail, safe='')}"
     elif track.cover_url:
-        image_url = (
+        proxy_image_url = (
             track.cover_url
             if track.cover_url.startswith(("http://", "https://"))
             else base + track.cover_url.lstrip("/")
         )
     else:
-        image_url = base + "icons/icon-512.png"
+        proxy_image_url = base + "icons/icon-512.png"
+
+    # 微信优先使用 HTTPS 原图，避免被降级成站点图标
+    direct_https = None
+    if track.thumbnail and track.thumbnail.startswith("https://"):
+        direct_https = track.thumbnail
+    elif track.cover_url and track.cover_url.startswith("https://"):
+        direct_https = track.cover_url
+
+    if is_wechat and direct_https:
+        image_url = direct_https
+        img_width = "600"
+        img_height = "600"
+    else:
+        image_url = proxy_image_url
+        img_width = "500"
+        img_height = "500"
 
     # 分享落地页总是根路径，避免 uvicorn root_path 与 X-Forwarded-Prefix 不一致导致路径重复
     path = "/"
@@ -1216,7 +1239,21 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
     title = f"{track.title} - {track.artist}" if track.artist else track.title
     desc = f"在 音河 收听《{track.title}》"
 
-    meta = f"""<meta itemprop="name" content="{html.escape(title)}">
+    ld_json = json.dumps(
+        {
+            "@context": "https://schema.org",
+            "@type": "MusicRecording",
+            "name": track.title,
+            "byArtist": {"@type": "MusicGroup", "name": track.artist or "未知艺人"},
+            "image": image_url,
+            "description": desc,
+            "url": share_url,
+        },
+        ensure_ascii=False,
+    )
+
+    meta = f"""<link rel="canonical" href="{html.escape(share_url)}">
+<meta itemprop="name" content="{html.escape(title)}">
 <meta name="description" content="{html.escape(desc)}">
 <meta name="Description" content="{html.escape(desc)}">
 <meta itemprop="description" content="{html.escape(desc)}">
@@ -1226,10 +1263,14 @@ def _build_share_meta(track: Track, request: Request, query_key: str, query_valu
 <meta property="og:title" content="{html.escape(title)}">
 <meta property="og:description" content="{html.escape(desc)}">
 <meta property="og:image" content="{html.escape(image_url)}">
-<meta property="og:image:width" content="512">
-<meta property="og:image:height" content="512">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="{img_width}">
+<meta property="og:image:height" content="{img_height}">
 <meta property="og:url" content="{html.escape(share_url)}">
 <meta property="og:type" content="music.song">
+<script type="application/ld+json">
+{ld_json}
+</script>
 """
     # body 最上方放隐藏内容，作为部分爬虫/QQ 的兜底取图/取标题
     cover_tag = f'''<div style="display:none;">
