@@ -17,12 +17,40 @@ function renderDebug(text) {
     if (!box) {
         box = document.createElement('div');
         box.id = 'qq-share-debug';
-        box.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;max-height:150px;overflow:auto;background:rgba(0,0,0,0.8);color:#0f0;font-size:12px;padding:8px;z-index:99999;border-radius:6px;';
+        box.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;z-index:99999;font-size:12px;font-family:monospace;line-height:1.4;';
+
+        const header = document.createElement('div');
+        header.id = 'qq-debug-header';
+        header.style.cssText = 'background:rgba(0,0,0,0.88);color:#0f0;padding:6px 10px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;';
+        header.innerHTML = '<span>QQ分享诊断 <span id="qq-debug-count" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">0</span></span><span id="qq-debug-toggle">▶</span>';
+
+        const content = document.createElement('div');
+        content.id = 'qq-debug-content';
+        content.style.cssText = 'display:none;max-height:140px;overflow:auto;background:rgba(0,0,0,0.82);color:#0f0;padding:8px;border-radius:0 0 6px 6px;';
+
+        box.appendChild(header);
+        box.appendChild(content);
         document.body.appendChild(box);
+
+        header.addEventListener('click', () => {
+            const content = document.getElementById('qq-debug-content');
+            const toggle = document.getElementById('qq-debug-toggle');
+            const isHidden = content.style.display === 'none';
+            content.style.display = isHidden ? 'block' : 'none';
+            toggle.textContent = isHidden ? '▼' : '▶';
+        });
     }
+
+    const content = document.getElementById('qq-debug-content');
     const line = document.createElement('div');
     line.textContent = `${new Date().toLocaleTimeString()} ${text}`;
-    box.appendChild(line);
+    content.appendChild(line);
+    content.scrollTop = content.scrollHeight;
+
+    const count = document.getElementById('qq-debug-count');
+    if (count) {
+        count.textContent = parseInt(count.textContent, 10) + 1;
+    }
 }
 
 function getBaseUrl() {
