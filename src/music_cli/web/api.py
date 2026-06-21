@@ -1174,7 +1174,14 @@ def api_root(
         )
         text = text.replace("<!-- OG_META -->", default_meta)
         text = text.replace("<!-- SHARE_COVER -->", default_cover)
-        return HTMLResponse(text)
+        return HTMLResponse(
+            text,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     meta, cover_tag = _build_share_meta(track, request, query_key, query_value)
 
@@ -1191,7 +1198,14 @@ def api_root(
     )
     text = text.replace("<!-- OG_META -->", meta)
     text = text.replace("<!-- SHARE_COVER -->", cover_tag)
-    return HTMLResponse(text)
+    return HTMLResponse(
+        text,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 def _build_default_meta(request: Request) -> tuple[str, str]:
@@ -1200,13 +1214,14 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
     host = request.headers.get("host", request.url.hostname or "localhost")
     prefix = request.headers.get("x-forwarded-prefix", "").rstrip("/")
     base = f"{scheme}://{host}{prefix}/"
-    image_url = base + "icons/icon-512.png"
+    # 加版本号强制刷新 QQ/微信 对默认首页的卡片缓存
+    image_url = base + "icons/icon-512.png?v=2"
 
     raw_path = request.scope.get("path", "/")
     path = raw_path.removeprefix(prefix) if prefix else raw_path
     if not path:
         path = "/"
-    share_url = f"{scheme}://{host}{prefix}{path}"
+    share_url = f"{scheme}://{host}{prefix}{path}?_v=2"
 
     title = "音河 - 在线音乐"
     desc = "音河 - 在线音乐搜索、试听与分享"
