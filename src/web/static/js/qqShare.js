@@ -259,6 +259,7 @@ export function shareTrack(track = null, shareType = 0) {
     const info = buildShareInfo(track);
     log('manual share, type=' + shareType, JSON.stringify(info));
 
+    let shareMessageResponded = false;
     if (typeof mqq.ui.shareMessage === 'function') {
         try {
             log('trying mqq.ui.shareMessage');
@@ -270,39 +271,25 @@ export function shareTrack(track = null, shareType = 0) {
                 image_url: info.image_url,
                 back: true,
             }, function (result) {
+                shareMessageResponded = true;
                 log('manual shareMessage callback:', JSON.stringify(result));
             });
-            return;
         } catch (err) {
             log('manual shareMessage error:', err.message);
         }
     }
-    if (typeof mqq.ui.showShareMenu === 'function') {
-        try {
-            log('trying mqq.ui.showShareMenu');
-            mqq.ui.showShareMenu();
-            return;
-        } catch (err) {
-            log('showShareMenu error:', err.message);
-        }
-    }
 
-    // 降级：QQ URL Scheme 唤起分享
-    try {
-        const titleB64 = btoa(unescape(encodeURIComponent(info.title)));
-        const descB64 = btoa(unescape(encodeURIComponent(info.desc)));
-        const urlB64 = btoa(unescape(encodeURIComponent(info.share_url || window.location.href)));
-        const scheme = `mqqapi://share/to_fri?src_type=web&version=1&file_type=news&title=${titleB64}&url=${urlB64}&description=${descB64}`;
-        log('trying url scheme');
-        window.location.assign(scheme);
-        return;
-    } catch (err) {
-        log('url scheme error:', err.message);
-    }
-
-    // 最后一招：复制链接
-    const url = info.share_url || window.location.href;
-    copyText(url, () => alert('分享链接已复制'), () => alert('复制失败'));
+    // 如果 shareMessage 没立即响应，兜底复制链接
+    setTimeout(() => {
+        if (shareMessageResponded) return;
+        log('shareMessage no response, fallback copy link');
+        const url = info.share_url || window.location.href;
+        copyText(
+            url,
+            () => alert('分享链接已复制，请粘贴到 QQ 聊天发送'),
+            () => alert('复制失败')
+        );
+    }, 800);
 }
 
 export function updateQQShare(track = null) {
