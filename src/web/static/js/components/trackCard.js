@@ -4,10 +4,11 @@
 
 import { DEFAULT_THUMBNAIL, getThumbnailUrl } from '../config.js';
 import { state } from '../state.js';
-import { escapeHtml, formatTime, getPlayCountBadge } from '../utils.js';
+import { escapeHtml, formatTime, getPlayCountBadge, showToast } from '../utils.js';
 import { icon } from '../icons.js';
 import { fetchTrackPages } from '../api.js';
 import { playTrack, playVideo } from '../player.js';
+import { downloadTrack } from '../views/modals.js';
 import { isTrackInPlaylist, toggleFavorite, removeTrackFromPlaylist, getFavoriteTargetId } from '../playlistOps.js';
 
 export function createTrackCard(track, options = {}) {
@@ -51,6 +52,7 @@ export function createTrackCard(track, options = {}) {
             ${context === 'playlist' && !isSystemPlaylist ? `<button class="btn-remove btn btn-circle btn-error btn-sm btn-ghost" title="从列表移除">${icon('close')}</button>` : ''}
             ${hasPages ? `<button class="btn-pages btn btn-circle btn-ghost btn-sm text-base-content/50" title="选集">${icon('list')}</button>` : ''}
             ${context !== 'playlist' ? `<button class="btn-favorite btn btn-circle btn-sm ${isFavorite ? 'btn-error' : 'btn-ghost text-base-content/50'}" title="${isFavorite ? '已收藏' : '收藏'}">${icon('heart', { filled: isFavorite })}</button>` : ''}
+            <button class="btn-download btn btn-circle btn-ghost btn-sm text-base-content/50" title="下载">${icon('download')}</button>
         </div>
     `;
 
@@ -60,6 +62,33 @@ export function createTrackCard(track, options = {}) {
     }
 
     div.querySelector('.btn-play').addEventListener('click', () => playTrack(track, context));
+    div.querySelector('.btn-download').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        
+        // 先检查本地是否已有文件
+        const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
+        if (localItem) {
+            // 直接触发浏览器下载
+            const a = document.createElement('a');
+            a.href = `api/local/stream/${encodeURIComponent(localItem.id)}`;
+            a.download = `${track.artist} - ${track.title}${localItem.media_type === 'video' ? '.mp4' : '.mp3'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('开始下载...', 'success');
+            return;
+        }
+        
+        // 本地没有，调后端下载接口
+        btn.disabled = true;
+        btn.innerHTML = icon('spinner', { className: 'animate-spin' });
+        try {
+            await downloadTrack(track);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = icon('download');
+        }
+    });
     const mvBtn = div.querySelector('.btn-mv');
     if (mvBtn) mvBtn.addEventListener('click', () => playVideo(track));
     const removeBtn = div.querySelector('.btn-remove');
