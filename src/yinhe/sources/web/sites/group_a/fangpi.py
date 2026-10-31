@@ -5,7 +5,7 @@ import re
 import urllib.parse
 from typing import Optional
 
-import requests
+from curl_cffi import requests as cffi_requests
 from bs4 import BeautifulSoup
 
 from yinhe.models import Track
@@ -25,14 +25,16 @@ class FangpiAdapter(WebAdapter):
 
     @property
     def site_url(self) -> str:
-        return "https://www.fangpi.net/"
+        # 原域名 fangpi.net 已 301 迁移到 fangpiw.com，新域名国内直连可用
+        return "https://www.fangpiw.com/"
 
     @property
     def direct_stream(self) -> bool:
         return True
 
-    def _session(self) -> requests.Session:
-        s = requests.Session()
+    def _session(self):
+        # Cloudflare 防护：用 curl_cffi 模拟浏览器 TLS 指纹
+        s = cffi_requests.Session(impersonate="chrome124")
         s.headers.update({"User-Agent": self._UA, "Referer": self.site_url})
         return s
 
@@ -112,7 +114,7 @@ class FangpiAdapter(WebAdapter):
             s.headers["Referer"] = source_url
             resp = s.post(
                 f"{self.site_url}member/common-play-url",
-                data={"id": play_id},
+                data={"id": play_id, "purpose": "play"},
                 timeout=20,
             )
             resp.raise_for_status()
