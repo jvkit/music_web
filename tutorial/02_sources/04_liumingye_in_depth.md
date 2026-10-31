@@ -1,6 +1,6 @@
 # 04 音河搜索适配器详解
 
-`src/music_cli/sources/web/sites/group_a/liumingye.py` 是项目中最复杂的网页音源适配器之一。它本身不直接提供音乐，而是聚合了 Kuwo、网易云、QQ 音乐三个上游 API。
+`src/yinhe/sources/web/sites/group_a/liumingye.py` 是项目中最复杂的网页音源适配器之一。它本身不直接提供音乐，而是聚合了 Kuwo、网易云、QQ 音乐三个上游 API。
 
 ## 元数据
 

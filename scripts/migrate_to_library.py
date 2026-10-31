@@ -8,7 +8,7 @@
 - download_dir/               下载目录，含 .track.json sidecar
 - cache_dir/index.json        缓存索引
 
-新版目标：~/Music/musiic-cli-library/（由 music_cli.config.get_library_dir() 决定）
+新版目标：~/Music/musiic-cli-library/（由 yinhe.config.get_library_dir() 决定）
 """
 
 from __future__ import annotations
@@ -27,14 +27,24 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from music_cli.config import (
+from yinhe.config import (
     get_cache_dir,
     get_config_dir,
     get_download_dir,
     get_library_dir,
 )
-from music_cli.library import Library, Playlist as LibPlaylist, Song
-from music_cli.models import CachedTrack, Playlist, Track
+from yinhe.library import Library, Playlist as LibPlaylist, Song
+from yinhe.models import CachedTrack, Track
+
+
+@dataclass
+class LegacyPlaylist:
+    """旧版 playlists.json 中的一条播放列表记录（历史格式，仅迁移用）。"""
+
+    id: str
+    name: str
+    is_default: bool = False
+    tracks: list[Track] = field(default_factory=list)
 
 
 AUDIO_EXTS = {"mp3", "m4a", "flac", "ogg", "wav", "aac", "opus", "wma"}
@@ -112,12 +122,12 @@ def _coerce_int(value: Any) -> Optional[int]:
         return None
 
 
-def load_old_playlists(path: Path) -> list[Playlist]:
+def load_old_playlists(path: Path) -> list[LegacyPlaylist]:
     data = load_json(path)
     if not isinstance(data, list):
         return []
 
-    playlists: list[Playlist] = []
+    playlists: list[LegacyPlaylist] = []
     for raw in data:
         if not isinstance(raw, dict):
             continue
@@ -133,7 +143,7 @@ def load_old_playlists(path: Path) -> list[Playlist]:
             if track:
                 tracks.append(track)
         playlists.append(
-            Playlist(
+            LegacyPlaylist(
                 id=str(playlist_id),
                 name=str(name),
                 is_default=bool(raw.get("is_default", False)),
@@ -356,25 +366,25 @@ def parse_args() -> argparse.Namespace:
         "--config-dir",
         type=Path,
         default=None,
-        help="旧版配置目录（默认使用 music_cli.config.get_config_dir()）",
+        help="旧版配置目录（默认使用 yinhe.config.get_config_dir()）",
     )
     parser.add_argument(
         "--download-dir",
         type=Path,
         default=None,
-        help="旧版下载目录（默认使用 music_cli.config.get_download_dir()）",
+        help="旧版下载目录（默认使用 yinhe.config.get_download_dir()）",
     )
     parser.add_argument(
         "--cache-dir",
         type=Path,
         default=None,
-        help="旧版缓存目录（默认使用 music_cli.config.get_cache_dir()）",
+        help="旧版缓存目录（默认使用 yinhe.config.get_cache_dir()）",
     )
     parser.add_argument(
         "--library-dir",
         type=Path,
         default=None,
-        help="新版音乐库根目录（默认使用 music_cli.config.get_library_dir()）",
+        help="新版音乐库根目录（默认使用 yinhe.config.get_library_dir()）",
     )
     parser.add_argument(
         "--dry-run",

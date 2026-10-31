@@ -1,6 +1,6 @@
 # Musiic H5 前端
 
-本项目是 `musiic-cli` 的配套 H5 前端界面，基于原生 ES6 模块 + Fetch API + [DaisyUI](https://daisyui.com/)（基于 Tailwind CSS）+ [Phosphor Icons](https://phosphoricons.com/) 构建，无额外前端框架依赖。
+本项目是音河（yinhe）的配套 H5 前端界面，基于原生 ES6 模块 + Fetch API + [DaisyUI](https://daisyui.com/)（基于 Tailwind CSS）+ [Phosphor Icons](https://phosphoricons.com/) 构建，无额外前端框架依赖。
 
 ## 文件说明
 

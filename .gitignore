@@ -40,3 +40,6 @@ src/web/package-lock.json
 # Temporary / accidental
 /src/src/
 /web/
+
+# Local tools (ffmpeg.exe ~100MB，自行下载，见 yinhe/ffmpeg.py)
+/tools/

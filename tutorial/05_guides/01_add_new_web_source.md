@@ -17,8 +17,8 @@
 
 根据站点 ID 首字母放到对应分组：
 
-- `src/music_cli/sources/web/sites/group_a/`：站点 id 以 a-l 开头
-- `src/music_cli/sources/web/sites/group_b/`：站点 id 以 m-z 开头
+- `src/yinhe/sources/web/sites/group_a/`：站点 id 以 a-l 开头
+- `src/yinhe/sources/web/sites/group_b/`：站点 id 以 m-z 开头
 
 假设新站点叫「 example音乐 」，id 是 `example`，首字母 e，放 `group_a/example.py`：
 
@@ -32,8 +32,8 @@ from urllib.parse import quote, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-from music_cli.models import MediaType, Track
-from music_cli.sources.web.base import WebAdapter
+from yinhe.models import MediaType, Track
+from yinhe.sources.web.base import WebAdapter
 
 
 class ExampleAdapter(WebAdapter):
@@ -106,12 +106,12 @@ class ExampleAdapter(WebAdapter):
             return m.group(1).replace("\\u0026", "&")
         return None
 
-    def download(self, track: Track, output_path, media_type: MediaType = MediaType.AUDIO):
+    def download(self, track: Track, output_path, media_type: MediaType = MediaType.AUDIO, ctx=None):
         url = self.get_stream_url(track)
         if not url:
             raise RuntimeError(f"{self.site_id} 无法获取下载地址")
         file_path = self._resolve_output_file(output_path, track)
-        return self._download_url(url, file_path, referer=self.site_url)
+        return self._download_url(url, file_path, referer=self.site_url, ctx=ctx)
 
 
 def adapter():
@@ -120,10 +120,10 @@ def adapter():
 
 ## 步骤 3：注册适配器
 
-打开 `src/music_cli/sources/web/__init__.py`：
+打开 `src/yinhe/sources/web/__init__.py`：
 
 ```python
-from music_cli.sources.web.sites.group_a import (
+from yinhe.sources.web.sites.group_a import (
     example,   # 新增
     fangpi,
     gequbao,
@@ -190,16 +190,16 @@ for module in [
 
 ### 站点不稳定
 
-如果站点偶尔失效，可以在 `src/music_cli/sources/__init__.py` 的 `SOURCE_STATUS` 里标记为 unstable：
+如果站点偶尔失效，可以在 `src/yinhe/sources/__init__.py` 的 `SOURCE_STATUS` 里标记为 unstable：
 
 ```python
 SOURCE_STATUS = {
     ...
-    "example": {"available": True, "status": "unstable"},
+    "example": "unstable",
 }
 ```
 
-前端下拉框会显示「（不稳定）」。
+前端下拉框会显示「（不稳定）」。正常站点无需登记。
 
 ## 小结
 

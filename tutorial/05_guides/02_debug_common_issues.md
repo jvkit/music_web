@@ -14,10 +14,11 @@
 
 ### 快速测试
 
-可以直接用 CLI 测试单个源：
+启动服务后直接请求搜索接口测试单个源：
 
 ```bash
-uv run music search "周杰伦 晴天" --source web_example --limit 5
+uv run music-web &  # 若服务未启动
+curl "http://127.0.0.1:8001/api/search?query=周杰伦%20晴天&source=web_example&limit=5"
 ```
 
 如果有结果，说明后端适配器没问题，再查前端。
@@ -93,7 +94,7 @@ ls library/files/
 
 打开 uvicorn 的详细报错，常见位置：
 
-- `api.py` 里 `_resolve_track` 失败 -> track 格式不对。
+→ `deps.py` 里 `resolve_track` 失败 -> track 格式不对。
 - `source.download` 异常 -> 音源站点返回异常。
 - ffmpeg 未安装 -> 分享图片、缩略图转换失败。
 
@@ -130,15 +131,15 @@ import('/js/state.js').then(m => console.log(m.state));
 ### 后端单步调试
 
 ```bash
-uv run python -m pdb -m uvicorn music_cli.web.main:app --host 0.0.0.0 --port 8000
+uv run python -m pdb -m uvicorn yinhe.web.main:app --host 0.0.0.0 --port 8000
 ```
 
-或直接在 `api.py` 对应位置加 `import pdb; pdb.set_trace()`。
+或直接在对应 router 里加 `import pdb; pdb.set_trace()`。
 
 ### 查看 share_codes.json
 
 ```bash
-cat ~/.config/musiic-cli/share_codes.json | python -m json.tool
+cat <config_dir>/share_codes.json | python -m json.tool
 ```
 
 ## 小结

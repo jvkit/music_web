@@ -1,64 +1,48 @@
-# 01 CLI 入口与命令
+# 01 服务入口与启动
 
-音河同时是一个命令行工具（CLI）和一个 Web 服务。CLI 入口负责把用户的命令分发到对应功能，并提供启动服务器的快捷方式。
+音河是一个 Web 服务（FastAPI 后端 + H5 前端），没有命令行交互界面。日常使用的唯一入口就是启动 Web 服务，然后通过浏览器访问。
 
 ## 入口文件
 
-### `src/music_cli/cli.py`
+### `src/yinhe/web/main.py`
 
-这是真正的 CLI 入口。它使用 `typer` 库构建命令行：
+服务入口，提供 `main()` 函数：
 
-```python
-app = typer.Typer()
-```
+- 用 `argparse` 解析 `--host` / `--port` / `--root-path` / `--reload`。
+- 调用 `_setup_server_env()` 后，用 `uvicorn` 启动 `yinhe.web.main:app`。
 
-主要命令：
-
-| 命令 | 作用 |
-|------|------|
-| `search` | 按关键词搜索歌曲 |
-| `preview` | 试听指定序号的歌曲 |
-| `download` | 下载指定序号的歌曲 |
-| `config` | 查看或修改配置 |
-| `sync` | 同步音乐库到远程 |
-| `serve` / `-s` | 启动 FastAPI Web 服务 |
-| `check-env` | 检查环境是否就绪 |
-| `setup` | 安装前端 npm 依赖 |
+注册为控制台命令 `music-web`（见 `pyproject.toml` 的 `[project.scripts]`）。
 
 ### `main.py`
 
 项目根目录的 `main.py` 是一个薄包装：
 
 ```python
-from music_cli.cli import main
+from yinhe.web.main import main
 if __name__ == "__main__":
     main()
 ```
 
 它让你可以直接运行 `python main.py`。
 
-### `src/music_cli/__main__.py`
+## 启动方式
 
-支持 `python -m music_cli` 方式运行：
+```bash
+# 方式一：控制台命令（推荐）
+uv run music-web
 
-```python
-from music_cli.cli import main
-main()
+# 方式二：uvicorn 直接启动
+uv run uvicorn yinhe.web.main:app --host 0.0.0.0 --port 8001
+
+# 方式三：根目录入口
+uv run python main.py
 ```
 
-## `serve` 命令如何启动 Web 服务
-
-```python
-@app.command()
-def serve(...):
-    run_server(...)
-```
-
-`run_server()` 使用 `uvicorn` 启动 `music_cli.web.main:app`，默认监听 `0.0.0.0:8001`，并设置 `root_path="/music"`。
+默认监听 `0.0.0.0:8001`，`root_path=/music`（配合 Nginx 反代 `/music/` 前缀）。
 
 ## `_setup_server_env()` 的作用
 
-启动服务器前，如果没有设置环境变量，CLI 会把数据目录指向项目根目录：
+启动服务器前，如果环境变量未设置，会自动把数据目录指向项目根目录（前提是项目根存在 `data/` 和 `config/` 目录）：
 
 - `MUSIC_DOWNLOAD_DIR` → `data/`
 - `MUSIC_CACHE_DIR` → `cache/`
@@ -66,35 +50,35 @@ def serve(...):
 
 这样本地开发和测试时，数据直接放在项目目录下，方便查看。
 
-## 搜索会话持久化
+## 应用装配：`src/yinhe/web/app.py`
 
-CLI 搜索后，结果会写入 `config/last_search.json`：
+`create_app()` 负责创建 FastAPI 实例：
 
-```python
-_save_session(results)
-```
+1. 加 CORS 中间件（`allow_origins=["*"]`）。
+2. 加 `no_cache_static` 中间件：对 HTML/JS/CSS 禁缓存，入口页额外发 `Clear-Site-Data: "cache"`。
+3. 注册各业务 router（见下一节）。
+4. 挂载 `src/web/static` 为静态文件（H5 前端）。
 
-后续可以用 `preview INDEX` 或 `download INDEX` 按序号播放 / 下载，不需要重新搜索。
+## Router 一览（前缀均为 `/api`）
 
-## 常用命令示例
+| 模块 | 职责 |
+|------|------|
+| `share.py` | 短分享码、OG 分享卡片、首页 meta 注入 |
+| `tracks_api.py` | 搜索、试听、分 P、歌词、网页音源元数据 |
+| `library_api.py` | library 全量读写、播放列表 CRUD、收藏、播放统计 |
+| `local_api.py` | 本地文件列表/流/封面/删除 |
+| `downloads_api.py` | 下载任务提交/进度/取消 |
+| `stream.py` | 缓存流、流代理（Referer/Cookie）、封面缩略图代理 |
+| `rooms.py` | 一起听房间（WebSocket） |
 
-```bash
-# 安装依赖
-uv sync
+跨模块共享的状态（Library / CacheManager / DownloadManager / 音源实例缓存）和 Track↔Song 转换等公共逻辑集中在 `deps.py`。
 
-# 检查环境
-uv run music check-env
+## 历史：CLI 已移除
 
-# 安装前端图标依赖
-uv run music setup
-
-# 启动 Web 服务
-uv run music -s
-
-# 本地搜索
-uv run music search "周杰伦"
-uv run music preview 1
-```
+本项目早期是 CLI 工具（`music search / preview / download ...`），2026-06 重构时整体移除：
+- 交互式 CLI（`src/yinhe/cli.py`、`player.py`）已删除。
+- `music sync` 迁移为独立脚本 `scripts/sync_library.py`。
+- 原 `web/api.py`（约 1500 行 god file）拆分为上面的 routers。
 
 ## 下一篇
 

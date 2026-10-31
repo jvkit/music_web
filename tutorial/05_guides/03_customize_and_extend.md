@@ -46,7 +46,7 @@ const ADMIN_PASSWORD = 'jvkit123';
 
 ## 5. 隐藏某个音源
 
-如果某个源不稳定但不想删代码，可以在 `src/music_cli/settings.py` 的 `Settings` 里把它加入 `hidden_sources`：
+如果某个源不稳定但不想删代码，可以在 `src/yinhe/settings.py` 的 `Settings` 里把它加入 `hidden_sources`：
 
 ```python
 hidden_sources: list[str] = Field(default_factory=lambda: ["qqmp3"])
@@ -56,7 +56,7 @@ hidden_sources: list[str] = Field(default_factory=lambda: ["qqmp3"])
 
 ## 6. 修改分享卡片尺寸/质量
 
-编辑 `src/music_cli/web/api.py` 的 `_build_share_meta`：
+编辑 `src/yinhe/web/share.py` 的 `_build_share_meta`：
 
 ```python
 if is_wechat and query_key == "c" and query_value:
@@ -67,7 +67,7 @@ if is_wechat and query_key == "c" and query_value:
 
 ## 7. 增加后端 API 接口
 
-在 `src/music_cli/web/api.py` 里：
+在对应的 router 模块里（见 01 篇路由一览）：
 
 ```python
 class MyRequest(BaseModel):
@@ -147,7 +147,7 @@ mkdir -p tests/sources
 例如测试一个网页音源的搜索：
 
 ```python
-from music_cli.sources.web.sites.group_a.gequbao import adapter
+from yinhe.sources.web.sites.group_a.gequbao import adapter
 
 def test_gequbao_search():
     src = adapter()
@@ -174,8 +174,8 @@ Musiic 的代码结构比较清晰，二次开发主要改这几个地方：
 
 - 前端界面：`index.html`、`styles.css`、`js/` 对应视图。
 - 前端逻辑：`app.js`、`state.js`、`config.js`、各视图文件。
-- 后端接口：`src/music_cli/web/api.py`。
-- 音源适配：`src/music_cli/sources/web/sites/`。
+- 后端接口：`src/yinhe/web/` 下各 router。
+- 音源适配：`src/yinhe/sources/web/sites/`。
 - 部署配置：nginx + systemd + `music serve` 参数。
 
 教程到这里就结束了。建议你先通读一遍，再挑最感兴趣的模块深入看源码。

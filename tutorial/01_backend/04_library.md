@@ -1,6 +1,6 @@
 # 04 音乐库 Library
 
-`src/music_cli/library.py` 中的 `Library` 是项目最核心的基础设施之一，负责管理本地音乐库：播放列表、歌曲元数据、文件路径等。
+`src/yinhe/library.py` 中的 `Library` 是项目最核心的基础设施之一，负责管理本地音乐库：播放列表、歌曲元数据、文件路径等。
 
 ## 数据文件
 
@@ -15,7 +15,7 @@ library/
 │   └── lyrics/        # 歌词文件
 ```
 
-启动服务器时，如果通过 `music -s` 启动，数据目录会被重定向到项目根目录下的 `library/`。
+启动服务器时，如果用 `music-web` 启动且项目根存在 `data/`、`config/`，数据目录会被重定向到项目根目录下的 `library/`。
 
 ## 核心模型
 
@@ -80,7 +80,7 @@ class LibraryData(BaseModel):
 ## 歌曲如何进入音乐库
 
 1. **试听/播放**：`api_preview()` 若发现没有本地文件，会调用下载逻辑，把文件存到 `library/files/`，并在 `library.json` 中登记 `Song`。
-2. **CLI download**：`music download INDEX` 直接把文件下载到 `library/files/`。
+2. **显式下载**：前端下载按钮 → `POST /api/download` → 后台任务下载到 `library/files/`。
 3. **收藏**：前端点击收藏时，会调用 `/api/playlists/{id}/tracks` POST，后端把歌曲加入对应播放列表。
 
 ## 下一篇

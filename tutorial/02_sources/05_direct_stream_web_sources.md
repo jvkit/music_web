@@ -54,4 +54,4 @@ class FangpiAdapter(WebAdapter):
 
 ## 下一篇
 
-- [聚合搜索](06_aggregate_search.md)
+- [音河搜索适配器详解](04_liumingye_in_depth.md)

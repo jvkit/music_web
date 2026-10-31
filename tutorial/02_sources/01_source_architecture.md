@@ -4,7 +4,7 @@
 
 ## 核心抽象
 
-### `Source`（`src/music_cli/sources/base.py`）
+### `Source`（`src/yinhe/sources/base.py`）
 
 所有音源必须实现：
 
@@ -40,7 +40,7 @@ ctx.cancel()        # 请求取消
 ctx.cancelled       # 是否已取消
 ```
 
-## 注册机制（`src/music_cli/sources/__init__.py`）
+## 注册机制（`src/yinhe/sources/__init__.py`）
 
 ```python
 _SOURCE_MAP = {
@@ -57,26 +57,21 @@ for adapter in WEB_ADAPTERS:
 
 `get_source(name)` 工厂函数：
 
-1. 检查 `SOURCE_STATUS`，不可用的源直接抛错。
-2. 从 `_SOURCE_MAP` 取出对应类。
-3. 实例化并传入 `proxy`（YouTube/Bilibili 还传入 `cookie_file`）。
+1. 从 `_SOURCE_MAP` 取出对应类（不可用的源已随代码移除，无需再查状态表）。
+2. 实例化并传入 `proxy`（YouTube/Bilibili 还传入 `cookie_file`）。
 
 ## 状态管理
 
 ```python
 SOURCE_STATUS = {
-    "spotify": {"available": False, "reason": "deprecated"},
-    "lvyueyang": {"available": False, "reason": "unavailable"},
-    "qqmp3": {"available": True, "status": "unstable"},
+    "qqmp3": "unstable",
+    "musicenc": "unstable",
 }
 ```
 
-`status` 取值：
+只登记状态异常的音源（当前仅 `unstable` 一档）；未登记的源一律视为 `normal`。`status` 经 `/api/web_sources` 透传给前端，用于展示「（不稳定）」标记。
 
-- `normal`：正常
-- `unstable`：不稳定
-- `unavailable`：不可用
-- `deprecated`：已废弃
+> 历史：早期支持 `unavailable` / `deprecated` 状态（spotify、lvyueyang、yinyueke），重构时已把这些音源代码整体删除，状态表随之简化。
 
 ## 两类音源
 

@@ -19,15 +19,15 @@
 │  index.html + js/ + styles.css      │
 │  SPA、播放器、歌词页、分享、房间     │
 ├─────────────────────────────────────┤
-│  FastAPI Web 服务 (src/music_cli/web/)│
-│  api.py、downloads.py、rooms.py      │
+│  FastAPI Web 服务 (src/yinhe/web/)│
+│  app.py + 各 router + rooms.py      │
 │  提供 REST / WebSocket API           │
 ├─────────────────────────────────────┤
-│  音源层 (src/music_cli/sources/)     │
+│  音源层 (src/yinhe/sources/)     │
 │  Source 抽象、WebAdapter、各站点适配器│
 │  负责搜索、解析播放地址、下载        │
 ├─────────────────────────────────────┤
-│  基础设施 (src/music_cli/)           │
+│  基础设施 (src/yinhe/)           │
 │  Library、Cache、Settings、Models    │
 │  管理本地库、缓存、配置、数据模型    │
 └─────────────────────────────────────┘
@@ -37,7 +37,7 @@
 
 ### Track（音轨）
 
-`src/music_cli/models.py` 中的 `Track` 是所有音源共同返回的对象：
+`src/yinhe/models.py` 中的 `Track` 是所有音源共同返回的对象：
 
 ```python
 class Track(BaseModel):
@@ -57,7 +57,7 @@ class Track(BaseModel):
 
 ### Song（库内歌曲）
 
-`src/music_cli/library.py` 中的 `Song` 是落盘后的持久化对象：
+`src/yinhe/library.py` 中的 `Song` 是落盘后的持久化对象：
 
 ```python
 class Song(BaseModel):
@@ -80,7 +80,7 @@ class Song(BaseModel):
 - `POST api/preview`
 - `GET api/share?code=xxx`
 
-后端 `src/music_cli/web/api.py` 中所有路由都挂在 `/api` 前缀下，由 nginx 或 uvicorn 的 `root_path` 统一处理。
+后端 `src/yinhe/web/` 各 router 的路由都挂在 `/api` 前缀下，由 nginx 或 uvicorn 的 `root_path` 统一处理。
 
 ## 下一篇
 

@@ -1,6 +1,6 @@
-# 音河（music-cli）完全学习教程
+# 音河（yinhe）完全学习教程
 
-本教程面向希望深入理解并维护「音河」项目的开发者。项目是一个多音源音乐搜索 / 试听 / 下载 CLI + H5 前端，代码量较大，因此按主题拆分成多篇文档，方便按需阅读。
+本教程面向希望深入理解并维护「音河」项目的开发者。项目是一个多音源音乐搜索 / 试听 / 下载的 Web 服务 + H5 前端（早期为 CLI 工具，已移除），代码量较大，因此按主题拆分成多篇文档，方便按需阅读。
 
 ## 阅读建议
 
@@ -17,7 +17,7 @@
 - [04 分享卡片端到端流程](00_overview/04_share_end_to_end.md)
 
 ### 01 后端核心
-- [01 CLI 入口与命令](01_backend/01_cli_and_entry.md)
+- [01 服务入口与启动](01_backend/01_cli_and_entry.md)
 - [02 配置与设置系统](01_backend/02_config_and_settings.md)
 - [03 数据模型](01_backend/03_models.md)
 - [04 音乐库 Library](01_backend/04_library.md)
@@ -33,7 +33,6 @@
 - [03 网页音源适配器](02_sources/03_web_adapter.md)
 - [04 音河搜索适配器详解](02_sources/04_liumingye_in_depth.md)
 - [05 直连网页音源](02_sources/05_direct_stream_web_sources.md)
-- [06 聚合搜索](02_sources/06_aggregate_search.md)
 
 ### 03 H5 前端
 - [01 前端总览](03_frontend/01_overview.md)

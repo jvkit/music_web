@@ -23,23 +23,28 @@
 
 ```
 src/
-├── music_cli/
-│   ├── cli.py              # Typer CLI 入口
-│   ├── library.py          # 统一音乐库 Library（核心事实源）
-│   ├── models.py           # Track / Song 数据模型
-│   ├── settings.py         # 用户配置
-│   ├── sync.py             # 本地 ↔ 服务器 Library 同步
-│   ├── sources/            # 音源实现
-│   │   ├── youtube.py
-│   │   ├── netease.py
-│   │   ├── bilibili.py
-│   │   ├── soundcloud.py
-│   │   └── web/            # 网页音源适配器
-│   └── web/                # FastAPI 后端
-│       ├── api.py
-│       ├── rooms.py        # 一起听房间 WebSocket
-│       └── downloads.py
-└── web/static/             # H5 前端
+├── yinhe/                    # Python 后端（包名 yinhe）
+│   ├── library.py            # 统一音乐库 Library（核心事实源，线程安全）
+│   ├── models.py             # Track / MediaType / CachedTrack
+│   ├── settings.py           # 用户配置（6 个字段）
+│   ├── cache.py              # 试听缓存
+│   ├── ffmpeg.py             # ffmpeg 查找
+│   ├── sources/              # 音源实现
+│   │   ├── youtube.py / netease.py / bilibili.py / soundcloud.py
+│   │   └── web/              # 网页音源适配器（9 个站点）
+│   └── web/                  # FastAPI 后端
+│       ├── app.py            # create_app() 装配
+│       ├── main.py           # 服务入口（music-web）
+│       ├── deps.py           # 共享单例 + Track↔Song 转换 + 下载入库
+│       ├── share.py          # 分享码/OG 卡片/首页注入
+│       ├── tracks_api.py     # 搜索/试听/歌词/分P
+│       ├── library_api.py    # library/播放列表/收藏/统计
+│       ├── local_api.py      # 本地文件
+│       ├── stream.py         # 流与代理
+│       ├── downloads.py      # DownloadManager
+│       ├── downloads_api.py  # 下载端点
+│       └── rooms.py          # 一起听房间 WebSocket
+└── web/static/               # H5 前端
     ├── index.html
     ├── styles.css
     ├── js/
@@ -63,9 +68,11 @@ src/
 
 ## 当前架构约定
 
-- **Library 是唯一事实源**：`src/music_cli/library.py` 中的 `Library` 类管理 `library.json`，包含所有播放列表、歌曲、收听记录。
+- **Library 是唯一事实源**：`src/yinhe/library.py` 中的 `Library` 类管理 `library.json`，包含所有播放列表、歌曲、收听记录。写操作全部线程安全（RLock + 原子写），多步读-改-写用 `with library.write_lock():`。
 - **Song.id 全局唯一**：格式 `{source}:{original_id}`，例如 `youtube:wJnBTPUQS5A`、`web_liumingye:qq:001qgtJp4fe6Lr`。
+- **Playlist/Song 定义在 library.py**（不在 models.py）；models.py 只有 Track/MediaType/CachedTrack/TrackSource。旧版 `Favorite`/`PlayHistory`/带 tracks 的 `Playlist`/`LocalItem` 已删除。
 - **系统播放列表是前端虚拟的**：`playlistOps.js#buildPlaylistsFromLibrary` 根据 `state.webSources` 的 `direct_stream` 和 `status` 自动构造 4 个源分类列表，不参与后端写入。
+- **下载走 DownloadManager**：`POST /api/download` 提交后台任务返回 task_id；本地已有 → `from_cache: true`。新增下载实现必须响应 `DownloadContext.cancelled` 并上报进度。
 - **本地文件命名**：`{source}_{original_id}_{safe_title}.{ext}`，sidecar `.track.json` 保存原始 Track 元数据。
 - **管理密码**：`src/web/static/js/passwordGate.js`，密码 `jvkit123`，受保护操作包括删除列表/歌曲、取消收藏、保存设置。
 - **代码与数据分离**：`library/`、`data/`、`cache/`、`config/*.json` 已加入 `.gitignore`，不要把这些文件 commit 到仓库。
@@ -75,17 +82,17 @@ src/
 ```bash
 # 安装依赖
 uv sync
-uv run music setup        # 安装前端 npm 依赖
+cd src/web/static && npm install
 
 # 语法检查
 cd src/web/static
 npm run check
 
 # 启动本地服务
-uv run music -s           # 端口 8001
+uv run music-web           # 端口 8001
 
 # 同步到服务器
-uv run music sync
+uv run python scripts/sync_library.py
 ```
 
 ## 修改后必须检查
@@ -94,3 +101,4 @@ uv run music sync
 2. 如果修改了后端 API，同步更新根目录 `README.md` 和 `AGENTS.md` 的接口契约。
 3. 如果新增了需要密码保护的操作，复用 `requireAdminPassword()`，不要自己写 prompt。
 4. 新增系统列表或虚拟列表时，标记 `is_system: true` 并在复制/设置等地方过滤掉。
+5. 新增下载路径时确认 `DownloadContext` 的取消与进度透传（yt-dlp 用 progress hook，网页源在 `_download_url` 逐块检查）。

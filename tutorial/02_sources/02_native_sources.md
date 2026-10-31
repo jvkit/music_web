@@ -2,7 +2,7 @@
 
 内置原生源直接继承 `Source`，不经过 `WebAdapter` 包装。
 
-## YouTube（`src/music_cli/sources/youtube.py`）
+## YouTube（`src/yinhe/sources/youtube.py`）
 
 基于 `yt_dlp` 实现：
 
@@ -12,7 +12,7 @@
 
 `Track.id` 格式：`youtube:{video_id}`。
 
-## Bilibili（`src/music_cli/sources/bilibili.py`）
+## Bilibili（`src/yinhe/sources/bilibili.py`）
 
 基于 B站公开 Web API：
 
@@ -27,7 +27,7 @@
 - 不分 P：`bilibili:{bvid}`
 - 分 P：`bilibili:{bvid}:p{page}`
 
-## 网易云音乐（`src/music_cli/sources/netease.py`）
+## 网易云音乐（`src/yinhe/sources/netease.py`）
 
 基于网易云 weapi：
 
@@ -35,7 +35,7 @@
 - `get_stream_url(track)`：获取直链。
 - `get_lyrics(track)`：获取歌词。
 
-## SoundCloud（`src/music_cli/sources/soundcloud.py`）
+## SoundCloud（`src/yinhe/sources/soundcloud.py`）
 
 基于 SoundCloud 公开 API。
 

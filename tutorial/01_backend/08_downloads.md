@@ -1,6 +1,8 @@
 # 08 下载任务管理
 
-`src/music_cli/web/downloads.py` 为 H5 前端提供可轮询、可取消的后台下载任务。
+`src/yinhe/web/downloads.py` + `src/yinhe/web/downloads_api.py` 为 H5 前端提供可轮询、可取消的后台下载任务。
+
+> 历史：这套机制很早就设计了，但重构前 `POST /api/download` 是同步直下载，从未接入任务管理器（前端轮询永远拿不到 task_id，导致下载按钮误报失败）。2026-06 重构时真正接通。
 
 ## 为什么需要下载任务
 
@@ -16,9 +18,9 @@ class DownloadTask:
     task_id: str
     track: Track
     media_type: MediaType
-    out_dir: Path
+    job: DownloadJob            # 接收 DownloadContext，返回最终文件路径
     ctx: DownloadContext
-    status: str = "pending"  # pending | running | completed | failed | cancelled
+    status: str = "pending"     # pending | running | completed | failed | cancelled
     result_path: Optional[Path] = None
     error: Optional[str] = None
     thread: Optional[threading.Thread] = None
@@ -38,27 +40,29 @@ class DownloadManager:
 ## 提交流程
 
 ```python
-def submit(self, track, media_type, out_dir, source) -> str:
+def submit(self, track, media_type, job: DownloadJob) -> str:
     task_id = str(uuid.uuid4())[:8]
-    task = DownloadTask(...)
+    ...
 
     def _run():
         task.status = "running"
         try:
-            path = source.download(track, out_dir, media_type=media_type, ctx=task.ctx)
-            task.result_path = path
-            write_track_sidecar(path, track, media_type)
-            task.status = "completed"
+            task.result_path = task.job(task.ctx)
+            task.status = "completed" if not task.ctx.cancelled else "cancelled"
         except Exception as e:
             task.error = str(e)
-            task.status = "failed"
+            task.status = "cancelled" if task.ctx.cancelled else "failed"
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    threading.Thread(target=_run, daemon=True).start()
     return task_id
 ```
 
-每个任务在一个独立线程中执行，避免阻塞主事件循环。
+每个任务在一个独立线程中执行，避免阻塞事件循环。任务体（`job`）由 `downloads_api` 注入，内部走 `deps.download_to_library()` 的完整流程（临时目录下载 → 移入 `files/` → 登记 Song → 写 sidecar → 下载封面）。
+
+`POST /api/download` 的逻辑：
+
+1. 本地已有文件 → 直接返回 `{task_id: None, status: "completed", from_cache: true}`。
+2. 否则提交任务 → 返回 `{task_id, status: "pending"}`，前端轮询 `GET /api/download/progress`。
 
 ## sidecar 文件
 
@@ -70,9 +74,12 @@ def write_track_sidecar(path: Path, track: Track, media_type: MediaType) -> None
     sidecar.write_text(track.model_dump_json(), encoding="utf-8")
 ```
 
-这样 `LocalLibrary` 扫描时能恢复原始 `Track.id`，避免文件名解析导致 ID 不一致。
+这样扫描/迁移本地文件时能恢复原始 `Track.id`，避免文件名解析导致 ID 不一致。
 
-## 取消任务
+## 进度与取消
+
+- yt-dlp 系音源（YouTube/Bilibili）通过 progress hook 上报百分比并响应取消。
+- 网页音源（`WebAdapter`）在 `_download_url` 里逐块检查 `ctx.cancelled` 并按 `content-length` 上报进度。
 
 ```python
 def cancel(self, task_id: str) -> bool:
@@ -84,7 +91,7 @@ def cancel(self, task_id: str) -> bool:
     return True
 ```
 
-`DownloadContext.cancel()` 会设置取消标志，音源实现中应定期检查该标志并提前退出。
+取消后任务线程会很快抛出「下载已取消」，临时目录被清理，不会留下半个文件。
 
 ## 下一篇
 

@@ -1,190 +1,198 @@
 # Agent 工作规范
 
-## 项目说明
+本文件面向 AI 编码代理，假设读者对本项目一无所知。项目子目录 `src/AGENTS.md` 只补充 `src/` 源码相关约定，本文件为主规范。
 
-多音源音乐搜索/试听/下载 CLI + H5 前端。
-源码入口：`main.py`，实际逻辑在 `src/music_cli/`，H5 前端在 `src/web/static/`。
+## 项目概述
 
-## 关键目录
+「音河 / yinhe」——多音源音乐搜索、试听、下载的 **Web 服务 + H5 前端**。浏览器是唯一交互界面：FastAPI 后端提供 REST API，原生前端页面消费。
 
-- `src/music_cli/`：Python 源码。
-- `src/web/static/`：H5 前端。
-- `data/`：下载的音乐文件。
-- `cache/`：试听缓存。
-- `config/`：播放列表、播放记录等配置。
-- `knowledge/`：AI 经验笔记，记录踩坑、接口异常、修复记录等（给 AI 看）。
-- `tutorial/`：仅在用户主动要求教学时输出系统性讲解（给用户看）。
+> 历史：本项目早期是 `typer` CLI（`music search/preview/download/...`），2026-06 重构移除，包名 `music_cli` → `yinhe`。`music sync` 能力迁移到 `scripts/sync_library.py`。
 
-## 已知问题与修复记录
+核心设计：**Library 是单一事实源**——所有歌曲、播放列表、收听记录都持久化在 `library.json`，本地文件在 `library/files/`，封面/歌词在 `library/assets/`。
 
-### Bilibili 试听播放失败
+## 技术栈
 
-- 根因：B站 DASH 音频流 CDN 返回 `application/octet-stream` 或 `video/mp4`，浏览器 `<audio>` 标签拒绝播放。
-- 修复：`src/music_cli/web/api.py` 的 `api_stream_proxy` 中，对 Bilibili 音频分片 URL（如 `-30280.m4s`）强制返回 `audio/mp4`。
-- 后续：已安装系统 `ffmpeg`（`/usr/bin/ffmpeg`），下载与回退播放也已恢复正常。
+- **Python ≥ 3.12**，包管理用 `uv`（存在 `uv.lock`），构建后端 hatchling，包名 `yinhe`。
+- 主要依赖：`fastapi` + `uvicorn`（Web 服务）、`pydantic`（数据模型）、`requests`（HTTP）、`yt-dlp`（YouTube/Bilibili/SoundCloud 下载）、`beautifulsoup4` + `lxml`（网页音源解析）、`platformdirs`（路径）、`websockets`（房间同步）。
+- **前端**：原生 ES6 模块 + Fetch API + WebSocket，DaisyUI + Tailwind CSS（CDN），Phosphor Icons（npm），PWA（manifest.json + Media Session API），无前端构建步骤。
+- **外部工具**：FFmpeg（yt-dlp 转 MP3/MP4、封面压缩需要，放项目 `tools/` 或系统 PATH）。
 
-### 播放器未优先使用本地文件
+## 目录结构
 
-- 根因：`state.localItems` 只在进入「本地」标签页时加载，导致从搜索/收藏列表播放时，即使本地已有文件，播放器也会先尝试网络流。
-- 修复：
-  - 启动时调用 `loadLocal()` 预加载本地列表。
-  - `playTrack` / `playTrackByQueueTrack` 播放前优先用 `state.localItems` 匹配本地文件。
-  - 下载完成后刷新本地列表，使后续播放能立即命中本地文件。
-  - 后端 `api_preview` 增加本地/缓存优先：文件已存在时直接返回本地流地址，不再请求网络。
+```
+music_web/
+├── main.py                    # 根目录兼容入口，转发到 yinhe.web.main 启动服务
+├── pyproject.toml             # 项目元数据（包名 yinhe，命令 music-web）
+├── src/yinhe/                 # Python 源码
+│   ├── config.py              # 路径解析：环境变量 > 默认值
+│   ├── settings.py            # 用户配置（config.json）
+│   ├── models.py              # Track / MediaType / CachedTrack
+│   ├── library.py             # Library：library.json 持久化（核心事实源，线程安全）
+│   ├── cache.py               # 试听缓存管理
+│   ├── ffmpeg.py              # ffmpeg 查找
+│   ├── sources/               # 音源实现
+│   │   ├── base.py            # Source 抽象基类 + DownloadContext（进度/取消）
+│   │   ├── youtube.py / netease.py / bilibili.py / soundcloud.py
+│   │   └── web/               # 网页音源：WebSource 分发 + WebAdapter 抽象 + sites/group_a、group_b 共 9 个站点适配器
+│   └── web/                   # FastAPI 后端（api.py 已拆分为按域 router）
+│       ├── app.py             # create_app()：中间件 + router 注册 + 静态挂载
+│       ├── main.py            # 服务入口 main()（music-web 命令 / uvicorn yinhe.web.main:app）
+│       ├── deps.py            # 共享单例（Library/Cache/DownloadManager/音源缓存）+ Track↔Song 转换等
+│       ├── share.py           # 短分享码 + OG 卡片 + 首页 meta 注入
+│       ├── tracks_api.py      # 搜索 / 试听 / 分P / 歌词 / web_sources
+│       ├── library_api.py     # library 全量读写 / 播放列表 CRUD / 收藏 / 播放统计
+│       ├── local_api.py       # 本地文件列表 / 流 / 封面 / 删除
+│       ├── stream.py          # 缓存流 / stream_proxy 流代理 / thumbnail 封面代理
+│       ├── downloads.py       # DownloadManager（后台任务/进度/取消）
+│       ├── downloads_api.py   # 下载端点（POST 提交任务 / GET 进度 / DELETE 取消）
+│       └── rooms.py           # 一起听房间（WebSocket）
+├── src/web/static/            # H5 前端（index.html + js/ + styles.css + package.json）
+├── scripts/                   # sync_library.py（双向同步）、deploy.py、export_liked.py、migrate_to_library.py
+├── knowledge/                 # AI 经验笔记：踩坑、接口异常、修复记录（给 AI 看）
+├── tutorial/                  # 系统性中文教程（仅用户主动要求教学时输出，给用户看）
+└── AGENTS.md / README.md / uv.lock
+```
 
-### 样式丢失 / Phosphor Icons 404
-
-- 根因：`src/web/static/node_modules/@phosphor-icons/web` 缺失，导致页面 CSS 和图标加载 404。
-- 修复：在 `src/web/static` 下重新执行 `npm install`。
-- 注意：部署到服务器时 `node_modules` 不会自动同步，需要手动在服务器安装。
-
-### 收藏列表播放已下载歌曲失败
-
-- 根因：下载目录里的文件通过文件名解析得到的 `track.id` 是 `local:文件名`，和收藏里的原始 `track.id`（如 `youtube:xxx`）不一致，导致前后端都找不到本地文件，只能重新走网络。
-- 修复：
-  - 新增下载 sidecar：每次下载完成时在文件旁边写入 `<文件名>.track.json`，保存原始 Track 元数据。
-  - `LocalLibrary` 扫描时优先读取 sidecar，恢复原始 `track.id`。
-  - 后端 `api_preview` 本地查找增加模糊匹配兜底（歌名/歌手互相包含）。
-  - 已为现有下载文件批量生成 sidecar。
-
-### 手动下载功能冗余
-
-- 根因：用户反馈播放即应缓存，单独的「下载」按钮和「批量下载」功能多余，且容易让用户误以为需要手动下载。
-- 修复：
-  - 移除歌曲卡片上的「下载」按钮和顶部批量操作栏的「批量下载」按钮。
-  - 播放默认走 `preferStream=false`，后端会把音视频下载到缓存后再返回流地址，实现「播放即缓存」。
-
-### Bilibili 多集（分 P）视频只能播放第一集
-
-- 根因：Bilibili 长合集在搜索结果里只返回一个整体 Track，播放时默认取第一 P，无法选择其他分集。
-- 修复：
-  - 后端新增 `/api/track_pages` 接口，返回分 P 列表（page/cid/title/duration）。
-  - 前端 Bilibili 歌曲卡片增加「选集」按钮，展开后可选择某一集播放。
-  - 分集 Track 的 ID 格式为 `bilibili:<bvid>:p<page>`，`extra.cid` 传给后端以播放指定分集。
-  - 修复 `BilibiliSource.get_pages` 返回值类型，并支持从带 `:pN` 的 ID 中正确解析 BV 号。
-
-### Bilibili 播放失败/超时后不会自动切本地
-
-- 根因：Bilibili 整首下载较慢，前端请求容易超时；失败后没有自动尝试本地文件，导致用户必须手动去「本地」Tab 点击。
-- 修复：
-  - Bilibili/YouTube 默认优先走后端代理流（`/api/stream_proxy`），减少首次播放等待时间。
-  - 网络加载或音频流失败时，自动刷新本地列表并尝试播放本地文件（`tryPlayLocal`）。
-  - `handleAudioError` 在回退到下载前，先检查本地是否已有该歌曲。
-
-### 手机端播放器/歌词页缺少操作按钮
-
-- 根因：底部播放器的收藏、歌词、删除、模式按钮用了 `hidden sm:flex`，小屏直接不显示；歌词页也只有上下曲和播放暂停。
-- 修复：
-  - 底部播放器改为响应式 flex-wrap，所有操作按钮在手机端也可见。
-  - 歌词页底部新增「播放模式 / 收藏 / 删除本地文件」操作行，并随播放器状态同步。
-
-### PWA 与后台播放
-
-- 新增 `web/static/manifest.json`，应用名称 `音悦`，图标使用站点渐变音符图标（生成 192/512 PNG）。
-- 接入 Media Session API：播放时设置歌曲标题、歌手、封面，并注册播放/暂停/上一首/下一首系统控件。
-- `<audio>` 添加 `playsinline`/`webkit-playsinline`，提升移动端后台播放保活能力。
-
-### 危险操作二次确认
-
-- 根因：朋友可能误触清空本地、移除歌曲、取消收藏，导致数据丢失。
-- 修复：
-  - 移除「本地音乐」页面的「清空本地」按钮。
-  - 从播放列表移除歌曲 / 取消收藏时增加 `confirm` 二次确认。
-  - 删除本地文件本身已有确认，保持不变。
-
-### 入站密码验证
-
-- 新增 `web/static/js/passwordGate.js`，页面加载时先弹出密码验证浮层。
-- 提示文案：「我们不欢迎爬虫，请输入密码」。
-- 密码：`junvon`，验证通过后写入 `localStorage`，下次访问自动放行。
-
-### 网页音源聚合（WebSource）
-
-- 架构：
-  - `src/music_cli/models.py`：`Track.source` 改为 `str`，`TrackSource` 改为常量类，支持任意 `web_<site_id>`。
-  - `src/music_cli/sources/web/base.py`：`WebAdapter` 抽象接口（search / get_stream_url / download）。
-  - `src/music_cli/sources/web/source.py`：`WebSource` 实现 `Source` 接口，按 `site_id` 分发给适配器。
-  - `src/music_cli/sources/web/sites/group_a/` 与 `group_b/`：12 个站点适配器。
-  - `src/music_cli/web/api.py`：新增 `/api/web_sources`，`api_preview` 对 `web_` 音源按 `direct_stream` 决定直接流或下载缓存。
-- 前端：
-  - 搜索栏新增「网页音源」下拉菜单，可直链的显示 ⭐。
-  - 设置页新增「网页音源收藏列表」选择，默认 `web_favorites`（网页收藏）。
-  - 网页音源曲目收藏时自动进入独立收藏列表。
-- 已接入站点与状态：
-  - 搜索/播放可用（direct_stream=true）：种子音乐 zz123、放屁音乐网 fangpi、JB 搜 jbsou。
-  - 搜索可用，需后端缓存（direct_stream=false）：歌曲宝 gequbao、刘明野工具箱 liumingye、Fe-MM 网易云 netease_fe_mm、铜钟音乐 tonzhon、铜钟镜像 tonzhon_whamon、Web Music lvyueyang。
-  - 当前搜索/播放困难：QQMP3（关键词拦截）、MusicEnc（服务端空结果/DNS 问题）、音乐客 yinyueke（API 域名失效）。
-- 依赖：新增 `beautifulsoup4` + `lxml` 用于网页解析。
-
-### 新版 Web API 前端适配（2024-06）
-
-- 背景：后端升级为 Library/Song 模型，播放列表与歌曲改由 `/api/library` 同步，本地流/删除 API 改为按 `song.id` 寻址。
-- 适配：
-  - `src/web/static/js/api.js`：`deleteLocalItem` 改为 `/api/local/{song_id}`；新增 `fetchLibrary`、`fetchFavorites`。
-  - `src/web/static/js/playlistOps.js`：通过 `/api/library` 同步完整音乐库，构造带 `tracks` 的播放列表对象，缓存 `librarySongs`。
-  - `src/web/static/js/views/playlists.js`：改用 `refreshLibrary()` 加载列表；播放列表对象现在含 `id`、`name`、`song_count`，曲目从库歌曲反算。
-  - `src/web/static/js/player.js`、`views/local.js`：所有本地流与删除 URL 由 `localItem.key` 改为 `localItem.id`（即 `song.id`）。
-- 新增体验功能：
-  - `audio/video` 筛选：`src/web/static/js/views/search.js`、`playlists.js`、`local.js` 顶部新增 `全部 | 音频 | 视频` 按钮组，按 `media_type` 过滤。
-  - 不稳定音源标签：`app.js` 中网页音源下拉菜单对 `status === 'unstable'` 显示 `（不稳定）`。
-  - 删除当前播放歌曲时先切歌：
-    - `player.js#removeCurrentLocalTrack` 删除前先 `playNext()` / `stopPlayback()`。
-    - `playlistOps.js#removeTrackFromPlaylist` 删除当前播放曲目前先切歌，并在刷新库后重建队列。
-    - `views/local.js#deleteLocalItemById` 同样先切歌/停止。
-  - 记住上次播放状态：使用 `localStorage` 保存当前歌单、歌曲、播放进度/状态、播放模式；`app.js` 初始化完成后调用 `restorePlaybackState()` 自动恢复。
-- 其他：批量选择 `selection.js` 现在按当前筛选后的可见曲目进行全选/计数。
-
-### 管理密码与系统源分类列表（2024-06）
-
-- 管理密码：
-  - 密码：`jvkit123`。
-  - 受保护操作：删除播放列表、从列表移除歌曲、取消收藏、删除本地文件、保存设置。
-  - 实现：`src/web/static/js/passwordGate.js` 提供 `requireAdminPassword(actionName)`，验证状态存在 `sessionStorage`。
-- 4 个系统源分类播放列表：
-  - 在 `playlistOps.js#buildPlaylistsFromLibrary` 中根据 `state.webSources` 的 `direct_stream` 和 `status` 自动构建。
-  - 列表 ID：`source_direct`、`source_stable`、`source_unstable`、`source_foreign`。
-  - 系统列表 `is_system: true`，不可删除、不可手动添加/移除；在复制到列表、设置目标列表等 UI 中已过滤掉。
-
-### 手机端紧凑布局（2024-06）
-
-- 目标：小屏下一屏显示更多条目。
-- 实现：`styles.css` 中 `@media (max-width: 640px)` 减小卡片内边距、封面、字体、按钮尺寸；操作按钮改为横向排列；底部播放器更矮。
-
-### 一起听歌房间同步（WebSocket）
-
-- 后端：`src/music_cli/web/rooms.py` 提供房间管理与 WebSocket 端点 `/api/rooms/{room_id}/ws`。
-- 前端：`src/web/static/js/room.js` + `components/roomPanel.js`。
-- 约定：
-  - 仅同步控制信号（play/pause/seek/next/prev/join/leave/chat）。
-  - 不传输音频流；每个客户端从自己的 Library 或网络加载音频。
-  - 房主（创建者）拥有切歌/暂停/进度控制权；加入者同步接收控制事件。
-
-### 代码与数据分离
-
-- 用户数据（`library/`、`data/`、`cache/`、`config/*.json`）已加入 `.gitignore`。
-- **不要**把这些数据 commit 到仓库；部署时这些数据保留在服务器本地，不参与代码同步。
-- 如果 pull 时提示数据文件会覆盖，优先 `git reset --hard` 或 stash，但事后需要从备份/历史恢复 `library.json`。
-
-## 关键 API 契约
-
-- `/api/library`：返回 `{ version, playlists: {id: Playlist}, songs: {id: Song} }`，前端据此构建播放列表与本地列表。
-- `/api/local`：返回 `{ items: [{ id, track, path, media_type, size, is_cache, ... }], total_size }`。
-- `/api/local/stream/{song_id}`：返回音频/视频流。
-- `/api/playlists/{id}/tracks`：POST 添加曲目；DELETE `/api/playlists/{id}/tracks/{track_id}` 移除曲目。
-- `/api/web_sources`：返回 `{ items: [{ id, name, direct_stream, status, ... }] }`，`status` 为 `normal`/`unstable`/`unavailable`。
-- 前端 `Track.id` 与后端 `Song.id` 一致，格式为 `{source}:{original_id}`。
-- 系统播放列表是前端虚拟构造，不参与后端写入。
+运行时数据目录（均已加入 `.gitignore`，**禁止提交**）：`library/`、`data/`（下载）、`cache/`（试听缓存）、`config/*.json`。
 
 ## 常用命令
 
 ```bash
-uv sync                         # 安装 Python 依赖
-uv run music setup              # 安装前端 npm 依赖（图标、字体等）
-uv run music check-env          # 检查环境是否就绪
-uv run music -s                 # 启动服务器
-uv run music -l --help          # 本地 CLI 模式
+uv sync                                  # 安装 Python 依赖
+cd src/web/static && npm install         # 安装前端 npm 依赖（Phosphor Icons）
+uv run music-web                         # 启动 Web 服务（0.0.0.0:8001，root_path=/music）
+uv run music-web --port 8001 --root-path /music
+uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 ```
 
-> `-s` / `--serve` 会自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根目录下的 `data/`、`cache/`、`config/`。如果环境变量已设置，则以环境变量为准。
->
-> 前端资源（Phosphor Icons）通过 `npm install` 安装到 `src/web/static/node_modules/`，`music setup` 会自动执行。
+- `music-web` 启动时，若项目根存在 `data/` 和 `config/`，自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根（等价旧版 `-s` 行为）。
+- 前端检查：`cd src/web/static && npm run check`（对所有 js 文件执行 `node --check` 语法检查）。
+
+## 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `MUSIC_LIBRARY_DIR` | 音乐库根目录（含 library.json） | `~/Music/musiic-cli-library` |
+| `MUSIC_DOWNLOAD_DIR` | 下载目录 | `~/Music/musiic-cli` |
+| `MUSIC_CACHE_DIR` | 试听缓存目录 | 平台 cache 目录 |
+| `MUSIC_CONFIG_DIR` | 配置目录（config.json、share_codes.json） | 平台 config 目录 |
+
+## 测试与验证
+
+- **本项目没有任何自动化测试**（无 pytest、无 CI）。不要臆造测试命令。
+- 修改后的验证方式：
+  1. 前端改动：`cd src/web/static && npm run check` 必须通过。
+  2. Python 改动：启动 `uv run music-web`，对改动的接口做真实端到端验证（搜索 → 播放 → 下载）。
+  3. 改了后端 API 时，同步更新根目录 `README.md` 与本文件的接口契约。
+
+## 代码风格与架构约定
+
+- **Library 唯一事实源**：`src/yinhe/library.py` 的 `Library` 类管理 `library.json`（playlists + songs）。不要绕过它直接改 JSON。它是线程安全的（写锁 + 临时文件原子写），Web 层多线程并发场景必须走它的方法或 `write_lock()`。
+- **Song.id 全局唯一**：格式 `{source}:{original_id}`，如 `youtube:wJnBTPUQS5A`、`web_liumingye:qq:001qgtJp4fe6Lr`。前端 Track.id 与后端 Song.id 一致。
+- **音源插件化**：新音源实现 `sources/base.py` 的 `Source` 接口并注册到 `sources/__init__.py` 的 `_SOURCE_MAP`；网页音源实现 `sources/web/base.py` 的 `WebAdapter`，在 `sources/web/__init__.py` 的 `_load_adapters()` 里加入导入列表即可自动注册为 `web_<site_id>`。稳定性在 `sources/__init__.py` 的 `SOURCE_STATUS` 中登记（只登记 `unstable` 的源，正常的不用登记）。
+- **下载必须走 DownloadManager**：`POST /api/download` 提交后台任务（`downloads_api.py` → `DownloadManager.submit(job)`），不要在 endpoint 里同步下载。任务体注入 `deps.download_to_library()`，它会处理临时目录、文件名冲突、Song 登记、sidecar、封面。
+- **取消/进度经 DownloadContext 透传**：yt-dlp 音源用 progress hook；网页音源 `WebAdapter._download_url` 逐块检查 `ctx.cancelled`。新增下载实现时必须响应 ctx。
+- **本地文件命名**：`{source}_{original_id}_{safe_title}.{ext}`；每次下载完成写 sidecar `<文件名>.track.json` 保存原始 Track 元数据。
+- **系统播放列表是前端虚拟构造**：`playlistOps.js#buildPlaylistsFromLibrary` 根据音源 `direct_stream`/`status` 自动生成 4 个源分类列表，标记 `is_system: true`，不可删除/编辑，在复制、设置目标列表等 UI 中必须过滤。
+- **前端图标**：统一 Phosphor Icons（`js/icons.js` 的 `icon('heart', { filled: true })`），**禁止 UI 直接使用 emoji**。
+- **密码保护**：新增危险操作复用 `js/passwordGate.js` 的 `requireAdminPassword()`，不要自写 prompt。
+- **代码与数据分离**：绝不 commit `library/`、`data/`、`cache/`、`config/*.json`。pull 冲突涉及这些文件时优先 `git reset --hard`，但事后需从备份恢复 `library.json`。
+- **注释与文档用中文**；commit message 用约定式前缀（`feat:` / `fix:` / `docs:`，可加 scope，如 `fix(share):`），描述用中文。
+- 前端资源禁缓存由后端中间件统一处理（`app.py` 的 `no_cache_static`），不要在响应里私自加缓存头。
+
+## 关键 API 契约（前缀可被 root_path 包裹）
+
+- `GET /api/library` → `{ version, playlists: {id: Playlist}, songs: {id: Song} }`；`POST /api/library` 全量更新（同步用）。
+- `GET /api/search`、`POST /api/preview`（本地/缓存优先 → direct_stream 直链 → 代理流/下载缓存）。
+- `GET /api/track_pages` Bilibili 分 P 列表；`GET /api/track_resolve` 按 id+source 重新解析曲目。
+- `GET /api/stream/{cache_key}`、`GET /api/stream_proxy`（Referer/Cookie 音源代理，Range 透传，Bilibili m4s 强制 `audio/mp4`）。
+- `POST /api/download` → `{task_id, status: "pending"}`（本地已有 → `{task_id: null, status: "completed", from_cache: true}`）；`GET /api/download/progress?task_id=`；`DELETE /api/download/{task_id}`。
+- `GET /api/local`、`GET /api/local/stream/{song_id}`、`GET /api/local/cover/{song_id}`、`DELETE /api/local/{song_id}`。
+- 播放列表 CRUD：`/api/playlists...`；收藏：`GET/POST/DELETE /api/favorites...`。
+- `POST /api/plays`（进度 >80% 记一次播放）、`GET /api/plays`。
+- `POST /api/lyrics`、`GET /api/web_sources`、`GET /api/thumbnail?url=`（封面代理）。
+- 分享：`POST /api/share` / `GET /api/share`（短码 `?c=`，存 `<config_dir>/share_codes.json`，TTL 7 天）、`GET /api/og_image`、`GET /api/share_image`。
+- 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
+
+## 部署
+
+- 本地开发：`uv run music-web`（`--reload` 可调试）。
+- 服务器：`MUSIC_LIBRARY_DIR=/path/to/library uv run music-web --host 0.0.0.0 --port 8001`，systemd 托管 + Nginx 反代 `/music/` 到 8001。
+- `scripts/deploy.py`（配合 `deploy.json`）：导出点赞列表、打包代码排除 `node_modules`/`.git`、上传音乐文件到远程 `data/`。
+- **注意**：部署后需在服务器 `src/web/static` 手动 `npm install`（`node_modules` 不同步）；同步用 `uv run python scripts/sync_library.py`（配置见 settings.json 的 `sync_remote_*`）。
+
+## 安全考虑
+
+- 入站密码门 `js/passwordGate.js`：密码 `junvon`，验证过写入 `localStorage`（提示语「我们不欢迎爬虫，请输入密码」）。这是轻量门槛，不是真鉴权。
+- 管理密码 `jvkit123`：删除播放列表、从列表移除歌曲、取消收藏、删除本地文件、保存设置需验证，状态存 `sessionStorage`。
+- 短分享码 7 天过期、定期清理；分享 track 数据存在服务器本地 JSON。
+- CORS 目前 `allow_origins=["*"]`——公网部署时留意。
+- 代理、cookie 文件等凭据只存于本机 `settings.json`（已 gitignore），不要写进代码或文档示例之外的地方。
+
+## 已知问题与修复记录
+
+### 下载链路断裂（2026-06 重构修复）
+
+- 根因：`POST /api/download` 同步下载后返回 `task_id: None`，但前端把「无 task_id」当失败处理，且大文件阻塞请求数分钟。
+- 修复：接入 `DownloadManager`（`downloads_api.py`），提交后台任务返回真实 task_id；`DownloadManager` 改为接收 job 可调用对象；`WebAdapter` 的 `download`/`_download_url` 贯通 `DownloadContext`（取消 + 进度）；前端轮询逻辑不变。
+- 当前行为：本地已有 → `{task_id: null, status: "completed", from_cache: true}`；新下载 → 轮询进度、可取消。
+
+### Bilibili 试听播放失败
+
+- 根因：B 站 DASH 音频流 CDN 返回 `application/octet-stream` 或 `video/mp4`，浏览器 `<audio>` 拒绝播放。
+- 修复：`stream.py` 的 `api_stream_proxy` 对 Bilibili `.m4s` 音频分片强制返回 `audio/mp4`。
+
+### 播放器未优先使用本地文件
+
+- 根因：`state.localItems` 只在进入「本地」标签页时加载，从搜索/收藏播放时即使本地有文件也先走网络。
+- 修复：启动时 `loadLocal()` 预加载；播放前用 `state.localItems` 匹配本地文件；下载完成后刷新本地列表；后端 `api_preview` 本地/缓存优先。
+
+### 收藏列表播放已下载歌曲失败
+
+- 根因：按文件名解析得到的 `track.id`（`local:文件名`）与收藏里的原始 id（如 `youtube:xxx`）不一致。
+- 修复：下载 sidecar `.track.json` 保存原始元数据；`api_preview` 增加歌名/歌手模糊匹配兜底。
+
+### 下载按钮的取舍（注意：曾移除，现已恢复）
+
+- 历史：因「播放即缓存」曾移除卡片下载按钮与批量下载；后恢复歌曲卡片下载按钮。
+- 当前行为：本地已有文件 → 直接触发浏览器下载；本地没有 → 调 `/api/download` 后台任务（带进度与取消）。
+
+### Bilibili 多集（分 P）视频
+
+- 后端 `/api/track_pages` 返回分 P 列表；前端卡片「选集」按钮展开选择；分集 Track ID 格式 `bilibili:<bvid>:p<page>`，`extra.cid` 传给后端。
+
+### Bilibili 播放失败/超时后自动切本地
+
+- Bilibili/YouTube 默认优先走后端代理流（`/api/stream_proxy`）；网络或流加载失败时自动刷新本地列表并尝试本地文件（`tryPlayLocal`）。
+
+### 手机端适配
+
+- 底部播放器响应式 flex-wrap，操作按钮小屏可见；歌词页有操作行；`@media (max-width: 640px)` 紧凑布局。
+
+### PWA 与后台播放
+
+- `manifest.json` 应用名「音悦」；接入 Media Session API；`<audio>` 加 `playsinline`/`webkit-playsinline`。
+
+### 危险操作二次确认
+
+- 移除「清空本地」按钮；移除歌曲/取消收藏有 `confirm`；删除本地文件有确认。
+
+### 网页音源聚合（WebSource）
+
+- `models.py`：`Track.source` 为 `str`，支持任意 `web_<site_id>`。
+- `sources/web/base.py`：`WebAdapter` 抽象（search / get_stream_url / download）；`source.py` 按 `site_id` 分发；`sites/group_a|group_b/` 共 9 个站点适配器。
+- `direct_stream=true` 的源可直接流式播放（⭐ 标记），否则由后端下载到缓存再播。
+- 不稳定源（qqmp3、musicenc）常被关键词拦截或返回空结果，前端显示「（不稳定）」。
+
+### QQ/微信分享卡片
+
+- 短分享码 `?c=` + `og_image`/`share_image` 代理压缩封面；`qqShare.js` 接入 QQ JSAPI（setShareInfo/setOnShareHandler + 复制链接兜底）。详见 `tutorial/00_overview/04_share_end_to_end.md`。
+
+### 2026-06 重构记录
+
+- 移除 CLI（`cli.py`、`player.py`、`__main__.py`）与 typer 依赖；`music sync` → `scripts/sync_library.py`。
+- 包改名 `music_cli` → `yinhe`，命令 `music` → `music-web`。
+- `web/api.py`（~1500 行）拆为 `app.py` + 7 个 router + `deps.py`。
+- 删除死代码：`web/aggregate.py`（聚合搜索，从未接线）、`web/storage.py`（旧存储兼容）、`local.py`（LocalLibrary 无引用）、`sources/spotify.py`、lvyueyang/yinyueke 适配器、`models.py` 的 `Favorite`/`PlayHistory`/旧 `Playlist`/`LocalItem`。
+- `settings.py` 精简为 6 字段（proxy/cookie_file/sync_remote_*/hidden_sources），其余被 pydantic 忽略。
+- `Library` 加写入锁（RLock）+ 临时文件原子写；`share_codes.json` 从硬编码 `~/.config/musiic-cli` 改为走 `get_config_dir()`（尊重 `MUSIC_CONFIG_DIR`）。

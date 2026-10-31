@@ -18,7 +18,7 @@ export async function searchTracks(query, source, limit, offset) {
 
 ## 2. 后端路由到音源
 
-`src/music_cli/web/api.py`：
+`src/yinhe/web/api.py`：
 
 ```python
 @app.get("/api/search")
@@ -33,7 +33,7 @@ def api_search(
     return {"tracks": [t.model_dump() for t in tracks], ...}
 ```
 
-`_get_source(source)` 来自 `src/music_cli/sources/__init__.py`：
+`_get_source(source)` 来自 `src/yinhe/sources/__init__.py`：
 
 - 内置源直接映射到类：`youtube → YouTubeSource`。
 - 网页源 `web_liumingye` 映射到 `WebSource("liumingye")`。
@@ -84,7 +84,7 @@ export async function previewTrack(track, mediaType, stream = true) {
 
 ## 6. 后端决定播放方式
 
-`src/music_cli/web/api.py#api_preview(req: PreviewRequest)`：
+`src/yinhe/web/api.py#api_preview(req: PreviewRequest)`：
 
 1. 调用 `_resolve_track(req)` 确保拿到完整 `Track`。
 2. 调用 `_ensure_song(track, media_type)` 在 `Library` 中查找或创建 `Song`。

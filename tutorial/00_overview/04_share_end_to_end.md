@@ -31,7 +31,7 @@ history.replaceState(null, '', url.toString());
 
 ### 1.2 后端创建短码
 
-`src/music_cli/web/api.py`：
+`src/yinhe/web/api.py`：
 
 ```python
 @app.post("/api/share")
@@ -40,7 +40,7 @@ def api_create_share(track: dict):
     return {"code": code}
 ```
 
-`_create_share_code()` 生成 8 字符 URL-safe Base64 随机串，写入 `~/.config/musiic-cli/share_codes.json`，有效期 7 天。
+`_create_share_code()` 生成 8 字符 URL-safe Base64 随机串，写入 `<config_dir>/share_codes.json`（`get_config_dir()` 决定，可用 `MUSIC_CONFIG_DIR` 覆盖），有效期 7 天。
 
 ### 1.3 用户复制链接
 

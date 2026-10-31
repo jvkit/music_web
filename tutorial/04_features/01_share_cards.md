@@ -39,7 +39,7 @@ async function setShareUrl(track) {
 `/api/share` POST 接口把 track 信息存到本地文件：
 
 ```python
-_SHARE_CODES_PATH = Path.home() / ".config" / "musiic-cli" / "share_codes.json"
+_share_codes_path() = get_config_dir() / "share_codes.json"  # 尊重 MUSIC_CONFIG_DIR
 
 def _create_share_code(track: dict) -> str:
     codes = _load_share_codes()
@@ -49,7 +49,7 @@ def _create_share_code(track: dict) -> str:
     return code
 ```
 
-短码保存在 `~/.config/musiic-cli/share_codes.json`，服务重启后仍然有效。
+短码保存在 `<config_dir>/share_codes.json`，服务重启后仍然有效。
 
 `/api/share?code=xxx` GET 接口则把 track 读回来，供前端落地页恢复歌曲。
 

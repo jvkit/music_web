@@ -1,16 +1,17 @@
-# musiic-cli — 多音源音乐搜索/试听/下载 CLI + H5
+# 音河（yinhe）— 多音源音乐搜索/试听/下载 Web 服务 + H5
 
-基于 `uv` + `typer` + `fastapi` 构建的多音源音乐工具，支持命令行与 H5 前端两种使用方式。
+基于 `uv` + `FastAPI` + `yt-dlp` 构建的多音源音乐工具：一个 Web 服务承载 REST API 与 H5 前端，浏览器即全部交互界面。
+
+> 历史：本项目早期是 `typer` CLI 工具（`music search / preview / download ...`），2026-06 重构移除 CLI，包名由 `music_cli` 改为 `yinhe`。
 
 ## 功能特性
 
-- **多音源聚合**：YouTube、网易云音乐、Bilibili、SoundCloud，外加 10+ 网页音源适配器。
+- **多音源聚合**：YouTube、网易云音乐、Bilibili、SoundCloud，外加 9 个网页音源适配器。
 - **统一音乐库（Library）**：所有歌曲、播放列表、收听记录集中在 `library.json`，本地文件存在 `library/files/`，封面/歌词在 `library/assets/`。
-- **CLI 操作**：搜索、试听、下载、本地管理、配置、同步。
 - **H5 前端**：原生 JS + Tailwind CSS + DaisyUI，支持搜索、播放、MV、下载、播放列表、本地管理、设置、一起听房间。
 - **边下边播**：优先平台直链；需要 Referer/Cookie 的音源走后端代理；失败自动回退到完整下载。
 - **歌词播放页**：网易云 LRC、YouTube 字幕自动解析；点击歌词跳转；无歌词时展示封面背景。
-- **下载进度与取消**：单曲/批量下载实时进度条，支持取消。
+- **下载进度与取消**：单曲/批量下载实时进度条，支持取消（后台任务 + 轮询）。
 - **本地文件管理**：试听/下载文件自动进入「本地」，支持播放/删除。
 - **播放列表**：默认收藏夹 + 4 个系统自动源分类列表 + 用户自建列表；支持多选复制。
 - **收听频率统计**：歌曲收听进度超过 80% 自动 +1。
@@ -18,69 +19,41 @@
 - **媒体类型**：音频 + MV 视频（YouTube / Bilibili）。
 - **管理密码保护**：删除列表、删除歌曲、取消收藏、改设置需要输入密码 `jvkit123`。
 - **一起听歌房间**：WebSocket 控制信号同步，可多人同步切歌/暂停/进度。
-- **双边同步**：`music sync` 合并本地与服务器的 Library 和文件。
+- **双边同步**：`scripts/sync_library.py` 合并本地与服务器的 Library 和文件。
 
 ## 环境要求
 
 - Python 3.12+
-- FFmpeg（yt-dlp 转 MP3/MP4 需要）
+- FFmpeg（yt-dlp 转 MP3/MP4 需要，放项目 `tools/` 或系统 PATH）
 - 可选：代理（中国大陆使用 YouTube 通常需要）
 
-## 安装
+## 安装与启动
 
 ```bash
-cd D:/treasure/kimi_workspace/all/common/musiic-cli
 uv sync
-uv run music setup        # 安装前端 npm 依赖
-uv run music check-env    # 检查环境
+cd src/web/static && npm install   # 前端图标依赖（Phosphor Icons）
 ```
-
-FFmpeg 可放在项目 `tools/ffmpeg.exe`，或确保在系统 PATH 中。
-
-## 快速开始（CLI）
 
 ```bash
-# 配置代理（按需）
-uv run music config --proxy http://127.0.0.1:7890
+# 启动 Web 服务（默认 0.0.0.0:8001，root_path=/music）
+uv run music-web
 
-# 搜索
-uv run music search "周杰伦 晴天" --source netease --limit 5
-uv run music search "周杰伦 晴天" --source bilibili --limit 5
-
-# 试听第 1 个结果
-uv run music preview 1
-
-# 下载音频
-uv run music download 1
-
-# 下载视频
-uv run music download 1 --type video
-
-# 启动 Web 服务
-uv run music -s
+# 或
+uv run uvicorn yinhe.web.main:app --host 0.0.0.0 --port 8001
+uv run python main.py
 ```
 
-## 命令一览
+本地访问 `http://127.0.0.1:8001/` 即可使用。
 
-| 命令 | 说明 |
-|------|------|
-| `music check-env` | 检查运行环境 |
-| `music search QUERY` | 搜索音乐 |
-| `music preview INDEX` | 试听指定序号 |
-| `music download INDEX` | 下载指定序号 |
-| `music library list` | 查看音乐库统计 |
-| `music library cleanup` | 清理无列表引用的本地文件 |
-| `music config --proxy URL` | 设置默认代理 |
-| `music config --default-source SOURCE` | 设置默认音源 |
-| `music config --library-dir PATH` | 设置音乐库目录 |
-| `music sync` | 与远程服务器同步 Library |
-| `music -s` / `music --serve` | 启动 FastAPI 后端 + H5 前端 |
+### 服务器部署
+
+```bash
+MUSIC_LIBRARY_DIR=/path/to/library uv run music-web --host 0.0.0.0 --port 8001
+```
+
+生产建议 systemd 托管 + Nginx 反代 `/music/` 到 8001（参见 `tutorial/04_features/05_deployment_architecture.md`）。
 
 ## H5 前端
-
-启动服务后访问服务地址即可使用。
-
-默认本地地址：`http://127.0.0.1:8001/`
 
 ### 主要页面
 
@@ -95,17 +68,53 @@ uv run music -s
 - **设置**：默认收藏目标、各音源搜索数量、网页音源收藏列表。
 - **一起听房间**：创建/加入房间，同步播放/暂停/切歌/进度给房间内其他用户。
 
-### 管理密码
+## 配置
 
-以下操作需要输入管理密码 `jvkit123`：
+### 环境变量
 
-- 删除播放列表
-- 从播放列表移除歌曲
-- 取消收藏
-- 删除本地文件
-- 保存设置
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `MUSIC_LIBRARY_DIR` | 音乐库根目录 | `~/Music/musiic-cli-library` |
+| `MUSIC_DOWNLOAD_DIR` | 旧版下载目录 | `~/Music/musiic-cli` |
+| `MUSIC_CACHE_DIR` | 试听缓存目录 | 平台 cache 目录 |
+| `MUSIC_CONFIG_DIR` | 配置目录（config.json、分享码） | 平台 config 目录 |
 
-密码验证通过后当前浏览器会话内不再重复询问。
+`music-web` 启动时，若项目根存在 `data/` 与 `config/`，会自动把 `MUSIC_DOWNLOAD_DIR` / `MUSIC_CACHE_DIR` / `MUSIC_CONFIG_DIR` 指到项目根（等价旧版 `-s` 行为）。
+
+### config.json（`~/.config/musiic-cli/config.json`）
+
+```json
+{
+  "proxy": "http://127.0.0.1:7890",
+  "cookie_file": "/path/to/cookies.txt",
+  "sync_remote_host": "j",
+  "sync_remote_api_url": "http://<ip>/music/api",
+  "sync_remote_music_dir": "/home/ubuntu/workspace/music/library",
+  "hidden_sources": []
+}
+```
+
+修改方式：直接编辑文件，或：
+
+```python
+from yinhe.settings import load_settings, save_settings
+s = load_settings()
+s.proxy = "http://127.0.0.1:7890"
+save_settings(s)
+```
+
+### 运维脚本
+
+| 脚本 | 说明 |
+|------|------|
+| `scripts/sync_library.py` | 本地 ↔ 远程 Library 双向同步（SSH/SFTP + API），配置从 settings.json 读，可用 `--host` / `--api-url` / `--remote-dir` 覆盖 |
+| `scripts/deploy.py` | 打包项目代码与点赞音乐部署到远程服务器 |
+| `scripts/export_liked.py` | 导出点赞列表 JSON |
+| `scripts/migrate_to_library.py` | 旧版数据 → Library 一次性迁移（历史） |
+
+```bash
+uv run python scripts/sync_library.py --dry-run
+```
 
 ## API 接口
 
@@ -115,8 +124,12 @@ uv run music -s
 | POST | `/api/library` | 更新完整音乐库（同步用） |
 | GET | `/api/search?query=&source=&limit=&offset=` | 搜索 |
 | POST | `/api/preview` | 试听/试看 |
+| POST | `/api/download` | 提交后台下载任务，返回 task_id |
+| GET | `/api/download/progress?task_id=` | 下载进度 |
+| DELETE | `/api/download/{task_id}` | 取消下载 |
 | GET | `/api/local` | 本地文件列表 |
 | GET | `/api/local/stream/{song_id}` | 本地文件流 |
+| GET | `/api/local/cover/{song_id}` | 本地封面 |
 | DELETE | `/api/local/{song_id}` | 删除本地文件 |
 | GET | `/api/playlists` | 播放列表列表 |
 | POST | `/api/playlists` | 创建播放列表 |
@@ -124,14 +137,22 @@ uv run music -s
 | DELETE | `/api/playlists/{id}` | 删除播放列表 |
 | POST | `/api/playlists/{id}/tracks` | 添加曲目 |
 | DELETE | `/api/playlists/{id}/tracks/{track_id}` | 移除曲目 |
+| GET/POST/DELETE | `/api/favorites...` | 收藏（映射默认列表） |
 | POST | `/api/plays` | 记录播放进度 |
 | GET | `/api/plays` | 查询所有收听频率 |
 | POST | `/api/lyrics` | 获取歌词 |
+| GET | `/api/track_pages` | Bilibili 分 P 列表 |
+| GET | `/api/track_resolve` | 按 id+source 重新解析曲目 |
 | GET | `/api/web_sources` | 网页音源元数据 |
+| GET | `/api/stream/{cache_key}` | 缓存文件流 |
+| GET | `/api/stream_proxy?url=&source=` | 流代理（Range 透传） |
 | GET | `/api/thumbnail?url=` | 封面代理 |
-| GET | `/api/rooms` | 一起听房间列表 |
-| POST | `/api/rooms` | 创建房间 |
-| GET | `/api/rooms/{room_id}/ws` | 房间 WebSocket |
+| POST | `/api/share` / `GET /api/share?code=` | 短分享码（TTL 7 天） |
+| GET | `/api/og_image` / `/api/share_image` | 分享卡片图 |
+| GET/POST | `/api/rooms...` | 一起听房间 |
+| WS | `/api/ws/room/{room_id}` | 房间 WebSocket（仅控制信号） |
+
+完整分组见 `tutorial/01_backend/06_fastapi_overview.md`。
 
 ## 音源说明
 
@@ -149,43 +170,10 @@ uv run music -s
 
 | 分类 | 说明 | 代表源 |
 |------|------|--------|
-| 稳定直连源 | `direct_stream=true`，可直接流式播放 | zz123、fangpi、jbsou、netease_fe_mm |
-| 非直连但基本稳定的源 | 需要后端先下载再播放 | netease、bilibili、gequbao、liumingye、tonzhon 等 |
-| 不稳定源 | 经常出现空结果或拦截 | qqmp3、musicenc |
+| 稳定直连源 | `direct_stream=true`，可直接流式播放 | jbsou、netease_fe_mm |
+| 非直连但基本稳定的源 | 需要后端先下载再播放 | gequbao、liumingye、tonzhon 等 |
+| 不稳定源 | 经常出现空结果或拦截（标记「（不稳定）」） | qqmp3、musicenc |
 | 外网源 | 需要代理 | youtube、soundcloud |
-
-## 项目结构
-
-```
-musiic-cli/
-├── src/music_cli/
-│   ├── cli.py              # Typer CLI 入口
-│   ├── library.py          # 统一音乐库（Library）
-│   ├── models.py           # 数据模型
-│   ├── settings.py         # 用户配置
-│   ├── sources/            # 音源实现
-│   │   ├── youtube.py
-│   │   ├── netease.py
-│   │   ├── bilibili.py
-│   │   ├── soundcloud.py
-│   │   └── web/            # 网页音源适配器
-│   ├── sync.py             # 双边同步
-│   └── web/                # FastAPI 后端
-│       ├── api.py
-│       ├── rooms.py        # 一起听房间
-│       └── downloads.py
-├── src/web/static/         # H5 前端
-│   ├── index.html
-│   ├── js/
-│   └── styles.css
-├── scripts/
-│   └── migrate_to_library.py   # 旧数据迁移脚本
-├── main.py
-├── pyproject.toml
-├── MIGRATION.md
-├── REPORT.md
-└── AGENTS.md               # Agent 工作规范
-```
 
 ## 设计与数据约定
 
@@ -195,21 +183,33 @@ musiic-cli/
 - **代码与数据分离**：`library/`、`data/`、`cache/`、`config/*.json` 已加入 `.gitignore`，不应提交到仓库。
 - **WebSocket 房间**：仅同步控制信号（play/pause/seek/next/prev），不传输音频流；房间内用户各自从自己的 Library/网络加载音频。
 
-## 环境变量
+## 项目结构
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `MUSIC_LIBRARY_DIR` | 音乐库根目录 | `~/Music/musiic-cli-library` |
-| `MUSIC_DOWNLOAD_DIR` | 旧版下载目录 | `~/Music/musiic-cli` |
-| `MUSIC_CACHE_DIR` | 试听缓存目录 | `~/.cache/musiic-cli` |
-| `MUSIC_CONFIG_DIR` | 配置目录 | `~/.config/musiic-cli/music` |
-
-## 部署建议
-
-- **本地开发**：`uv run music -s`
-- **服务器**：`MUSIC_LIBRARY_DIR=/path/to/library uv run music -s --host 0.0.0.0 --port 8001`
-- **生产环境**：建议用 systemd 托管，`Restart=always`，并通过 Nginx 反代 `/music/` 到 8001。
-- **前端缓存**：部署新版本后，HTML/JS/CSS 已禁用浏览器缓存，强制刷新即可加载最新代码。
+```
+music_web/
+├── src/yinhe/                 # Python 后端
+│   ├── web/                   # FastAPI 服务
+│   │   ├── app.py             # 应用装配（中间件/路由/静态挂载）
+│   │   ├── main.py            # 服务入口（music-web 命令）
+│   │   ├── deps.py            # 共享单例与公共逻辑
+│   │   ├── share.py           # 分享码/OG 卡片/首页注入
+│   │   ├── tracks_api.py      # 搜索/试听/歌词/分P
+│   │   ├── library_api.py     # library/播放列表/收藏/统计
+│   │   ├── local_api.py       # 本地文件
+│   │   ├── stream.py          # 流与代理
+│   │   ├── downloads.py       # DownloadManager
+│   │   ├── downloads_api.py   # 下载端点
+│   │   └── rooms.py           # 一起听房间
+│   ├── sources/               # 音源实现（4 原生源 + 9 网页适配器）
+│   ├── library.py             # 统一音乐库（线程安全）
+│   ├── models.py / cache.py / config.py / settings.py / ffmpeg.py
+├── src/web/static/            # H5 前端（原生 ES6 + DaisyUI）
+├── scripts/                   # 同步/部署/导出/迁移脚本
+├── tutorial/                  # 系统性中文教程
+├── knowledge/                 # AI 经验笔记
+├── main.py                    # 根目录兼容入口
+└── pyproject.toml / uv.lock / AGENTS.md
+```
 
 ## 已知问题
 
@@ -218,3 +218,9 @@ musiic-cli/
 3. Bilibili 频繁请求可能返回 412，可稍后重试。
 4. SoundCloud 在中国大陆需要代理。
 5. 不稳定网页源（qqmp3、musicenc）可能搜索失败。
+
+## 文档
+
+- `AGENTS.md`：AI 编码代理工作规范（架构约定、API 契约、验证方式）。
+- `tutorial/`：系统性中文教程（架构、音源、前端、特性、实战）。
+- `knowledge/`：AI 经验笔记（踩坑与修复记录）。

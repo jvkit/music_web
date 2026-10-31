@@ -7,7 +7,7 @@ Musiic 的后端是一个 FastAPI 应用，前端是静态文件。生产环境�
 ### 开发模式
 
 ```bash
-uv run uvicorn music_cli.web.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn yinhe.web.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 或：
@@ -54,7 +54,7 @@ server {
 
 ## 静态文件由谁提供
 
-FastAPI 在 `api.py` 里已经挂载了 StaticFiles：
+FastAPI 在 `web/app.py` 里挂载了 StaticFiles：
 
 ```python
 _static_dir = Path(__file__).resolve().parents[3] / "src" / "web" / "static"

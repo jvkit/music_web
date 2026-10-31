@@ -133,7 +133,7 @@ def api_download(req: PreviewRequest):
 
 ## 下载任务的异步管理
 
-`music_cli/web/downloads.py` 里有一个 `DownloadManager`，用后台线程管理下载任务：
+`yinhe/web/downloads.py` 里有一个 `DownloadManager`，用后台线程管理下载任务：
 
 ```python
 class DownloadManager:

@@ -2,7 +2,7 @@
 
 网页音源是指第三方网页音乐站，它们没有官方 API，需要抓取网页或调用其内部接口。项目通过 `WebAdapter` 抽象来统一接入。
 
-## `WebAdapter`（`src/music_cli/sources/web/base.py`）
+## `WebAdapter`（`src/yinhe/sources/web/base.py`）
 
 每个第三方网站只需实现：
 
@@ -46,7 +46,7 @@ class WebAdapter(ABC):
 - `download()`：默认实现，先取流地址再下载。
 - `get_track(track_id)`：默认返回最小 Track，子类可覆盖。
 
-## `WebSource`（`src/music_cli/sources/web/source.py`）
+## `WebSource`（`src/yinhe/sources/web/source.py`）
 
 `WebSource` 实现 `Source` 接口，内部委托给具体 `WebAdapter`：
 
@@ -62,7 +62,7 @@ class WebSource(Source):
         return self._site_adapter().search(query, limit, offset)
 ```
 
-## 适配器加载（`src/music_cli/sources/web/__init__.py`）
+## 适配器加载（`src/yinhe/sources/web/__init__.py`）
 
 为了避免 `sites/` 目录文件过多，按站点 ID 首字母分组：
 

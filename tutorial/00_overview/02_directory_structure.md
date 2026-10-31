@@ -4,72 +4,83 @@
 
 | 文件 | 职责 |
 |------|------|
-| `pyproject.toml` | uv 项目配置、包名、入口脚本、依赖、Python 版本要求。 |
-| `main.py` | 兼容根目录直接执行的薄入口，实际转发到 `src/music_cli/cli.py`。 |
-| `README.md` | 面向用户的功能说明、命令列表、部署建议。 |
+| `pyproject.toml` | uv 项目配置、包名 `yinhe`、入口脚本 `music-web`、依赖、Python 版本要求。 |
+| `main.py` | 兼容根目录直接执行的薄入口，转发到 `src/yinhe/web/main.py` 启动服务。 |
+| `README.md` | 面向用户的功能说明、启动方式、部署建议。 |
 | `AGENTS.md` | Agent 工作规范、已知问题修复记录、关键 API 契约、常用命令。 |
-| `MIGRATION.md` | 从旧项目迁移的说明。 |
+| `MIGRATION.md` | 从旧项目迁移的说明（历史文档）。 |
 | `uv.lock` | uv 依赖锁定文件。 |
 
-## `src/music_cli/` Python 后端
+## `src/yinhe/` Python 后端
 
-### 入口与 CLI
+### 入口
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/cli.py` | Typer CLI 入口，定义 `search`、`preview`、`download`、`serve` 等命令。 |
-| `src/music_cli/__main__.py` | 支持 `python -m music_cli` 方式运行。 |
+| `src/yinhe/web/main.py` | 服务入口：`main()` 解析参数并用 uvicorn 启动，暴露 `app`。 |
+| `src/yinhe/web/app.py` | `create_app()`：中间件、router 注册、静态文件挂载。 |
 
 ### 配置与路径
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/config.py` | 统一解析 `data/`、`cache/`、`config/` 等目录路径。 |
-| `src/music_cli/settings.py` | `Settings` Pydantic 模型，读写 `config.json`。 |
+| `src/yinhe/config.py` | 统一解析 `data/`、`cache/`、`config/` 等目录路径。 |
+| `src/yinhe/settings.py` | `Settings` Pydantic 模型，读写 `config.json`。 |
 
 ### 数据模型与库
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/models.py` | `Track`、`Song`、`Playlist`、`Favorite` 等数据模型。 |
-| `src/music_cli/library.py` | `Library` 类，管理 `library.json`、播放列表、本地歌曲。 |
-| `src/music_cli/cache.py` | `CacheManager`，管理试听缓存目录。 |
-| `src/music_cli/local.py` | `LocalLibrary`，扫描本地文件并恢复原始 `Track`。 |
+| `src/yinhe/models.py` | `Track`、`MediaType`、`CachedTrack`、`TrackSource` 常量。 |
+| `src/yinhe/library.py` | `Library` 类，管理 `library.json`、播放列表、歌曲（线程安全，写锁 + 原子写）。 |
+| `src/yinhe/cache.py` | `CacheManager`，管理试听缓存目录。 |
 
 ### 工具
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/player.py` | 本地播放器，按平台调用系统播放器。 |
-| `src/music_cli/ffmpeg.py` | 查找 ffmpeg 可执行文件。 |
-| `src/music_cli/sync.py` | 音乐库双向同步（本地 ↔ 远程）。 |
+| `src/yinhe/ffmpeg.py` | 查找 ffmpeg 可执行文件。 |
 
-## `src/music_cli/sources/` 音源层
+## `src/yinhe/sources/` 音源层
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/sources/base.py` | `Source` 抽象基类、`DownloadContext`。 |
-| `src/music_cli/sources/__init__.py` | 音源注册表、`get_source()` 工厂、`SOURCE_STATUS`。 |
-| `src/music_cli/sources/youtube.py` | YouTube 源，基于 yt-dlp。 |
-| `src/music_cli/sources/bilibili.py` | Bilibili 源，基于 B站 Web API。 |
-| `src/music_cli/sources/netease.py` | 网易云音乐源，基于 weapi。 |
-| `src/music_cli/sources/soundcloud.py` | SoundCloud 源。 |
-| `src/music_cli/sources/web/base.py` | `WebAdapter` 抽象基类。 |
-| `src/music_cli/sources/web/source.py` | `WebSource`，把 `WebAdapter` 包装成 `Source`。 |
-| `src/music_cli/sources/web/__init__.py` | 动态加载并注册网页音源适配器。 |
-| `src/music_cli/sources/web/sites/group_a/` | 站点 ID 以 a-l 开头的适配器。 |
-| `src/music_cli/sources/web/sites/group_b/` | 站点 ID 以 m-z 开头的适配器。 |
+| `src/yinhe/sources/base.py` | `Source` 抽象基类、`DownloadContext`（进度/取消）。 |
+| `src/yinhe/sources/__init__.py` | 音源注册表、`get_source()` 工厂、`SOURCE_STATUS`（只登记 unstable 源）。 |
+| `src/yinhe/sources/youtube.py` | YouTube 源，基于 yt-dlp。 |
+| `src/yinhe/sources/bilibili.py` | Bilibili 源，基于 B站 Web API。 |
+| `src/yinhe/sources/netease.py` | 网易云音乐源，基于 weapi。 |
+| `src/yinhe/sources/soundcloud.py` | SoundCloud 源。 |
+| `src/yinhe/sources/web/base.py` | `WebAdapter` 抽象基类。 |
+| `src/yinhe/sources/web/source.py` | `WebSource`，把 `WebAdapter` 包装成 `Source`。 |
+| `src/yinhe/sources/web/__init__.py` | 动态加载并注册网页音源适配器。 |
+| `src/yinhe/sources/web/sites/group_a/` | 站点 ID 以 a-l 开头的适配器。 |
+| `src/yinhe/sources/web/sites/group_b/` | 站点 ID 以 m-z 开头的适配器。 |
 
-## `src/music_cli/web/` Web 服务
+## `src/yinhe/web/` Web 服务
 
 | 文件 | 职责 |
 |------|------|
-| `src/music_cli/web/main.py` | Uvicorn 启动入口。 |
-| `src/music_cli/web/api.py` | FastAPI 应用、所有 REST 路由、分享码、分享卡片 meta 注入。 |
-| `src/music_cli/web/downloads.py` | `DownloadManager`、sidecar 文件写入。 |
-| `src/music_cli/web/aggregate.py` | 聚合搜索逻辑。 |
-| `src/music_cli/web/rooms.py` | 一起听房间管理与 WebSocket。 |
-| `src/music_cli/web/storage.py` | 旧存储兼容。 |
+| `src/yinhe/web/main.py` | Uvicorn 启动入口（`main()` + `app`）。 |
+| `src/yinhe/web/app.py` | FastAPI 应用装配：CORS、no-cache 中间件、router 注册、静态挂载。 |
+| `src/yinhe/web/deps.py` | 共享单例（Library/CacheManager/DownloadManager/音源缓存）与公共逻辑。 |
+| `src/yinhe/web/share.py` | 短分享码、OG 分享卡片、首页 meta 注入。 |
+| `src/yinhe/web/tracks_api.py` | 搜索、试听、分 P、歌词、网页音源元数据。 |
+| `src/yinhe/web/library_api.py` | library 全量读写、播放列表 CRUD、收藏、播放统计。 |
+| `src/yinhe/web/local_api.py` | 本地文件列表/流/封面/删除。 |
+| `src/yinhe/web/downloads.py` | `DownloadManager`（后台任务/进度/取消）、sidecar 写入。 |
+| `src/yinhe/web/downloads_api.py` | 下载端点：提交任务、查进度、取消。 |
+| `src/yinhe/web/stream.py` | 缓存流、流代理（Referer/Cookie）、封面缩略图代理。 |
+| `src/yinhe/web/rooms.py` | 一起听房间管理与 WebSocket。 |
+
+## `scripts/` 运维脚本
+
+| 文件 | 职责 |
+|------|------|
+| `scripts/sync_library.py` | 本地 ↔ 远程服务器 Library 双向同步（SSH/SFTP + API）。 |
+| `scripts/deploy.py` | 打包部署项目代码与音乐文件到远程服务器。 |
+| `scripts/export_liked.py` | 导出点赞列表为 JSON。 |
+| `scripts/migrate_to_library.py` | 旧版分散数据 → 统一音乐库的一次性迁移脚本（历史）。 |
 
 ## `src/web/static/` H5 前端
 
@@ -99,7 +110,7 @@
 |------|------|
 | `data/` | 下载的音乐文件。 |
 | `cache/` | 试听缓存。 |
-| `config/` | `config.json`、播放列表、分享码、历史记录。 |
+| `config/` | `config.json`、分享码等服务器配置。 |
 | `library/` | 本地音乐库（`library.json`、`files/`、`assets/`）。 |
 
 ## 下一篇

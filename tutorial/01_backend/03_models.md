@@ -1,6 +1,6 @@
 # 03 数据模型
 
-`src/music_cli/models.py` 定义了项目中最核心的数据结构。理解这些模型，是理解整个项目数据流的前提。
+`src/yinhe/models.py` 定义了项目中最核心的数据结构。理解这些模型，是理解整个项目数据流的前提。
 
 ## `TrackSource` 常量
 
@@ -87,34 +87,26 @@ class CachedTrack(BaseModel):
 
 由 `CacheManager` 维护，存在 `cache/index.json`。
 
-## `LocalItem`
+## `Playlist` 与 `Song`
 
-表示本地音频/视频文件条目，可能来自缓存目录或下载目录：
-
-```python
-class LocalItem(BaseModel):
-    key: str
-    path: Path
-    media_type: MediaType = MediaType.AUDIO
-    size: int
-    track: Optional[Track] = None
-    downloaded_at: Optional[datetime] = None
-    is_cache: bool = False
-```
-
-## `Playlist`
-
-播放列表：
+注意：`Playlist` 和 `Song` 定义在 `src/yinhe/library.py`（不是 models.py），是 Library 持久化模型：
 
 ```python
 class Playlist(BaseModel):
     id: str
     name: str
-    is_default: bool = False
-    tracks: list[Track] = Field(default_factory=list)
+
+class Song(BaseModel):
+    id: str
+    title: str
+    artist: str
+    source: str
+    # ... path / cover_path / playlists / play_count 等
 ```
 
-注意：在后端新版 `Library` 中，`Playlist` 只保存 `id` 和 `name`，曲目通过 `Song.playlists` 关联。前端为了使用方便，会重新构造出带 `tracks` 的播放列表对象。
+曲目不内嵌在播放列表里，而是通过 `Song.playlists`（列表 id 数组）关联。前端为了使用方便，会重新构造出带 `tracks` 的播放列表对象。
+
+> 历史：models.py 曾定义过带 `tracks` 的旧版 `Playlist` 以及 `Favorite` / `PlayHistory` / `LocalItem`，2026-06 重构时已随死代码一并移除。
 
 ## 下一篇
 
