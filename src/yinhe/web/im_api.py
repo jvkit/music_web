@@ -18,6 +18,8 @@ from pydantic import BaseModel
 
 from yinhe.web.users_api import _load_users, _save_users, _resolve_user, _user_data_file, _load_user_data, _save_user_data
 
+logger = __import__("logging").getLogger(__name__)
+
 router = APIRouter(tags=["im"])
 
 _lock = threading.RLock()
@@ -193,6 +195,7 @@ async def ws_im(websocket: WebSocket, token: Optional[str] = None):
     """即时通信长连接。鉴权：?token=（Bearer token）"""
     from yinhe.web.users_api import _load_users as load_users
 
+    logger.info("WS 握手: token=%s...", (token or "")[:8])
     if not token:
         await websocket.close(code=4001)
         return
@@ -202,6 +205,7 @@ async def ws_im(websocket: WebSocket, token: Optional[str] = None):
         if info.get("token") and secrets_compare(info["token"], token):
             username = name
             break
+    logger.info("WS 鉴权结果: %s", username or "失败")
     if username is None:
         await websocket.close(code=4003)
         return
