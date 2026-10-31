@@ -39,7 +39,8 @@ class YouTubeSource(Source):
             "extract_flat": False,
             # 数据中心 IP 下 default(ANDROID_VR) 客户端签发的 googlevideo 直链会被 403，
             # android 客户端签发的可正常下载（2026-10-31 在服务器 mihomo 代理上实测）。
-            "extractor_args": {"youtube": {"player_client": ["android", "default"]}},
+            # 只留 android：带 default 兜底时 yt-dlp 可能选中 default 的格式导致下载仍 403。
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
         }
         if self.proxy:
             opts["proxy"] = self.proxy
