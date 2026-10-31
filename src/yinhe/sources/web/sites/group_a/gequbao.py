@@ -5,7 +5,7 @@ import re
 from typing import Optional
 from urllib.parse import quote, urljoin
 
-import requests
+from curl_cffi import requests as cffi_requests
 from bs4 import BeautifulSoup
 
 from yinhe.models import MediaType, Track
@@ -14,7 +14,9 @@ from yinhe.sources.web.base import WebAdapter
 
 class GequbaoAdapter(WebAdapter):
     def __init__(self) -> None:
-        self._session = requests.Session()
+        # 歌曲宝套了 Cloudflare，python-requests 的 TLS 指纹会被 403，
+        # 用 curl_cffi 模拟浏览器指纹
+        self._session = cffi_requests.Session(impersonate="chrome124")
         self._session.headers.update(
             {
                 "User-Agent": (
@@ -25,7 +27,6 @@ class GequbaoAdapter(WebAdapter):
                 "Accept-Language": "zh-CN,zh;q=0.9",
             }
         )
-
     @property
     def site_id(self) -> str:
         return "gequbao"
@@ -123,7 +124,7 @@ class GequbaoAdapter(WebAdapter):
         api_url = urljoin(self.site_url, "/member/common-play-url")
         api_resp = self._session.post(
             api_url,
-            data={"id": play_id},
+            data={"id": play_id, "purpose": "play"},
             headers={
                 "Referer": source_url,
                 "X-Requested-With": "XMLHttpRequest",
