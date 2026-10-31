@@ -1,22 +1,62 @@
 """音乐库端点：library 全量读写 / 播放列表 CRUD / 收藏 / 播放统计"""
 
+import json
 import uuid
+from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
+from yinhe.config import get_config_dir
 from yinhe.library import LibraryData, Playlist as LibraryPlaylist
 from yinhe.web import deps
 
 router = APIRouter(tags=["library"])
 
 
+# ===================== 当日播放统计（首页排序用） =====================
+
+_DAILY_PLAYS_FILE = "daily_plays.json"
+
+
+def _daily_plays_path() -> Path:
+    return get_config_dir() / _DAILY_PLAYS_FILE
+
+
+def _bump_daily_play(track_id: str) -> None:
+    """按天记录播放次数，只保留最近 7 天。"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    path = _daily_plays_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    day = data.setdefault(today, {})
+    day[track_id] = day.get(track_id, 0) + 1
+    keys = sorted(data.keys())[-7:]
+    data = {k: data[k] for k in keys}
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def _today_plays() -> dict[str, int]:
+    today = datetime.now().strftime("%Y-%m-%d")
+    path = _daily_plays_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return dict(data.get(today) or {})
+
+
 # ===================== Library 全量同步 =====================
 
 @router.get("/library")
 def api_library_get():
-    """返回完整 library 数据，用于同步。"""
+    """返回完整 library 数据 + 今日每首播放次数（客户端排序用），用于同步。"""
     library = deps.get_library()
-    return library.data.model_dump(mode="json")
+    payload = library.data.model_dump(mode="json")
+    payload["today_plays"] = _today_plays()
+    return payload
 
 
 @router.post("/library")
@@ -184,6 +224,7 @@ def api_record_play(req: deps.PlayRecordRequest):
         else:
             raise HTTPException(status_code=404, detail="曲目不存在")
 
+    _bump_daily_play(req.track_id)
     song = library.get_song(req.track_id)
     return {"track_id": req.track_id, "count": song.play_count if song else 0}
 

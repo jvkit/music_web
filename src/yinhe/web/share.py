@@ -53,12 +53,17 @@ def _save_share_codes(codes: dict) -> None:
     path.write_text(json.dumps(codes, ensure_ascii=False), encoding="utf-8")
 
 
-def _create_share_code(track: dict) -> str:
+def _create_share_code(track: Optional[dict] = None, playlist: Optional[dict] = None) -> str:
     codes = _load_share_codes()
     now = time.time()
     codes = {k: v for k, v in codes.items() if v.get("exp", now) > now}
     code = base64.urlsafe_b64encode(os.urandom(6)).decode().rstrip("=")
-    codes[code] = {"track": track, "exp": now + _SHARE_CODE_TTL_SECONDS}
+    payload: dict = {"exp": now + _SHARE_CODE_TTL_SECONDS}
+    if playlist is not None:
+        payload["playlist"] = playlist
+    if track is not None:
+        payload["track"] = track
+    codes[code] = payload
     _save_share_codes(codes)
     return code
 
@@ -283,21 +288,34 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
 # ===================== API =====================
 
 @router.post("/share")
-def api_create_share(track: dict):
-    """为歌曲创建短分享码，返回 ?c=xxx 用的 code。"""
+def api_create_share(payload: dict):
+    """创建短分享码：歌曲传 Track 字典；歌单传 {"type":"playlist","playlist":{name,tracks:[...]}}。"""
+    if payload.get("type") == "playlist":
+        playlist = payload.get("playlist") or {}
+        if not playlist.get("name") or not isinstance(playlist.get("tracks"), list):
+            raise HTTPException(status_code=400, detail="歌单数据不完整")
+        code = _create_share_code(playlist=playlist)
+        return {"code": code}
+    track = payload
     if not track or not track.get("id") or not track.get("title") or not track.get("source"):
         raise HTTPException(status_code=400, detail="缺少必要字段")
-    code = _create_share_code(track)
+    code = _create_share_code(track=track)
     return {"code": code}
 
 
 @router.get("/share")
 def api_get_share(code: str = Query(..., description="分享码")):
-    """根据短分享码获取歌曲信息。"""
-    track = _get_share_track(code)
-    if not track:
+    """根据短分享码获取分享内容：歌曲或歌单。"""
+    codes = _load_share_codes()
+    data = codes.get(code)
+    if not data or data.get("exp", 0) < time.time():
         raise HTTPException(status_code=404, detail="分享已过期或不存在")
-    return {"track": track.model_dump()}
+    if data.get("playlist"):
+        return {"type": "playlist", "playlist": data["playlist"]}
+    track = _track_from_dict(data.get("track") or {})
+    if not track:
+        raise HTTPException(status_code=404, detail="分享内容无法解析")
+    return {"type": "track", "track": track.model_dump()}
 
 
 @router.head("/share_image")

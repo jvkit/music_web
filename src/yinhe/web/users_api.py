@@ -15,6 +15,7 @@
 import base64
 import hashlib
 import json
+import random
 import re
 import secrets
 import shutil
@@ -133,14 +134,32 @@ def _issue_token(username: str, password: str) -> dict[str, Any]:
     token = secrets.token_hex(24)
     with _lock:
         users = _load_users()
-        users[username] = {
+        entry = {
             "salt": salt_hex,
             "password_hash": password_hash,
             "token": token,
             "created_at": _now_iso(),
         }
+        # 注册即随机分配一个默认头像（有预设时）
+        avatar = _assign_random_preset_avatar(username)
+        if avatar:
+            entry["avatar"] = avatar
+        users[username] = entry
         _save_users(users)
     return {"token": token, "username": username}
+
+
+def _assign_random_preset_avatar(username: str) -> Optional[str]:
+    """从预设头像里随机选一个复制为用户头像，返回文件名（无预设时 None）。"""
+    presets_dir = get_config_dir() / "avatar_presets"
+    presets = sorted(presets_dir.glob("*.png")) if presets_dir.exists() else []
+    if not presets:
+        return None
+    avatar_dir = get_config_dir() / "avatars"
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+    fname = f"{_SAFE_NAME_RE.sub('_', username)}.png"
+    shutil.copyfile(random.choice(presets), avatar_dir / fname)
+    return fname
 
 
 def _now_iso() -> str:
