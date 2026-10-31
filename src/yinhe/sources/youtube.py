@@ -161,7 +161,8 @@ class YouTubeSource(Source):
             }
         else:
             opts = {
-                "format": "bestaudio/best",
+                # m4a 优先：android 客户端签发的 opus(webm) 直链在部分出口 IP 会被 403，m4a 稳定
+                "format": "bestaudio[ext=m4a]/bestaudio/best",
                 "outtmpl": outtmpl,
                 "postprocessors": [
                     {
@@ -209,7 +210,10 @@ class YouTubeSource(Source):
         url = track.source_url or track.extra.get("original_url")
         if not url:
             return None
-        with yt_dlp.YoutubeDL(self._ydl_opts()) as ydl:
+        # 不指定 format 时默认选 bestvideo+bestaudio 合并对，顶层 url 为空（requested_formats），
+        # 这里只要音频流。
+        opts = self._ydl_opts({"format": "bestaudio/best"})
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return info.get("url")
 
