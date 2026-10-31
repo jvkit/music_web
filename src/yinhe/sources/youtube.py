@@ -23,6 +23,10 @@ class YouTubeSource(Source):
     def __init__(self, proxy: Optional[str] = None, cookie_file: Optional[str] = None):
         self.proxy = proxy
         self.cookie_file = cookie_file
+        # stream_proxy 会复用此 session 转发 googlevideo 流；没配代理会在国内服务器上连不通
+        self._session = requests.Session()
+        if proxy:
+            self._session.proxies.update({"http": proxy, "https": proxy})
 
     @property
     def name(self) -> TrackSource:
