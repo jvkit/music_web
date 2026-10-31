@@ -210,16 +210,12 @@ class YouTubeSource(Source):
         return self._entry_to_track(info)
 
     def get_stream_url(self, track: Track) -> Optional[str]:
-        """获取可直接播放的音频流地址"""
-        url = track.source_url or track.extra.get("original_url")
-        if not url:
-            return None
-        # 不指定 format 时默认选 bestvideo+bestaudio 合并对，顶层 url 为空（requested_formats），
-        # 这里只要音频流。
-        opts = self._ydl_opts({"format": "bestaudio/best"})
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return info.get("url")
+        """获取可直接播放的音频流地址。
+
+        YouTube 恒返回 None：googlevideo 直链被出口 IP 风控（只允许读开头约 1MB，
+        其余 403），走 yt-dlp 完整下载（其下载器能稳定绕开）后由本地流播放更可靠。
+        """
+        return None
 
     @staticmethod
     def _ffmpeg_location() -> Optional[str]:
