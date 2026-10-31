@@ -42,11 +42,24 @@ sudo systemctl restart music-web.service
   `GET /proxies` 看组；`/proxies/<组>/delay?timeout=4000&url=<gstatic204>` 测延迟；
   `PUT /proxies/<组>` body `{"name": "<节点>"}` 切换。组嵌套：节点选择→自动节点→具体节点。
   「自动节点」默认选的节点可能已死，延迟测试选最快的切过去。
-- **待解决（DNS）**：切了活节点后 curl 走代理仍 000。流量日志显示 `[TCP] ... match ... using 节点`，
-  疑似 fake-ip + fallback DoH（1.1.1.1 等）在国内服务器上解析被污染/不可达。
-  下一步：给配置 DNS 段加 `proxy-server-nameserver`（走节点查 DNS）或改 fake-ip-filter，
-  重启 mihomo 再验。通了之后：music 服务 config.json `proxy` 指 `http://127.0.0.1:7890`，
-  restart music-web，验证 `/api/search?source=youtube`。
+- **DNS 000 问题（已解决，2026-10-31）**：症状是流量日志显示 `match ... using 节点` 但 curl 仍 000。
+  实际**没有改任何配置**——重启服务后 url-test 重新测速换到可用节点，出口即通
+  （google/youtube/soundcloud 全 200）。教训：Sakura 的 fallback DoH（1.1.1.1 等）在国内
+  确实不可达，但 mihomo 并行查询多 nameserver（doh.pub/alidns 可达），域名解析不受影响；
+  000 时先等 url-test 跑完一轮或 `PUT /proxies/节点选择 {"name":"自动节点"}` 让它自动换点，
+  别急着改 DNS 段。
+- **节点自动切换（已配置）**：`节点选择` 组已切到 `自动节点`（url-test 全量节点组），
+  节点挂了自动选最快，无需人工。
+- **看门狗（已配置）**：`/home/ubuntu/mihomo-proxy/watchdog.sh` + systemd
+  `mihomo-watchdog.timer`（每 5 分钟）：curl google+youtube 经代理探测，不通则先调 API
+  让 url-test 组重新测速（`/group/自动节点/delay?timeout=5000&url=http://www.gstatic.com/generate_204`），
+  仍不通重启 mihomo-proxy，日志 `watchdog.log`。注意 API 路径里的组名要 URL encode
+  （python urllib.parse.quote）。
+- **music 服务接代理（已配置）**：`~/.config/music/config.json` 写
+  `{"proxy": "http://127.0.0.1:7890"}`，`systemctl restart music-web` 生效。
+  ⚠️ settings.py 注释写 `~/.config/musiic-cli/config.json` 是错的：platformdirs 在 Linux 忽略
+  appauthor，实际路径是 `~/.config/music/`（该目录还有 announcement.json/users.json 可作旁证）。
+  线上已验证：`/api/search?source=youtube|soundcloud` 返回真实结果 200。
 
 ### ssh 反向转发
 
