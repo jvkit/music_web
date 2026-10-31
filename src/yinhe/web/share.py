@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, unquote, urlparse
 
+import fastapi
 import requests
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -288,7 +289,7 @@ def _build_default_meta(request: Request) -> tuple[str, str]:
 # ===================== API =====================
 
 @router.post("/share")
-def api_create_share(payload: dict):
+def api_create_share(payload: dict = fastapi.Body(...)):
     """创建短分享码：歌曲传 Track 字典；歌单传 {"type":"playlist","playlist":{name,tracks:[...]}}。"""
     if payload.get("type") == "playlist":
         playlist = payload.get("playlist") or {}
