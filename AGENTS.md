@@ -182,7 +182,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - `models.py`：`Track.source` 为 `str`，支持任意 `web_<site_id>`。
 - `sources/web/base.py`：`WebAdapter` 抽象（search / get_stream_url / download）；`source.py` 按 `site_id` 分发；`sites/group_a|group_b/` 共 9 个站点适配器。
 - `direct_stream=true` 的源可直接流式播放（⭐ 标记），否则由后端下载到缓存再播。
-- 不稳定源（qqmp3、musicenc）常被关键词拦截或返回空结果，前端显示「（不稳定）」。
+- 不稳定源（qqmp3、netease_fe_mm）常被关键词拦截或取链失败，前端显示「（不稳定）」；musicenc、tonzhon_whamon 已于 2026-10 确认死站并注销注册（详见 knowledge/2026-10_source_rescue.md）。
 
 ### QQ/微信分享卡片
 

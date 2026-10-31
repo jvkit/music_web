@@ -23,7 +23,6 @@ def _load_adapters() -> list[WebAdapter]:
         gequbao,
         jbsou,
         liumingye,
-        musicenc,
     )
 
     # group_b: 站点 id 以 m-z 开头
@@ -31,17 +30,17 @@ def _load_adapters() -> list[WebAdapter]:
         netease_fe_mm,
         qqmp3,
         tonzhon,
-        tonzhon_whamon,
     )
 
+    # musicenc（2026-10 起全网约等于死站，直连/代理均超时）、
+    # tonzhon_whamon（镜像域名 DNS 已不存在）停止注册。
+    # 站点文件保留在 sites/ 下，恢复时把 import 与下方列表加回来即可。
     for module in [
         liumingye,
         tonzhon,
-        tonzhon_whamon,
         qqmp3,
         gequbao,
         fangpi,
-        musicenc,
         jbsou,
         netease_fe_mm,
     ]:

@@ -27,6 +27,8 @@ __all__ = [
 SOURCE_STATUS = {
     "qqmp3": "unstable",
     "musicenc": "unstable",
+    # 搜索接口仍可用，但 /song/url 取链对全部歌曲返回 null（2026-10 实测），标记不稳定
+    "netease_fe_mm": "unstable",
 }
 
 
