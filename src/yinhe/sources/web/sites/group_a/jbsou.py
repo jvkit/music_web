@@ -1,5 +1,6 @@
 """JB搜 适配器"""
 
+import re
 from typing import Any, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -18,6 +19,9 @@ class JbsouAdapter(WebAdapter):
     """
 
     _PAGE_SIZE = 10
+
+    def __init__(self) -> None:
+        self._guard: Optional[str] = None
 
     @property
     def site_id(self) -> str:
@@ -48,6 +52,38 @@ class JbsouAdapter(WebAdapter):
             "Accept": "application/json, text/javascript, */*; q=0.01",
         }
 
+    def _guard_cookie(self, refresh: bool = False) -> Optional[str]:
+        """获取站点 WAF 的 mk_visit 令牌。
+
+        煎饼搜套了 X-Mk-Guard 防护：直接 POST 搜索会返回 403
+        「请刷新页面后重试」；需要先以浏览器头 GET 首页，从页面内联脚本
+        ``document.cookie="mk_visit=..."`` 中提取令牌，再带 Cookie 请求。
+        令牌按请求时间签发（max-age 12h），缓存复用即可。
+        """
+        if self._guard and not refresh:
+            return self._guard
+        try:
+            resp = requests.get(
+                self.site_url,
+                headers={
+                    "User-Agent": self._headers()["User-Agent"],
+                    "Accept": (
+                        "text/html,application/xhtml+xml,application/xml;"
+                        "q=0.9,image/avif,image/webp,*/*;q=0.8"
+                    ),
+                    "Accept-Language": "zh-CN,zh;q=0.9",
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            match = re.search(r"mk_visit=([0-9a-fA-F-]+)", resp.text)
+        except Exception:
+            return None
+        if not match:
+            return None
+        self._guard = f"mk_visit={match.group(1)}"
+        return self._guard
+
     def _resolve(self, path_or_url: Optional[str]) -> Optional[str]:
         if not path_or_url:
             return None
@@ -60,12 +96,13 @@ class JbsouAdapter(WebAdapter):
         results: list[Track] = []
         skip = offset % self._PAGE_SIZE
         page = offset // self._PAGE_SIZE + 1
+        guard = self._guard_cookie()
 
         while len(results) < limit:
             try:
                 resp = requests.post(
                     self.site_url,
-                    headers=self._headers(),
+                    headers={**self._headers(), **({"Cookie": guard} if guard else {})},
                     data={
                         "input": query,
                         "filter": "name",
@@ -74,6 +111,22 @@ class JbsouAdapter(WebAdapter):
                     },
                     timeout=60,
                 )
+                if resp.status_code == 403:
+                    # 令牌过期则刷新后重试一次
+                    guard = self._guard_cookie(refresh=True)
+                    if not guard:
+                        break
+                    resp = requests.post(
+                        self.site_url,
+                        headers={**self._headers(), "Cookie": guard},
+                        data={
+                            "input": query,
+                            "filter": "name",
+                            "type": "netease",
+                            "page": page,
+                        },
+                        timeout=60,
+                    )
                 resp.raise_for_status()
                 payload = resp.json()
             except Exception:
@@ -156,9 +209,10 @@ class JbsouAdapter(WebAdapter):
             return None
 
         try:
+            guard = self._guard_cookie()
             resp = requests.get(
                 url,
-                headers=self._headers(),
+                headers={**self._headers(), **({"Cookie": guard} if guard else {})},
                 timeout=60,
                 allow_redirects=False,
             )
