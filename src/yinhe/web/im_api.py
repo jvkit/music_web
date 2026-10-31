@@ -163,6 +163,10 @@ class ListenStateRequest(BaseModel):
     track: Optional[dict[str, Any]] = None
     position_ms: int = 0
     is_playing: bool = False
+    # 状态版本号：发起方每次播放操作递增，跟随方只在 rev 变化时全量应用（防回声循环）
+    rev: int = 0
+    # 一起听对象（被邀请者用户名）；None 表示开放邀请中。跟随方发现 partner 不是自己→来晚失效
+    partner: Optional[str] = None
 
 
 @router.post("/im/listen/state")
@@ -173,6 +177,8 @@ def api_listen_state(req: ListenStateRequest, authorization: Optional[str] = Hea
         "track": req.track,
         "position_ms": req.position_ms,
         "is_playing": req.is_playing,
+        "rev": req.rev,
+        "partner": req.partner,
         "ts": int(time.time() * 1000),
     }
     return {"ok": True}
@@ -239,6 +245,8 @@ async def ws_im(websocket: WebSocket, token: Optional[str] = None):
                 payload["note"] = str(msg.get("note") or "")[:200]
             elif mtype == "share_playlist":
                 # note 存分享码（/api/share?code= 可取回完整歌单）
+                payload["note"] = str(msg.get("note") or "")[:200]
+            elif mtype in ("listen_accept", "listen_leave"):
                 payload["note"] = str(msg.get("note") or "")[:200]
             else:
                 continue
