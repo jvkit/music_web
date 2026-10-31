@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from yinhe.web import deps, downloads_api, library_api, local_api, share, stream, tracks_api
+from yinhe.web import deps, downloads_api, library_api, local_api, share, stream, tracks_api, users_api
 from yinhe.web.rooms import router as rooms_router
 
 
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(local_api.router, prefix="/api")
     app.include_router(downloads_api.router, prefix="/api")
     app.include_router(stream.router, prefix="/api")
+    app.include_router(users_api.router, prefix="/api")
     app.include_router(rooms_router, prefix="/api")
 
     # 静态文件：H5 前端
