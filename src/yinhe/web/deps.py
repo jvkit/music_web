@@ -57,9 +57,12 @@ def get_download_manager() -> DownloadManager:
 
 
 def get_web_source(name: str) -> Source:
-    proxy = _resolve_proxy()
+    # 分源代理：仅外网源（YouTube/SoundCloud）走代理；国内源直连，
+    # 代理不可用时不连累国内搜索/播放（代理挂了只影响外网源）。
+    lowered = name.lower()
+    proxy = _resolve_proxy() if lowered in _PROXY_SOURCES else None
     cookie_file = _resolve_cookie_file()
-    key = (name.lower(), proxy, cookie_file)
+    key = (lowered, proxy, cookie_file)
     src = _source_cache.get(key)
     if src is None:
         src = get_source(name, proxy=proxy, cookie_file=cookie_file)
@@ -107,6 +110,10 @@ class LyricsRequest(BaseModel):
 
 
 # ===================== 配置解析 =====================
+
+# 仅这些源走代理（被墙的外网源）；其余全部直连
+_PROXY_SOURCES = frozenset({"youtube", "soundcloud"})
+
 
 def _resolve_proxy() -> Optional[str]:
     return load_settings().proxy
