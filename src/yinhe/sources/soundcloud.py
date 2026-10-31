@@ -281,16 +281,9 @@ class SoundCloudSource(Source):
         raise RuntimeError(f"SoundCloud 下载失败: {last_err}")
 
     def get_stream_url(self, track: Track) -> Optional[str]:
-        track_id = track.extra.get("original_id") if track.extra else None
-        if not track_id:
-            if track.id.startswith("soundcloud:"):
-                track_id = track.id.split(":", 1)[1]
-        if not track_id:
-            return None
-        try:
-            return self._get_stream_url(track_id)
-        except Exception:
-            return None
+        """恒返回 None：SoundCloud 给的是 HLS(m3u8)，分段 URL 国内客户端直连不到，
+        必须服务端完整下载后由本地流播放。"""
+        return None
 
     @staticmethod
     def _safe_filename(track: Track) -> str:
