@@ -131,6 +131,25 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 
 ## 已知问题与修复记录
 
+### 用户系统与 IM（2026-10 App 上线）
+
+- 用户系统：PBKDF2 哈希 + Bearer token，users.json 存账号条目，per-user 数据 users/<name>.json
+  （歌单+收藏全量，客户端权威同步）。App 端 AuthRepository 存 token。
+- IM：/api/ws/im 长连接（好友直加双向、聊天、分享音乐、presence 广播、离线信箱 inbox 拉取即清）；
+  一起听 = /im/listen/state 覆盖上报 + 3s 轮询跟随。
+- 公告：/api/announcement 读 config/announcement.json（改内容免重启）。
+
+### WS 握手 500 的根因排查
+
+症状是客户端 "Expected HTTP 101 but was 500"——先 `journalctl`/日志找 Traceback。本次根因是
+ws 路由函数里用了未定义的 `logger`（NameError），与 token/请求头/URL 均无关。经验：
+**WS 握手期 500 = 服务端路由函数异常**，500 期间 onOpen 不会触发。
+
+### 分源代理
+
+settings.json 的 proxy 只应用于外网源（_PROXY_SOURCES = youtube/soundcloud），国内源传 None 直连，
+代理故障不再连累国内搜索/播放。部署运维全流程见 `knowledge/2026-10_server_ops.md`。
+
 ### 下载链路断裂（2026-06 重构修复）
 
 - 根因：`POST /api/download` 同步下载后返回 `task_id: None`，但前端把「无 task_id」当失败处理，且大文件阻塞请求数分钟。
