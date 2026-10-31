@@ -17,6 +17,7 @@ import hashlib
 import json
 import re
 import secrets
+import shutil
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -354,3 +355,54 @@ def api_get_avatar(username: str):
             media = "image/png" if ext == ".png" else "image/jpeg"
             return FileResponse(p, media_type=media)
     raise HTTPException(status_code=404, detail="无头像")
+
+
+_PRESETS_DIR = "avatar_presets"
+
+
+class AvatarPresetRequest(BaseModel):
+    name: str = Field(min_length=1)
+
+
+def _presets_dir() -> Path:
+    return get_config_dir() / _PRESETS_DIR
+
+
+@router.get("/auth/avatar_presets")
+def api_avatar_presets():
+    """预设头像列表（公开），文件名即展示顺序。"""
+    d = _presets_dir()
+    names = sorted(p.name for p in d.glob("*.png")) if d.exists() else []
+    return {"presets": names}
+
+
+@router.get("/auth/avatar_preset/{filename}")
+def api_avatar_preset(filename: str):
+    """单个预设头像（公开）。"""
+    safe = Path(filename).name  # 防路径穿越
+    p = _presets_dir() / safe
+    if not p.exists() or p.suffix != ".png":
+        raise HTTPException(status_code=404, detail="预设不存在")
+    return FileResponse(p, media_type="image/png")
+
+
+@router.post("/auth/avatar/preset")
+def api_use_avatar_preset(req: AvatarPresetRequest, authorization: Optional[str] = Header(default=None)):
+    """选用预设头像：复制 presets 文件为用户头像（用户名直查的公开路由即刻生效）。"""
+    me = _resolve_user(authorization)
+    src = _presets_dir() / Path(req.name).name
+    if not src.exists() or src.suffix != ".png":
+        raise HTTPException(status_code=404, detail="预设不存在")
+    avatar_dir = get_config_dir() / _AVATARS_DIR
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+    fname = f"{_safe_name(me)}.png"
+    for old in avatar_dir.glob(f"{_safe_name(me)}.*"):
+        if old.name != fname:
+            old.unlink()
+    shutil.copyfile(src, avatar_dir / fname)
+    with _lock:
+        users = _load_users()
+        if me in users:
+            users[me]["avatar"] = fname
+            _save_users(users)
+    return {"ok": True, "avatar": fname}
