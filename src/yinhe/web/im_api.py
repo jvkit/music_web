@@ -237,6 +237,9 @@ async def ws_im(websocket: WebSocket, token: Optional[str] = None):
                 payload["track"] = msg.get("track")
             elif mtype == "listen_invite":
                 payload["note"] = str(msg.get("note") or "")[:200]
+            elif mtype == "share_playlist":
+                # note 存分享码（/api/share?code= 可取回完整歌单）
+                payload["note"] = str(msg.get("note") or "")[:200]
             else:
                 continue
             if not await _send_to(to, payload):
