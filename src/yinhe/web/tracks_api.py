@@ -149,11 +149,16 @@ def api_track_pages(
 
 @router.post("/lyrics")
 def api_lyrics(req: deps.LyricsRequest):
-    """获取歌词（带时间轴）"""
+    """获取歌词（带时间轴）。原生源走原生 get_lyrics；网页源实现了才调，否则无歌词。"""
     track = req.track
     try:
-        src = deps.get_web_source(track.source)
-        lyrics = src.get_lyrics(track)
+        if track.source.startswith("web_"):
+            src = deps.get_web_source(track.source)
+            get_lyrics = getattr(src, "get_lyrics", None)
+            lyrics = get_lyrics(track) if callable(get_lyrics) else None
+        else:
+            from yinhe.sources import get_source
+            lyrics = get_source(track.source).get_lyrics(track)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"歌词获取失败: {e}")
     if not lyrics:
