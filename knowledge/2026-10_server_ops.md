@@ -66,6 +66,30 @@ sudo systemctl restart music-web.service
 ssh config `Host j` 原有的 `RemoteForward 17890 localhost:7890`（借本地代理）**已注释停用**——
 服务器自跑 mihomo 后不再需要，留着反而会因本地代理没开导致 ssh 建连异常。
 
+## 外网源播放修复实录（2026-10-31 深夜）
+
+排查链路：客户端"播放失败" → journal 看 `/api/preview` 500 → 逐项实测定位。
+
+- **YouTube 搜索通、播放 403（已修）**：googlevideo 对机房出口 IP 风控，
+  default(ANDROID_VR) 客户端签发的直链下载被 403，且**只允许读文件开头约 1MB**
+  （range 0-1048575 给 206，第二 MB / 整段 / 不带 Range 全 403；此限制与格式无关，itag 140/251 一样）。
+  - yt-dlp 自己的下载器能稳定拿完整文件（实测 3/3），原因未查明（非 headers 差异），别浪费时间复刻，直接用 yt-dlp 下载。
+  - 修法：`extractor_args={"youtube":{"player_client":["android"]}}`——**只能留 android**，
+    带 default 兜底时 yt-dlp 会选中 default 的格式导致下载仍 403。配在 `_ydl_opts` 全局生效。
+  - `get_stream_url` 恒返回 None → 外网源统一走"服务端完整下载 → 本地流播放"，
+    顺带把文件和元数据收进曲库（用户正好要收集元数据）。下载格式 `bestaudio[ext=m4a]/bestaudio/best`。
+- **stream_proxy 不会用音源的 requests session（已修）**：旧代码 `getattr(src, "_session", None)`
+  对 YouTube 拿到 None 回退裸 requests → 服务器直连 googlevideo 超时。已给 YouTubeSource 补
+  `_session`（配代理）。⚠️ 现在 YouTube/SoundCloud 已不走这条，但 Bilibili 等还在用，别删。
+- **SoundCloud 的 HLS 陷阱（已修）**：其流地址是 m3u8 播放列表，手机直连分段 URL 不通；
+  更隐蔽的是旧 `_download_stream` 把 **m3u8 文本存成了 .mp3**（文件以 `#EXT` 开头），
+  本地流播不出来。修法：下载改 yt-dlp（原生 HLS 合并 + ffmpeg 转码），`get_stream_url` 也恒 None。
+  排查已入库的坏文件：`curl -r 0-15 <local stream>` 看是不是 `#EXT` 开头，是就 `DELETE /api/local/{id}` 重下。
+- **外网源首开延迟 5-45s**（下载+转码），客户端"正在…"提示就是这个阶段，属预期；
+  之后本地秒播。要更快得做边下边播（HLS 代理重写），暂不做。
+- 验证手法：`POST /api/preview {"track_id":"youtube:dQw4w9WgXcQ","source":"youtube"}`
+  期望 `streamed:false` + `api/local/stream/...`；再 `curl -r 0-4 <local stream>` 应为 `ID3` 或 OggS 头。
+
 ## 代码层的教训
 
 - **WS 路由里用未定义变量 = 握手 500**：im_api.py 第一版用了 `logger.info` 但漏了
