@@ -1,7 +1,7 @@
 """SoundCloud 音源实现
 
-使用 SoundCloud 公开 API (api-v2.soundcloud.com) 搜索与下载，
-避免 yt-dlp 在中国大陆代理环境下偶发的 SSL EOF 问题。
+搜索/元数据用 SoundCloud 公开 API (api-v2.soundcloud.com)，避免 yt-dlp 偶发的 SSL EOF；
+下载用 yt-dlp（SoundCloud 已全面 HLS 化，需要它做分片合并与转码）。
 """
 
 import re
@@ -10,16 +10,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
+import yt_dlp
 
+from yinhe.ffmpeg import find_ffmpeg
 from yinhe.models import MediaType, Track, TrackSource
 from yinhe.sources.base import DownloadContext, Source
-
-
-def _content_length(resp) -> Optional[int]:
-    try:
-        return int(resp.headers.get("content-length", 0)) or None
-    except (ValueError, TypeError):
-        return None
 
 
 class SoundCloudSource(Source):
@@ -180,41 +175,6 @@ class SoundCloudSource(Source):
             raise RuntimeError("SoundCloud 解析结果不是曲目")
         return self._track_item_to_track(data)
 
-    def _get_stream_url(self, track_id: str) -> str:
-        """获取可下载的 MP3 流地址
-
-        SoundCloud v2 不再使用 /tracks/{id}/streams，而是在 track.media.transcodings
-        中列出不同格式/码率的转码地址，需再次请求获取带签名的真实 CDN URL。
-        """
-        track_data = self._request_json(f"{self._API_BASE}/tracks/{track_id}")
-        media = track_data.get("media") or {}
-        transcodings = media.get("transcodings") or []
-
-        # 优先 progressive MP3，其次 HLS mp3，最后任意 progressive
-        preferred = None
-        for t in transcodings:
-            fmt = t.get("format") or {}
-            if fmt.get("protocol") == "progressive" and "mp3" in fmt.get("mime_type", ""):
-                preferred = t
-                break
-        if not preferred:
-            for t in transcodings:
-                fmt = t.get("format") or {}
-                if fmt.get("protocol") == "progressive":
-                    preferred = t
-                    break
-        if not preferred and transcodings:
-            preferred = transcodings[0]
-
-        if not preferred:
-            raise RuntimeError("无法获取 SoundCloud 音频转码信息")
-
-        stream_info = self._request_json(preferred["url"])
-        url = stream_info.get("url")
-        if not url:
-            raise RuntimeError("无法获取 SoundCloud 音频流")
-        return url
-
     def download(
         self,
         track: Track,
@@ -225,60 +185,52 @@ class SoundCloudSource(Source):
         if media_type == MediaType.VIDEO:
             raise ValueError("SoundCloud 不支持视频下载")
 
-        track_id = track.extra.get("original_id") if track.extra else None
-        if not track_id:
-            if track.id.startswith("soundcloud:"):
-                track_id = track.id.split(":", 1)[1]
-        if not track_id:
-            raise ValueError(f"无法获取 SoundCloud 曲目 ID: {track.id}")
-
         if output_path.suffix.lower() == ".mp3":
             final_path = output_path
         else:
             final_path = output_path / f"{self._safe_filename(track)}.mp3"
         final_path.parent.mkdir(parents=True, exist_ok=True)
 
-        stream_url = self._get_stream_url(track_id)
-        self._download_stream(stream_url, final_path, ctx=ctx)
-        return final_path
+        url = track.source_url
+        if not url:
+            raise ValueError(f"无法获取下载链接: {track.id}")
 
-    def _download_stream(
-        self,
-        url: str,
-        output_path: Path,
-        ctx: Optional[DownloadContext] = None,
-    ) -> None:
-        """下载音频流到本地"""
-        last_err: Optional[Exception] = None
-        for attempt in range(self._MAX_RETRIES):
-            if ctx and ctx.cancelled:
-                output_path.unlink(missing_ok=True)
-                raise RuntimeError("下载已取消")
-            try:
-                with self._session.get(url, stream=True, timeout=120) as resp:
-                    resp.raise_for_status()
-                    total = _content_length(resp)
-                    downloaded = 0
-                    with open(output_path, "wb") as f:
-                        for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                            if ctx and ctx.cancelled:
-                                output_path.unlink(missing_ok=True)
-                                raise RuntimeError("下载已取消")
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                if total and ctx:
-                                    ctx.report(int(downloaded * 100 / total))
-                if ctx:
-                    ctx.report(100)
-                return
-            except Exception as e:
-                last_err = e
-                if ctx and ctx.cancelled:
-                    raise
-                if attempt < self._MAX_RETRIES - 1:
-                    time.sleep(1.5 ** attempt)
-        raise RuntimeError(f"SoundCloud 下载失败: {last_err}")
+        # SoundCloud 现在返回 HLS(m3u8)，旧的逐字节保存会把播放列表存成 mp3；
+        # yt-dlp 原生处理 HLS 并用 ffmpeg 转码，与 YouTube 下载路径保持一致。
+        opts: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "format": "bestaudio/best",
+            "outtmpl": str(final_path.with_suffix("")),
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "0",
+                }
+            ],
+            "noplaylist": True,
+        }
+        if self.proxy:
+            opts["proxy"] = self.proxy
+        ffmpeg = find_ffmpeg()
+        if ffmpeg:
+            opts["ffmpeg_location"] = str(ffmpeg)
+        if ctx:
+            def _progress_hook(info: dict) -> None:
+                if ctx.cancelled:
+                    raise yt_dlp.utils.DownloadError("下载已取消")
+                if info.get("status") == "downloading":
+                    total = info.get("total_bytes") or info.get("total_bytes_estimate")
+                    if total:
+                        ctx.report(int(info.get("downloaded_bytes", 0) * 100 / total))
+
+            opts["progress_hooks"] = [_progress_hook]
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            ydl.download([url])
+        if ctx:
+            ctx.report(100)
+        return final_path
 
     def get_stream_url(self, track: Track) -> Optional[str]:
         """恒返回 None：SoundCloud 给的是 HLS(m3u8)，分段 URL 国内客户端直连不到，
