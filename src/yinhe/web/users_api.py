@@ -12,6 +12,7 @@
 - 同步模型：客户端权威。App 登录后拉全量，任何变更推全量快照（数据量小）。
 """
 
+import base64
 import hashlib
 import json
 import re
@@ -21,6 +22,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from yinhe.config import get_config_dir
@@ -175,7 +177,9 @@ def api_login(req: AuthRequest):
 @router.get("/me")
 def api_me(authorization: Optional[str] = Header(default=None)):
     username = _resolve_user(authorization)
-    return {"username": username}
+    users = _load_users()
+    avatar = (users.get(username) or {}).get("avatar")
+    return {"username": username, "avatar": avatar}
 
 
 class UserLibraryData(BaseModel):
@@ -196,3 +200,157 @@ def api_put_my_library(data: UserLibraryData, authorization: Optional[str] = Hea
     with _lock:
         _save_user_data(username, data.model_dump())
     return {"ok": True, "playlists": len(data.playlists), "favorites": len(data.favorites)}
+
+
+# ===================== 用户中心：改名 / 改密 / 头像 =====================
+
+_AVATARS_DIR = "avatars"
+_AVATAR_MAX_BYTES = 5 * 1024 * 1024
+_SAFE_NAME_RE = re.compile(r"[^0-9A-Za-z_.@-]")
+
+
+def _safe_name(username: str) -> str:
+    return _SAFE_NAME_RE.sub("_", username)
+
+
+class RenameRequest(BaseModel):
+    username: str = Field(min_length=1)
+
+
+class PasswordChangeRequest(BaseModel):
+    old_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
+
+
+class AvatarUploadRequest(BaseModel):
+    data: str = Field(min_length=1)
+
+
+@router.patch("/auth/me")
+def api_rename(req: RenameRequest, authorization: Optional[str] = Header(default=None)):
+    """修改用户名：账号条目、个人数据文件、好友列表、收件箱全部联动改名。"""
+    me = _resolve_user(authorization)
+    new = req.username.strip()
+    if not _USERNAME_RE.match(new) or len(new) > 64:
+        raise HTTPException(status_code=400, detail="账号不能包含空白字符，最多 64 字符")
+    with _lock:
+        users = _load_users()
+        if me not in users:
+            raise HTTPException(status_code=401, detail="账号状态异常")
+        if new == me:
+            return {"token": users[me]["token"], "username": me}
+        if new in users:
+            raise HTTPException(status_code=409, detail="该账号名已被使用")
+        entry = users.pop(me)
+        users[new] = entry
+        # 好友列表联动（双向直加，所有引用旧名的地方都要换）
+        for other, e in users.items():
+            fr = e.get("friends")
+            if isinstance(fr, list) and me in fr:
+                e["friends"] = [new if x == me else x for x in fr]
+        _save_users(users)
+        # 个人数据文件改名（歌单/收藏/收件箱都在里面，内容不动）
+        old_data = _user_data_file(me)
+        new_data = _user_data_file(new)
+        if old_data.exists():
+            new_data.parent.mkdir(parents=True, exist_ok=True)
+            old_data.replace(new_data)
+        # 头像文件改名
+        avatar_name = entry.get("avatar")
+        if avatar_name:
+            avatar_dir = get_config_dir() / _AVATARS_DIR
+            old_av = avatar_dir / avatar_name
+            if old_av.exists():
+                new_av_name = f"{_safe_name(new)}{old_av.suffix or '.png'}"
+                old_av.replace(avatar_dir / new_av_name)
+                entry["avatar"] = new_av_name
+                _save_users(users)
+        # 其他用户收件箱里的 from/to 联动
+        for other in list(users.keys()):
+            if other == new:
+                continue
+            data = _load_user_data(other)
+            inbox = data.get("inbox")
+            changed = False
+            if isinstance(inbox, list):
+                for msg in inbox:
+                    if isinstance(msg, dict):
+                        if msg.get("from") == me:
+                            msg["from"] = new
+                            changed = True
+                        if msg.get("to") == me:
+                            msg["to"] = new
+                            changed = True
+            if changed:
+                _save_user_data(other, data)
+    return {"token": entry["token"], "username": new}
+
+
+@router.post("/auth/password")
+def api_change_password(req: PasswordChangeRequest, authorization: Optional[str] = Header(default=None)):
+    """修改密码：校验旧密码，签发新 token（单会话模型，本设备直接用新 token）。"""
+    me = _resolve_user(authorization)
+    with _lock:
+        users = _load_users()
+        info = users.get(me)
+        if info is None:
+            raise HTTPException(status_code=401, detail="账号状态异常")
+        if not _check_password(req.old_password, info["salt"], info["password_hash"]):
+            raise HTTPException(status_code=401, detail="旧密码错误")
+        salt = secrets.token_hex(16)
+        info["salt"] = salt
+        info["password_hash"] = _hash_password(req.new_password, salt)
+        info["token"] = secrets.token_hex(24)
+        _save_users(users)
+    return {"token": info["token"], "username": me}
+
+
+@router.post("/auth/avatar")
+def api_upload_avatar(req: AvatarUploadRequest, authorization: Optional[str] = Header(default=None)):
+    """上传头像：base64（可带 data: 前缀），只接受 PNG/JPEG，最大 5MB。
+    文件名即用户名（安全化），公开 GET /auth/avatar/{username} 按用户名直查。"""
+    me = _resolve_user(authorization)
+    raw = req.data.strip()
+    if raw.startswith("data:") and "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        blob = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="头像数据格式错误")
+    if not blob:
+        raise HTTPException(status_code=400, detail="头像内容为空")
+    if len(blob) > _AVATAR_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="头像过大（最大 5MB）")
+    if blob[:4] == b"\x89PNG":
+        ext = ".png"
+    elif blob[:3] == b"\xff\xd8\xff":
+        ext = ".jpg"
+    else:
+        raise HTTPException(status_code=400, detail="仅支持 PNG/JPEG 图片")
+    avatar_dir = get_config_dir() / _AVATARS_DIR
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+    fname = f"{_safe_name(me)}{ext}"
+    # 清掉旧扩展名的历史头像
+    for old in avatar_dir.glob(f"{_safe_name(me)}.*"):
+        if old.name != fname:
+            old.unlink()
+    (avatar_dir / fname).write_bytes(blob)
+    with _lock:
+        users = _load_users()
+        if me in users:
+            users[me]["avatar"] = fname
+            _save_users(users)
+    return {"ok": True, "avatar": fname}
+
+
+@router.get("/auth/avatar/{username}")
+def api_get_avatar(username: str):
+    """公开接口：好友列表/聊天里展示头像用，无需登录。"""
+    avatar_dir = get_config_dir() / _AVATARS_DIR
+    safe = _safe_name(username)
+    for ext in (".png", ".jpg"):
+        p = avatar_dir / f"{safe}{ext}"
+        if p.exists():
+            media = "image/png" if ext == ".png" else "image/jpeg"
+            return FileResponse(p, media_type=media)
+    raise HTTPException(status_code=404, detail="无头像")
