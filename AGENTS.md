@@ -117,6 +117,11 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
   `POST /pet/claim`、`POST /pet/feed`、`POST /pet/interact`、`POST /pet/buy_species`、`POST /pet/switch_species`、
   `POST /pet/event`（行为埋点）、`GET /pet/shop`。WS 信令 `pet_invite`/`pet_accept`（accept 建 pair）/`pet_action`。
   经济=音符（任务/签到得、投喂换经验、升级解锁动作、角色商店兑换）。详见 andr/docs/pet-design.md。
+- 宠物素材内容（config/pet_content/，新增角色免发版）：`GET /pet/content/manifest`（manifest.json
+  缺省回退内置 boy 清单，characters[id]={name,fps,acts,clips}）与
+  `GET /pet/content/file/{character}/{act}`（每段动画一个 zip，内含 frames/frame_%04d.webp）。
+  运维：素材 zip 用 zipfile 打（241 帧/段），放 config/pet_content/<角色>/；manifest.json 只在
+  新增/改角色时需要。客户端 PetContentStore 按需下载解压到 filesDir/pet/。
 
 ## 部署
 

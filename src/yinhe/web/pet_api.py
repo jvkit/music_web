@@ -490,3 +490,73 @@ def api_pet_shop(authorization: Optional[str] = Header(default=None)):
         for pet in pets.values() if me in (pet.get("members") or [])
     }
     return {"species": SPECIES_SHOP, "levels": owned_levels}
+
+
+# ===================== 宠物素材内容（服务器下发，客户端按需下载，无需发版） =====================
+#
+# 目录结构（config/pet_content/）：
+#   manifest.json                 可选；缺省用内置清单。characters[角色id] = {name, fps, acts, clips}
+#   <character>/act1.zip ...      每段动画一个 zip，内含 frames/frame_%04d.webp（透明帧序列）
+# 新增角色 = 放 zip + 改 manifest.json（或给 SPECIES_SHOP 新 species 配同 id 角色），客户端自动下载。
+
+_CONTENT_DIR_NAME = "pet_content"
+_CONTENT_NAME_RE = __import__("re").compile(r"[0-9A-Za-z_-]+")
+
+# 内置清单与客户端 assets 内置 boy 完全一致（离线兜底）
+_DEFAULT_CONTENT: dict[str, Any] = {
+    "version": 1,
+    "characters": {
+        "boy": {
+            "name": "小河灵",
+            "fps": 24,
+            "acts": ["act1", "act2", "act3"],
+            "clips": {
+                "stand": {"act": 1, "start": 33, "end": 129},
+                "music": {"act": 3, "start": 32, "end": 76},
+                "intopocket": {"act": 1, "start": 0, "end": 33},
+                "stretch": {"act": 1, "start": 129, "end": 207},
+                "hem": {"act": 1, "start": 207, "end": 240},
+                "bounce": {"act": 2, "start": 0, "end": 58},
+                "heart": {"act": 2, "start": 58, "end": 120},
+                "neck": {"act": 2, "start": 120, "end": 187},
+                "hop": {"act": 2, "start": 193, "end": 221},
+                "puton": {"act": 3, "start": 0, "end": 32},
+                "neckwear": {"act": 3, "start": 76, "end": 100},
+                "thumbs": {"act": 3, "start": 100, "end": 124},
+                "windmill": {"act": 3, "start": 124, "end": 183},
+                "windbounce": {"act": 3, "start": 183, "end": 240},
+            },
+        }
+    },
+}
+
+
+def _content_dir():
+    d = get_config_dir() / _CONTENT_DIR_NAME
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+@router.get("/pet/content/manifest")
+def api_pet_content_manifest():
+    """宠物素材清单：客户端启动/进宠物中心时拉取，决定有哪些角色可渲染"""
+    path = _content_dir() / "manifest.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            logger.warning("pet_content/manifest.json 解析失败，回退内置清单", exc_info=True)
+    return _DEFAULT_CONTENT
+
+
+@router.get("/pet/content/file/{character}/{act}")
+def api_pet_content_file(character: str, act: str):
+    """角色动画段素材包（zip）。公开接口：素材无隐私，走 nginx 也可直接缓存"""
+    from fastapi.responses import FileResponse
+
+    if not (_CONTENT_NAME_RE.fullmatch(character) and _CONTENT_NAME_RE.fullmatch(act)):
+        raise HTTPException(status_code=400, detail="非法路径")
+    p = _content_dir() / character / f"{act}.zip"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="素材包不存在")
+    return FileResponse(p, media_type="application/zip", filename=p.name)
