@@ -248,6 +248,18 @@ async def ws_im(websocket: WebSocket, token: Optional[str] = None):
                 payload["note"] = str(msg.get("note") or "")[:200]
             elif mtype in ("listen_accept", "listen_leave"):
                 payload["note"] = str(msg.get("note") or "")[:200]
+            elif mtype == "pet_invite":
+                payload["note"] = str(msg.get("note") or "")[:200]
+            elif mtype == "pet_accept":
+                # 同意领养：服务端建 pair 记录（幂等），双方各自刷新 /pet/pairs
+                payload["note"] = str(msg.get("note") or "")[:200]
+                try:
+                    from yinhe.web import pet_api
+                    pet_api.ensure_pair(username, to)
+                except Exception as e:
+                    logger.warning("pet_accept 建宠物对失败: %s", e)
+            elif mtype == "pet_action":
+                payload["action"] = str(msg.get("action") or "")[:50]
             else:
                 continue
             if not await _send_to(to, payload):

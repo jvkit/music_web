@@ -113,6 +113,10 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - `POST /api/lyrics`、`GET /api/web_sources`、`GET /api/thumbnail?url=`（封面代理）。
 - 分享：`POST /api/share` / `GET /api/share`（短码 `?c=`，存 `<config_dir>/share_codes.json`，TTL 7 天）、`GET /api/og_image`、`GET /api/share_image`。
 - 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
+- 宠物（好友对共养，config/pets.json）：`GET /pet/pairs`、`GET /pet/pair/{friend}`、`POST /pet/signin`、
+  `POST /pet/claim`、`POST /pet/feed`、`POST /pet/interact`、`POST /pet/buy_species`、`POST /pet/switch_species`、
+  `POST /pet/event`（行为埋点）、`GET /pet/shop`。WS 信令 `pet_invite`/`pet_accept`（accept 建 pair）/`pet_action`。
+  经济=音符（任务/签到得、投喂换经验、升级解锁动作、角色商店兑换）。详见 andr/docs/pet-design.md。
 
 ## 部署
 
