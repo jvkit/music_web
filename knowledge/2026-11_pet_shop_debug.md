@@ -158,3 +158,56 @@ if (name in sellable) return false   // 在售且没买 → 一律拒绝
 批量改素材/配置前先 `cp -r` 或重命名成 `.bak`。本轮改素材帧时中途判断失误，
 靠 `.zip.bak` 才恢复回来；改 `pets.json`（发音符、调等级）同理，先停服务再改，
 避免和运行中的服务写冲突。
+
+---
+
+## 八、部署到线上（2026-11-03 实战记录）
+
+线上主机 = `ssh j`（82.157.178.112，用户 ubuntu），与音频服务**同机同进程**：
+
+| 项 | 路径 |
+|----|------|
+| 代码 | `~/workspace/music`（即本项目根，`git pull` 即可，注意这台机器上的 `config/` 是空的） |
+| 运行配置 | `~/.config/music/`（`pets.json`、`announcement.json`、`pet_content/` 都在这里） |
+| 服务 | systemd `music-web.service`，`WorkingDirectory=~/workspace/music`，`uv run music-web --port 8001` |
+| APK | `~/www/download/music/app/yinhe-music.apk`，直链 https://jvkit.cn/download/music/app/yinhe-music.apk |
+
+部署步骤：
+
+```bash
+# 1. 代码
+ssh j 'cd ~/workspace/music && git pull --ff-only'
+# 2. 宠物素材（本机 → 线上，manifest 与各角色 actX.zip）
+cd "$LOCALAPPDATA/musiic-cli/music/pet_content"
+tar czf "$LOCALAPPDATA/Temp/pet_content.tgz" boy whale_girl dsh_pet manifest.json
+cat "$LOCALAPPDATA/Temp/pet_content.tgz" | ssh j 'tar xzf - -C ~/.config/music/pet_content'
+# 3. 重启（改了 pet_api.py 才必须；只换 manifest/素材不用重启，接口是每次读文件的）
+ssh j 'sudo systemctl restart music-web && systemctl is-active music-web'
+```
+
+**坑：这台 Windows 的 `scp` 是坏的**——`scp file j:path` 直接被当成 `cp` 执行
+（`Executing: cp -- ...`，报 `cannot create file 'j:...'`）。上传一律走管道：
+`cat 本地文件 | ssh j 'cat > 远程路径'`，或 `tar czf -|...` 传目录。
+
+**线上验证清单**（改完必跑）：
+
+```bash
+curl -s https://jvkit.cn/music/api/pet/content/manifest | head -c 80      # 看 version 是否已更新
+curl -s -o /dev/null -w "%{http_code}\n" https://jvkit.cn/music/api/pet/content/file/whale_girl/act1
+# 商店货架要带 token 测（POST /api/auth/login 拿 token 后 GET /pet/shop?friend=<好友>）
+```
+
+### "动作商店是空的"的根因（2026-11-03）
+
+线上第一次测 `/pet/shop` 时 `catalog` 和 `shelf` **都是 0**：`manifest.actions` 里
+大肥鱼 75 个、鲸鱼娘 7 个、**小河灵（boy）一个都没有**——boy 的 14 个 clip 只在
+`characters.boy.clips` 里，从未被登记成可售动作。所以 default 物种（也就是所有老账号）
+的商店永远是空架。
+
+修法：在 `manifest.actions` 里给 boy 补条目（`{id, character:"boy", name, category,
+clip, min_level, pack}`），**只挑 starter 与 roles 之外的 clip**，否则会和免费动作重复。
+本轮补了 7 个：intopocket/hem/puton/neckwear/thumbs/windmill/windbounce（Lv1~5）。
+补完 manifest.version 从 11 → 12，客户端 `PetContentStore.refresh()` 才会重拉清单。
+
+**排查口诀**：商店空 → 先看 `characters[id].clips` 和 `actions` 的 `character` 字段是否对得上；
+再看 `species` 是否为 `default`（要映射成 `boy`）。两个条件缺一个都空架。
