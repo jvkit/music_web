@@ -120,14 +120,30 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
   `POST /pet/buy_action`（动作解锁）、`PATCH /pet/name`（改名）。WS 信令 `pet_invite`/`pet_accept`（accept 建 pair）/`pet_action`。
   经济=音符（任务/签到得、投喂换经验、升级解锁动作、角色商店兑换）。详见 andr/docs/pet-design.md。
 - 宠物素材内容（config/pet_content/，manifest v3，新增角色/动作免发版、免重启）：`GET /pet/content/manifest`
-  返回 {version, shop_rotation_version, characters[id]={name,fps,roles,starter,behaviors,clips,packs},
+  返回 {version, shop_rotation_version, characters[id]={name,fps,roles,starter,behaviors,clips,packs,display},
   actions=[...], shop=[...]}；`GET /pet/content/file/{character}/{act}` 返回动画段 zip
-  （内含 frames/frame_%04d.webp）。动作商店按等级随机货架（10/20/30/40 音符，生成后固定）：
-  `GET /pet/shop?friend=` 返回角色 + 当前等级货架 + 动作目录，`POST /pet/buy_action` 购买；
-  `PATCH /pet/name` 改名。客户端 PetContentStore 按 pack 懒下载、manifest.version 变化清缓存，
-  PetAnimationEngine 只认语义角色/已解锁动作。完整格式见 `knowledge/2026-11_pet_content_format.md`。
+  （内含 frames/frame_%04d.webp）。完整格式见 `knowledge/2026-11_pet_content_format.md`。
   素材（原始可操作资源 / 成品 / 生成脚本 / 局域网预览）不在本仓库，见 `~/workspace/cw/pet-assets/README.md`
   与 `~/workspace/music_app/ASSETS.md`。
+- **动作商店（2026-11-02 重构）**：`GET /pet/shop?friend=` 同时返回
+  - `shelf`：当前等级随机折扣货架（4~6 个，价格 10/20/30/40，落库后固定）
+  - `catalog`：**该角色全部动作**（含未解锁/等级锁），每项带 `unlocked`、`locked_by_level`、
+    `on_shelf`、`price`（货架内=折扣价，货架外=标准价 `ACTION_BASE_PRICE(10) + (min_level-1)*5`）
+
+  客户端据此把商店做成"全部可见、锁定置灰、点按购买"，不再有"未上架"的中间态。
+  `POST /pet/buy_action` 现在**货架内外都能买**：货架内走折扣价并标记 sold，货架外走标准价；
+  两者都校验 `min_level`，音符不足直接 400。
+- **货架键坑（2026-11-02）**：`shop_shelves` 的 key 必须是 `"{character}:{level}"` 而不是 `"{level}"`。
+  早期只按等级存，切换物种后鲸鱼娘会复用大肥鱼的货架，显示一堆对不上角色的动作。
+  另：**空货架不要缓存**（`if shelves.get(key)` 而非 `if key in shelves`）——早期因 species 未映射
+  到角色 id 生成了空架并永久落库，之后有货也补不上。
+- **species → character 映射必须处处一致**：`default` 是历史 species 名，对应素材角色 id 是 `boy`。
+  `_starter_actions` 做了这个映射，但 `_shelf_for` 曾漏做（`a["character"] == "default"` 永远匹配不上），
+  导致**所有 default 角色的动作货架恒为空**。凡按角色比对 actions 的地方都要走这层映射。
+- **starter 补发（2026-11-02）**：`_ensure_pet_schema` 原来只在 `action_unlocks` **缺 key** 时写入 starter，
+  已有 key 的老 pair 永远不会更新，manifest 扩充 starter 后图鉴停在旧动作集。
+  改为每次比对并按需追加缺失的 starter（幂等，顺序稳定）。
+
 - 后台管理（独立管理员账号）：`POST /admin/login`、`GET /admin/me`、`POST /admin/password`；
   `GET /admin/stats`（概览统计）、`GET /admin/users`（分页/搜索）、`GET /admin/users/{name}`、
   `POST /admin/users/{name}/reset_password`、`POST /admin/users/{name}/status`（禁用/启用，禁用即踢下线）、

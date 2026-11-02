@@ -59,6 +59,7 @@ ACTIONS_POOL = ["jump", "spin", "dance", "sleep", "happy", "eat", "angry", "love
 SPECIES_SHOP: list[dict[str, Any]] = []
 
 FEED_NOTES = 5      # 投喂单价（音符/次）
+ACTION_BASE_PRICE = 10  # 非货架动作的标准价基准（货架内动作走随机折扣价）
 FEED_EXP = 10       # 单次投喂经验
 SIGNIN_NOTES = 10   # 签到基础音符
 INTERACT_DAILY_NOTES = 10  # 点击互动每天前 N 次 +1 音符
@@ -160,9 +161,17 @@ def _ensure_pet_schema(pet: dict[str, Any]) -> bool:
         pet["action_unlocks"] = {}
         changed = True
     for sp in (pet.get("species_owned") or [pet.get("species") or "default"]):
-        if sp not in pet["action_unlocks"]:
-            pet["action_unlocks"][sp] = _starter_actions(sp)
+        starter = _starter_actions(sp)
+        owned = pet["action_unlocks"].get(sp)
+        if not isinstance(owned, list):
+            pet["action_unlocks"][sp] = starter
             changed = True
+        else:
+            # 素材清单扩充 starter 后，老 pair 也要补齐（否则图鉴永远停在旧动作集）
+            missing = [a for a in starter if a not in owned]
+            if missing:
+                pet["action_unlocks"][sp] = owned + missing
+                changed = True
     if not isinstance(pet.get("shop_shelves"), dict):
         pet["shop_shelves"] = {}
         changed = True
@@ -182,21 +191,25 @@ def _ensure_pet_schema(pet: dict[str, Any]) -> bool:
 
 
 def _shelf_for(pet: dict[str, Any]) -> list[dict[str, Any]]:
-    """取当前等级货架；不存在则用稳定种子随机生成并落库。"""
+    """取当前角色+等级货架；不存在则用稳定种子随机生成并落库。"""
     _ensure_pet_schema(pet)
     level = int(pet.get("level") or 1)
-    key = str(level)
+    species = pet.get("species") or "default"
+    # default 是历史 species 名，素材清单里对应的角色 id 是 boy（与 _starter_actions 一致）
+    character = "boy" if species == "default" else species
+    # 货架按角色分键：同一对好友切换物种后各自有自己的货架，互不串台
+    key = f"{character}:{level}"
     shelves = pet.setdefault("shop_shelves", {})
-    if key in shelves:
+    # 空货架不缓存：早期版本因 species 未映射到角色 id 生成了空架，之后有可用候选时要能补上
+    if shelves.get(key):
         return shelves[key]
 
-    species = pet.get("species") or "default"
     manifest = _manifest()
     owned = set((pet.get("action_unlocks") or {}).get(species) or [])
     used = {o.get("action") for offers in shelves.values() for o in offers if isinstance(o, dict)}
     pool = [
         a for a in _action_catalog(manifest)
-        if a.get("character") == species
+        if a.get("character") in (character, species)
         and int(a.get("min_level") or 1) <= level
         and a.get("id") not in owned
         and a.get("id") not in used
@@ -205,6 +218,7 @@ def _shelf_for(pet: dict[str, Any]) -> list[dict[str, Any]]:
     seed_src = f"{pair_key(*pet['members'])}|{level}|{pet.get('shop_rotation_version')}|{species}"
     rnd = random.Random(hashlib.sha256(seed_src.encode("utf-8")).hexdigest())
     rnd.shuffle(pool)
+    # 货架只决定"哪几个打折随机价"，其余动作按统一价照常可买（见 api_pet_shop 的 catalog/prices）
     count = min(len(pool), rnd.randint(4, 6))
     offers = [
         {
@@ -599,23 +613,38 @@ def api_pet_rename(req: RenameRequest, authorization: Optional[str] = Header(def
 
 @router.post("/pet/buy_action")
 def api_pet_buy_action(req: ActionRequest, authorization: Optional[str] = Header(default=None)):
-    """购买当前等级货架上的动作（音符 + 等级货架）。"""
+    """购买动作：货架内走随机折扣价，货架外走标准价；均校验等级门槛。"""
     me = _resolve_user(authorization)
     _, pets, pet = _get_pair(me, req.friend)
     with _lock:
         _ensure_pet_schema(pet)
+        species = pet.get("species") or "default"
+        character = "boy" if species == "default" else species
+        level = int(pet.get("level") or 1)
+        defn = next(
+            (
+                a for a in _action_catalog()
+                if a.get("id") == req.action_id and a.get("character") in (character, species)
+            ),
+            None,
+        )
         shelf = _shelf_for(pet)
         offer = next((o for o in shelf if o.get("action") == req.action_id), None)
-        if offer is None:
-            raise HTTPException(status_code=404, detail="货架上没有这个动作")
-        if offer.get("sold"):
+        if offer is None and defn is None:
+            raise HTTPException(status_code=404, detail="没有这个动作")
+        if offer is not None and offer.get("sold"):
             raise HTTPException(status_code=400, detail="该动作已购买")
-        price = int(offer.get("price") or 0)
+        if defn is not None and int(defn.get("min_level") or 1) > level:
+            raise HTTPException(status_code=400, detail=f"需要 Lv{defn.get('min_level')}")
+        if offer is not None:
+            price = int(offer.get("price") or 0)
+        else:
+            price = ACTION_BASE_PRICE + max(0, int(defn.get("min_level") or 1) - 1) * 5
         if int(pet.get("notes") or 0) < price:
             raise HTTPException(status_code=400, detail="音符不足")
-        species = pet.get("species") or "default"
         pet["notes"] = int(pet.get("notes") or 0) - price
-        offer["sold"] = True
+        if offer is not None:
+            offer["sold"] = True
         unlocks = pet.setdefault("action_unlocks", {}).setdefault(species, [])
         if req.action_id not in unlocks:
             unlocks.append(req.action_id)
@@ -671,13 +700,35 @@ def api_pet_shop(friend: Optional[str] = None, authorization: Optional[str] = He
         with _lock:
             if _ensure_pet_schema(pet):
                 _save_pets(all_pets)
+            species = pet.get("species") or "default"
+            character = "boy" if species == "default" else species
+            unlocked = set((pet.get("action_unlocks") or {}).get(species) or [])
+            level = int(pet.get("level") or 1)
+            shelf = _shelf_for(pet)
+            price_of = {o["action"]: o["price"] for o in shelf if isinstance(o, dict)}
+            catalog = [
+                {
+                    **a,
+                    "unlocked": a["id"] in unlocked,
+                    "locked_by_level": int(a.get("min_level") or 1) > level,
+                    # 货架内 = 随机折扣价；货架外 = 按等级阶梯的标准价（照样可买）
+                    "on_shelf": a["id"] in price_of,
+                    "price": price_of.get(
+                        a["id"],
+                        ACTION_BASE_PRICE + max(0, int(a.get("min_level") or 1) - 1) * 5,
+                    ),
+                }
+                for a in _action_catalog()
+                if a.get("character") in (character, species)
+            ]
             result.update({
                 "friend": friend,
-                "level": pet.get("level", 1),
+                "level": level,
                 "notes": pet.get("notes", 0),
                 "species_current": pet.get("species"),
-                "shelf": _shelf_for(pet),
-                "action_unlocks": (pet.get("action_unlocks") or {}).get(pet.get("species") or "default", []),
+                "shelf": shelf,
+                "catalog": catalog,
+                "action_unlocks": sorted(unlocked),
             })
             _save_pets(all_pets)
     return result
