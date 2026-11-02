@@ -4,9 +4,10 @@
 
 import { els } from '../dom.js';
 import { state } from '../state.js';
-import { showToast, filterByMediaType, createMediaTypeFilter } from '../utils.js';
+import { showToast, filterByMediaType, renderChips } from '../utils.js';
 import { searchTracks } from '../api.js';
 import { createTrackCard } from '../components/trackCard.js';
+import { showSearchResultsPanel } from './serverLibrary.js';
 
 export async function handleSearch() {
     if (state.isSearching) return;
@@ -18,6 +19,7 @@ export async function handleSearch() {
     const limit = state.settings.limits[source] || 10;
 
     state.isSearching = true;
+    showSearchResultsPanel();
     els.searchBtn.disabled = true;
     els.searchInput.disabled = true;
     els.searchEmpty.classList.add('hidden');
@@ -29,17 +31,12 @@ export async function handleSearch() {
     state.searchSource = source;
     state.searchOffset = 0;
     state.searchHasMore = true;
-
-    // 移动端确保用户能看到加载状态
-    requestAnimationFrame(() => {
-        els.searchLoading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    els.searchMeta.textContent = `“${query}” 搜索中…`;
 
     try {
         const data = await searchTracks(query, source, limit, 0);
         state.searchResults = data.tracks || [];
         state.searchOffset = state.searchResults.length;
-        // YouTube 因 yt-dlp 限制无法真正翻页，不显示“加载更多”
         state.searchHasMore = source !== 'youtube' && state.searchResults.length >= limit;
         renderSearchResults();
     } catch (err) {
@@ -49,11 +46,7 @@ export async function handleSearch() {
         els.searchBtn.disabled = false;
         els.searchInput.disabled = false;
         els.searchLoading.classList.add('hidden');
-        if (state.searchResults.length > 0) {
-            requestAnimationFrame(() => {
-                els.searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
-        }
+        els.searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -61,17 +54,23 @@ export function renderSearchResults() {
     const container = els.searchResults;
     container.innerHTML = '';
 
-    // 筛选按钮
-    const filterContainer = createMediaTypeFilter(state.mediaTypeFilter.search, (type) => {
+    renderChips(els.searchChips, state.mediaTypeFilter.search, type => {
         state.mediaTypeFilter.search = type;
         renderSearchResults();
     });
-    container.appendChild(filterContainer);
 
     const tracks = filterByMediaType(state.searchResults, state.mediaTypeFilter.search);
 
+    if (!state.searchQuery) {
+        els.searchCount.textContent = '';
+        return;
+    }
+
+    els.searchMeta.textContent = `“${state.searchQuery}” · 找到 ${state.searchResults.length} 首`;
+    els.searchCount.textContent = tracks.length ? `按相关度 · ${tracks.length} 首` : '';
+
     if (tracks.length === 0) {
-        container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无搜索结果</div>');
+        container.innerHTML = '<div class="state-box"><p>暂无搜索结果，换个关键词试试</p></div>';
         els.batchBar.classList.add('hidden');
         return;
     }
@@ -80,17 +79,19 @@ export function renderSearchResults() {
     document.dispatchEvent(new CustomEvent('musiic:selection-changed'));
 
     tracks.forEach(track => {
-        const card = createTrackCard(track, { selectable: true, showSource: true, context: 'search' });
-        container.appendChild(card);
+        container.appendChild(createTrackCard(track, { selectable: true, showSource: true, context: 'search' }));
     });
 
     if (state.searchHasMore) {
+        const wrap = document.createElement('div');
+        wrap.className = 'load-more-wrap';
         const loadMoreBtn = document.createElement('button');
         loadMoreBtn.id = 'loadMoreBtn';
-        loadMoreBtn.className = 'btn btn-outline btn-block mt-2';
+        loadMoreBtn.className = 'btn-soft';
         loadMoreBtn.textContent = '加载更多';
         loadMoreBtn.addEventListener('click', loadMoreSearch);
-        container.appendChild(loadMoreBtn);
+        wrap.appendChild(loadMoreBtn);
+        container.appendChild(wrap);
     }
 }
 
@@ -101,7 +102,7 @@ export async function loadMoreSearch() {
     const btn = document.getElementById('loadMoreBtn');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '加载中...';
+        btn.textContent = '加载中…';
     }
     try {
         const data = await searchTracks(state.searchQuery, source, limit, state.searchOffset);

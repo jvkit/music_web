@@ -8,6 +8,7 @@
 - 每日任务每天 0 点刷新：读取时发现 date 不是今天就重新随机生成。
 """
 
+import hashlib
 import json
 import random
 import threading
@@ -54,12 +55,8 @@ MAX_LEVEL = 30
 # 动作池：升级每级随机解锁一个；idle 为初始动作
 ACTIONS_POOL = ["jump", "spin", "dance", "sleep", "happy", "eat", "angry", "love"]
 
-# 角色商店：default 初始赠送
-SPECIES_SHOP = [
-    {"species": "miao", "name": "喵球", "price": 200, "level_required": 3},
-    {"species": "wang", "name": "旺仔", "price": 500, "level_required": 8},
-    {"species": "tiao", "name": "跳跳", "price": 1000, "level_required": 15},
-]
+# 角色商店：真实内容由 pet_content/manifest.json 的 shop 下发；此处仅离线兜底
+SPECIES_SHOP: list[dict[str, Any]] = []
 
 FEED_NOTES = 5      # 投喂单价（音符/次）
 FEED_EXP = 10       # 单次投喂经验
@@ -112,6 +109,118 @@ def _save_pets(pets: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+# ---------------- manifest v3：角色 / 动作 / 商店 ----------------
+
+def _manifest() -> dict[str, Any]:
+    path = _content_dir() / "manifest.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.warning("pet_content/manifest.json 解析失败", exc_info=True)
+        return {}
+
+
+def _starter_actions(species: str | None = None, manifest: dict[str, Any] | None = None) -> list[str]:
+    m = manifest if manifest is not None else _manifest()
+    key = species or "default"
+    if key == "default":
+        key = "boy"
+    char = (m.get("characters") or {}).get(key) or {}
+    starter = char.get("starter")
+    if isinstance(starter, list) and starter:
+        return list(dict.fromkeys(str(x) for x in starter if str(x).strip()))
+    return ["stand", "music"]
+
+
+def _action_catalog(manifest: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    m = manifest if manifest is not None else _manifest()
+    return [a for a in (m.get("actions") or []) if isinstance(a, dict) and a.get("id")]
+
+
+def _rotation_version(manifest: dict[str, Any] | None = None) -> int:
+    m = manifest if manifest is not None else _manifest()
+    try:
+        return int(m.get("shop_rotation_version") or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _ensure_pet_schema(pet: dict[str, Any]) -> bool:
+    """补齐 v3 字段（name / action_unlocks / shop_shelves），返回是否有改动。"""
+    changed = False
+    if "name" not in pet:
+        pet["name"] = ""
+        changed = True
+    if "actions_unlocked" not in pet:
+        pet["actions_unlocked"] = ["idle"] + ACTIONS_POOL
+        changed = True
+    if not isinstance(pet.get("action_unlocks"), dict):
+        pet["action_unlocks"] = {}
+        changed = True
+    for sp in (pet.get("species_owned") or [pet.get("species") or "default"]):
+        if sp not in pet["action_unlocks"]:
+            pet["action_unlocks"][sp] = _starter_actions(sp)
+            changed = True
+    if not isinstance(pet.get("shop_shelves"), dict):
+        pet["shop_shelves"] = {}
+        changed = True
+    rv = _rotation_version()
+    if pet.get("shop_rotation_version") != rv:
+        # 版本变更：保留已售，清掉未售货架，下次访问重新随机
+        shelves = pet.get("shop_shelves") or {}
+        for lvl in list(shelves.keys()):
+            kept = [o for o in shelves[lvl] if isinstance(o, dict) and o.get("sold")]
+            if kept:
+                shelves[lvl] = kept
+            else:
+                shelves.pop(lvl, None)
+        pet["shop_rotation_version"] = rv
+        changed = True
+    return changed
+
+
+def _shelf_for(pet: dict[str, Any]) -> list[dict[str, Any]]:
+    """取当前等级货架；不存在则用稳定种子随机生成并落库。"""
+    _ensure_pet_schema(pet)
+    level = int(pet.get("level") or 1)
+    key = str(level)
+    shelves = pet.setdefault("shop_shelves", {})
+    if key in shelves:
+        return shelves[key]
+
+    species = pet.get("species") or "default"
+    manifest = _manifest()
+    owned = set((pet.get("action_unlocks") or {}).get(species) or [])
+    used = {o.get("action") for offers in shelves.values() for o in offers if isinstance(o, dict)}
+    pool = [
+        a for a in _action_catalog(manifest)
+        if a.get("character") == species
+        and int(a.get("min_level") or 1) <= level
+        and a.get("id") not in owned
+        and a.get("id") not in used
+    ]
+
+    seed_src = f"{pair_key(*pet['members'])}|{level}|{pet.get('shop_rotation_version')}|{species}"
+    rnd = random.Random(hashlib.sha256(seed_src.encode("utf-8")).hexdigest())
+    rnd.shuffle(pool)
+    count = min(len(pool), rnd.randint(4, 6))
+    offers = [
+        {
+            "action": a["id"],
+            "name": a.get("name") or a["id"],
+            "category": a.get("category") or "",
+            "price": rnd.choice([10, 20, 30, 40]),
+            "pack": a.get("pack") or "",
+            "sold": False,
+        }
+        for a in pool[:count]
+    ]
+    shelves[key] = offers
+    return offers
+
+
 def pair_key(a: str, b: str) -> str:
     return "|".join(sorted([a, b]))
 
@@ -149,14 +258,19 @@ def _rand_tasks() -> dict[str, Any]:
 
 
 def _new_pair(a: str, b: str) -> dict[str, Any]:
+    starter = _starter_actions("default")
     return {
         "members": [a, b],
+        "name": "",
         "species": "default",
         "species_owned": ["default"],
         "level": 1,
         "exp": 0,
         "notes": 0,
-        "actions_unlocked": ["idle"] + ACTIONS_POOL,  # 当前动作池全解锁；后续新动作可改回升级解锁
+        "actions_unlocked": ["idle"] + ACTIONS_POOL,  # 旧版 App 兼容字段
+        "action_unlocks": {"default": starter},
+        "shop_shelves": {},
+        "shop_rotation_version": _rotation_version(),
         "flame": {"days": 0, "last_flame_date": None},
         "signin": {"last_date": None},
         "tasks": _rand_tasks(),
@@ -191,6 +305,8 @@ def _get_pair(me: str, friend: str) -> tuple[str, dict[str, Any], dict[str, Any]
             logger.warning("PET404 me=%s friend=%s key=%s all_keys=%s", me, friend, key, list(pets.keys()))
             raise HTTPException(status_code=404, detail="还未领养宠物")
         changed = _ensure_today(pet)
+        if _ensure_pet_schema(pet):
+            changed = True
         if changed:
             _save_pets(pets)
         return key, pets, pet
@@ -257,6 +373,7 @@ def _summary(me: str, pet: dict[str, Any]) -> dict[str, Any]:
     flame_days = int((pet.get("flame") or {}).get("days") or 0)
     return {
         "friend": friend,
+        "name": pet.get("name") or "",
         "species": pet["species"],
         "species_owned": pet.get("species_owned", ["default"]),
         "level": pet["level"],
@@ -266,6 +383,7 @@ def _summary(me: str, pet: dict[str, Any]) -> dict[str, Any]:
         "flame_days": flame_days,
         "flame_multiplier": flame_multiplier(flame_days),
         "actions_unlocked": pet.get("actions_unlocked", ["idle"]),
+        "action_unlocks": pet.get("action_unlocks") or {},
         "signin_today": (pet.get("signin") or {}).get("last_date") == _today(),
         "tasks": (pet.get("tasks") or {}).get("items", []),
         "feed_count": pet.get("feed_count", 0),
@@ -311,6 +429,16 @@ class SpeciesRequest(BaseModel):
     species: str
 
 
+class ActionRequest(BaseModel):
+    friend: str
+    action_id: str
+
+
+class RenameRequest(BaseModel):
+    friend: str
+    name: str
+
+
 class PetEventRequest(BaseModel):
     type: str
     count: int = 1
@@ -326,7 +454,7 @@ def api_pet_pairs(authorization: Optional[str] = Header(default=None)):
         for key, pet in pets.items():
             if me not in (pet.get("members") or []):
                 continue
-            if _ensure_today(pet):
+            if _ensure_today(pet) or _ensure_pet_schema(pet):
                 changed_any = True
             result.append(_summary(me, pet))
         if changed_any:
@@ -402,7 +530,9 @@ async def api_pet_interact(req: InteractRequest, authorization: Optional[str] = 
     me = _resolve_user(authorization)
     action = req.action.strip()
     _, pets, pet = _get_pair(me, req.friend)
-    if action not in (pet.get("actions_unlocked") or []):
+    allowed = set(pet.get("actions_unlocked") or [])
+    allowed |= set((pet.get("action_unlocks") or {}).get(pet.get("species") or "default", []))
+    if action not in allowed:
         raise HTTPException(status_code=400, detail="动作未解锁")
     reward = 0
     with _lock:
@@ -422,7 +552,7 @@ async def api_pet_interact(req: InteractRequest, authorization: Optional[str] = 
 @router.post("/pet/buy_species")
 def api_pet_buy_species(req: SpeciesRequest, authorization: Optional[str] = Header(default=None)):
     me = _resolve_user(authorization)
-    item = next((s for s in SPECIES_SHOP if s["species"] == req.species), None)
+    item = next((s for s in _shop_species() if s["species"] == req.species), None)
     if item is None:
         raise HTTPException(status_code=404, detail="角色不存在")
     _, pets, pet = _get_pair(me, req.friend)
@@ -436,6 +566,7 @@ def api_pet_buy_species(req: SpeciesRequest, authorization: Optional[str] = Head
         pet["notes"] = int(pet.get("notes") or 0) - item["price"]
         pet.setdefault("species_owned", ["default"]).append(req.species)
         pet["species"] = req.species
+        pet.setdefault("action_unlocks", {})[req.species] = _starter_actions(req.species)
         _save_pets(pets)
     return _summary(me, pet)
 
@@ -450,6 +581,46 @@ def api_pet_switch_species(req: SpeciesRequest, authorization: Optional[str] = H
         pet["species"] = req.species
         _save_pets(pets)
     return _summary(me, pet)
+
+
+@router.patch("/pet/name")
+def api_pet_rename(req: RenameRequest, authorization: Optional[str] = Header(default=None)):
+    """给好友对共养的宠物改名（1~20 字）。"""
+    me = _resolve_user(authorization)
+    name = (req.name or "").strip()
+    if not 1 <= len(name) <= 20:
+        raise HTTPException(status_code=400, detail="名字长度需为 1~20 字")
+    _, pets, pet = _get_pair(me, req.friend)
+    with _lock:
+        pet["name"] = name
+        _save_pets(pets)
+    return _summary(me, pet)
+
+
+@router.post("/pet/buy_action")
+def api_pet_buy_action(req: ActionRequest, authorization: Optional[str] = Header(default=None)):
+    """购买当前等级货架上的动作（音符 + 等级货架）。"""
+    me = _resolve_user(authorization)
+    _, pets, pet = _get_pair(me, req.friend)
+    with _lock:
+        _ensure_pet_schema(pet)
+        shelf = _shelf_for(pet)
+        offer = next((o for o in shelf if o.get("action") == req.action_id), None)
+        if offer is None:
+            raise HTTPException(status_code=404, detail="货架上没有这个动作")
+        if offer.get("sold"):
+            raise HTTPException(status_code=400, detail="该动作已购买")
+        price = int(offer.get("price") or 0)
+        if int(pet.get("notes") or 0) < price:
+            raise HTTPException(status_code=400, detail="音符不足")
+        species = pet.get("species") or "default"
+        pet["notes"] = int(pet.get("notes") or 0) - price
+        offer["sold"] = True
+        unlocks = pet.setdefault("action_unlocks", {}).setdefault(species, [])
+        if req.action_id not in unlocks:
+            unlocks.append(req.action_id)
+        _save_pets(pets)
+    return {**_summary(me, pet), "unlocked": req.action_id, "spent": price}
 
 
 @router.post("/pet/event")
@@ -482,14 +653,34 @@ def api_pet_event(req: PetEventRequest, authorization: Optional[str] = Header(de
 
 
 @router.get("/pet/shop")
-def api_pet_shop(authorization: Optional[str] = Header(default=None)):
+def api_pet_shop(friend: Optional[str] = None, authorization: Optional[str] = Header(default=None)):
     me = _resolve_user(authorization)
     pets = _load_pets()
     owned_levels = {
         "|".join(sorted(pet.get("members") or [])): pet.get("level", 1)
         for pet in pets.values() if me in (pet.get("members") or [])
     }
-    return {"species": SPECIES_SHOP, "levels": owned_levels}
+    result: dict[str, Any] = {
+        "species": _shop_species(),
+        "levels": owned_levels,
+        "actions": _action_catalog(),
+        "rotation_version": _rotation_version(),
+    }
+    if friend:
+        _, all_pets, pet = _get_pair(me, friend)
+        with _lock:
+            if _ensure_pet_schema(pet):
+                _save_pets(all_pets)
+            result.update({
+                "friend": friend,
+                "level": pet.get("level", 1),
+                "notes": pet.get("notes", 0),
+                "species_current": pet.get("species"),
+                "shelf": _shelf_for(pet),
+                "action_unlocks": (pet.get("action_unlocks") or {}).get(pet.get("species") or "default", []),
+            })
+            _save_pets(all_pets)
+    return result
 
 
 # ===================== 宠物素材内容（服务器下发，客户端按需下载，无需发版） =====================
@@ -535,6 +726,41 @@ def _content_dir():
     d = get_config_dir() / _CONTENT_DIR_NAME
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _shop_species() -> list[dict[str, Any]]:
+    """角色商店：优先读 pet_content/manifest.json 的 shop 列表，缺省回退内置 SPECIES_SHOP。"""
+    path = _content_dir() / "manifest.json"
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            raw = data.get("shop")
+            if isinstance(raw, list):
+                items: list[dict[str, Any]] = []
+                for entry in raw:
+                    if not isinstance(entry, dict):
+                        continue
+                    species = str(entry.get("species") or "").strip()
+                    if not species:
+                        continue
+                    try:
+                        price = int(entry.get("price") or 0)
+                        level_required = int(entry.get("level_required") or 0)
+                    except (TypeError, ValueError):
+                        continue
+                    items.append(
+                        {
+                            "species": species,
+                            "name": str(entry.get("name") or species),
+                            "price": max(0, price),
+                            "level_required": max(0, level_required),
+                        }
+                    )
+                if items:
+                    return items
+        except Exception:
+            logger.warning("pet_content/manifest.json 的 shop 解析失败，回退内置角色商店", exc_info=True)
+    return SPECIES_SHOP
 
 
 @router.get("/pet/content/manifest")

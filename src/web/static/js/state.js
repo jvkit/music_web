@@ -27,6 +27,10 @@ export const state = {
     // 本地
     localItems: [],
 
+    // 服务器音乐库（所有用户去重汇总）
+    serverLibrary: [],
+    serverLibraryLoaded: false,
+
     // 音乐库歌曲缓存（song_id -> song）
     librarySongs: {},
 
@@ -35,6 +39,7 @@ export const state = {
         search: 'all',
         playlist: 'all',
         local: 'all',
+        server: 'all',
     },
 
     // 播放器队列与模式

@@ -78,6 +78,8 @@ MUSIC_LIBRARY_DIR=/path/to/library uv run music-web --host 0.0.0.0 --port 8001
 | `MUSIC_DOWNLOAD_DIR` | 旧版下载目录 | `~/Music/musiic-cli` |
 | `MUSIC_CACHE_DIR` | 试听缓存目录 | 平台 cache 目录 |
 | `MUSIC_CONFIG_DIR` | 配置目录（config.json、分享码） | 平台 config 目录 |
+| `MUSIC_ADMIN_USER` | 后台管理员账号（首次初始化用） | `admin` |
+| `MUSIC_ADMIN_PASSWORD` | 后台管理员密码（首次初始化用） | `admin123` |
 
 `music-web` 启动时，若项目根存在 `data/` 与 `config/`，会自动把 `MUSIC_DOWNLOAD_DIR` / `MUSIC_CACHE_DIR` / `MUSIC_CONFIG_DIR` 指到项目根（等价旧版 `-s` 行为）。
 
@@ -121,6 +123,7 @@ uv run python scripts/sync_library.py --dry-run
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/library` | 获取完整音乐库 |
+| GET | `/api/server_library` | 服务器音乐库：所有用户收藏+歌单去重汇总（Web/App 共用） |
 | POST | `/api/library` | 更新完整音乐库（同步用） |
 | GET | `/api/search?query=&source=&limit=&offset=` | 搜索 |
 | POST | `/api/preview` | 试听/试看 |
@@ -151,6 +154,32 @@ uv run python scripts/sync_library.py --dry-run
 | GET | `/api/og_image` / `/api/share_image` | 分享卡片图 |
 | GET/POST | `/api/rooms...` | 一起听房间 |
 | WS | `/api/ws/room/{room_id}` | 房间 WebSocket（仅控制信号） |
+
+### 后台管理 API（独立管理员账号）
+
+H5 侧栏「后台管理」入口，覆盖用户管理 / 内容运营 / 日志监控 / 数据统计。管理员账号存 `config/admin.json`，
+首次按环境变量 `MUSIC_ADMIN_USER` / `MUSIC_ADMIN_PASSWORD` 引导（缺省 `admin` / `admin123`，请尽快改密）。
+所有接口需管理员 `Authorization: Bearer <admin token>`。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/admin/login` | 管理员登录，返回 admin token |
+| GET | `/api/admin/me` | 当前管理员信息 |
+| POST | `/api/admin/password` | 修改管理员密码（签发新 token） |
+| GET | `/api/admin/stats` | 概览统计（用户/在线/歌单/收藏/反馈/日志/房间等） |
+| GET | `/api/admin/users?q=&offset=&limit=` | 用户列表（搜索+分页） |
+| GET | `/api/admin/users/{name}` | 用户详情（含歌单/收藏/信箱数据） |
+| POST | `/api/admin/users/{name}/reset_password` | 重置用户密码（可强制下线） |
+| POST | `/api/admin/users/{name}/status` | 禁用 / 启用账号（禁用即踢下线） |
+| POST | `/api/admin/users/{name}/kick` | 踢下线 |
+| DELETE | `/api/admin/users/{name}` | 删除用户（含数据文件/头像/好友引用） |
+| GET/PUT | `/api/admin/announcement` | 读取 / 保存公告与版本 |
+| GET/POST | `/api/admin/avatar_presets` | 预设头像列表 / 上传 PNG |
+| DELETE | `/api/admin/avatar_presets/{name}` | 删除预设头像 |
+| GET | `/api/admin/feedback?limit=` | 用户反馈列表（最新在前） |
+| GET | `/api/admin/logs` | 日志上报文件列表 |
+| GET | `/api/admin/logs/{name}` | 读取单个日志内容 |
+| GET | `/api/admin/online` | IM 在线用户 + 活跃房间 |
 
 完整分组见 `tutorial/01_backend/06_fastapi_overview.md`。
 

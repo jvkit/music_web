@@ -25,9 +25,12 @@ import { isInRoom, sendChangeTrack, sendPlay, sendPause, sendSeek } from './room
 
 let lastPlaybackSaveTime = 0;
 
+function notifyQueue() {
+    document.dispatchEvent(new CustomEvent('musiic:queue-updated'));
+}
+
 async function setShareUrl(track) {
     try {
-        // 用服务端短分享码替代长 base64，QQ/微信对 URL 长度敏感
         const resp = await fetch(`${API_BASE}/share`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -72,7 +75,7 @@ export function updateLoadingButtons() {
     document.querySelectorAll('.btn-play[data-id]').forEach(btn => {
         const loading = state.loadingTrackId === btn.dataset.id;
         btn.disabled = loading;
-        btn.innerHTML = icon(loading ? 'spinner' : 'play', loading ? { className: 'animate-spin' } : {});
+        btn.innerHTML = icon(loading ? 'spinner' : 'play', loading ? { className: 'spin' } : {});
     });
 }
 
@@ -95,11 +98,12 @@ export function togglePlayPause() {
 
 export function updatePlayButton() {
     els.playPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
-    els.lyricsPlayPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
+    if (els.lyricsPlayPauseBtn) els.lyricsPlayPauseBtn.innerHTML = icon(state.isPlaying ? 'pause' : 'play');
     if (els.lyricsCover) {
         els.lyricsCover.classList.toggle('lyrics-cover-paused', !state.isPlaying);
     }
     updateMediaSession();
+    document.dispatchEvent(new CustomEvent('musiic:player-info'));
 }
 
 function updateMediaSession() {
@@ -133,7 +137,10 @@ function updateMediaSession() {
 }
 
 export function updatePlayerInfo() {
-    if (!state.currentTrack) return;
+    if (!state.currentTrack) {
+        document.dispatchEvent(new CustomEvent('musiic:player-info'));
+        return;
+    }
     const t = state.currentTrack;
     els.playerTitle.textContent = t.title;
     els.playerArtist.textContent = t.artist;
@@ -141,7 +148,6 @@ export function updatePlayerInfo() {
     updatePlayerFavorite();
     updatePlayerRemoveButton();
 
-    // 歌词页打开时同步更新其 UI
     if (!els.lyricsModal.classList.contains('hidden')) {
         els.lyricsTitle.textContent = t.title;
         els.lyricsArtist.textContent = t.artist;
@@ -150,6 +156,7 @@ export function updatePlayerInfo() {
             els.lyricsCover.src = getThumbnailUrl(t.thumbnail);
         }
     }
+    document.dispatchEvent(new CustomEvent('musiic:player-info'));
 }
 
 function getFavoriteTargetId(track) {
@@ -162,7 +169,7 @@ function getFavoriteTargetId(track) {
 export function updatePlayerFavorite() {
     if (!state.currentTrack) {
         els.playerFavoriteBtn.innerHTML = icon('heart');
-        els.playerFavoriteBtn.className = 'btn btn-circle btn-ghost btn-sm text-base-content/40';
+        els.playerFavoriteBtn.className = 'heart-btn';
         if (els.lyricsFavoriteBtn) {
             els.lyricsFavoriteBtn.innerHTML = icon('heart');
             els.lyricsFavoriteBtn.className = 'btn btn-circle btn-ghost text-white';
@@ -172,9 +179,7 @@ export function updatePlayerFavorite() {
     const targetId = getFavoriteTargetId(state.currentTrack);
     const isFavorite = isTrackInPlaylist(state.currentTrack.id, targetId);
     els.playerFavoriteBtn.innerHTML = icon('heart', { filled: isFavorite });
-    els.playerFavoriteBtn.className = isFavorite
-        ? 'btn btn-circle btn-ghost btn-sm text-error'
-        : 'btn btn-circle btn-ghost btn-sm text-base-content/40';
+    els.playerFavoriteBtn.className = isFavorite ? 'heart-btn liked' : 'heart-btn';
     if (els.lyricsFavoriteBtn) {
         els.lyricsFavoriteBtn.innerHTML = icon('heart', { filled: isFavorite });
         els.lyricsFavoriteBtn.className = isFavorite
@@ -208,6 +213,8 @@ export function stopPlayback() {
     els.playerThumbnail.src = DEFAULT_THUMBNAIL;
     updatePlayerRemoveButton();
     savePlaybackState();
+    notifyQueue();
+    document.dispatchEvent(new CustomEvent('musiic:player-info'));
 }
 
 export async function removeCurrentLocalTrack() {
@@ -221,7 +228,6 @@ export async function removeCurrentLocalTrack() {
 
     const deletingId = localItem.id;
 
-    // 删除当前播放歌曲时先切歌或停止
     if (state.currentTrack.id === deletingId) {
         if (state.queue.length > 1) playNext();
         else stopPlayback();
@@ -268,22 +274,21 @@ async function tryPlayLocal(track, context = 'search') {
 }
 
 export async function playTrack(track, context = 'search', preferStream = null) {
-    // 防重入：同一曲目正在加载则忽略，切歌时覆盖旧加载
     if (state.loadingTrackId === track.id) return;
     setTrackLoading(track.id);
 
     if (context === 'search') state.queue = [...state.searchResults];
     else if (context === 'playlist') state.queue = [...getCurrentPlaylistTracks()];
+    else if (context === 'server') state.queue = [...state.serverLibrary];
     else if (context === 'local') state.queue = [track];
     else if (context === 'room') state.queue = [track];
 
     state.queueIndex = state.queue.findIndex(t => t.id === track.id);
     state.randomHistory = [];
+    notifyQueue();
 
-    // Bilibili/YouTube/网页音源 默认优先走流（代理或直接 MP3），减少首次播放等待时间；显式传 false 时才强制下载
     const useStream = preferStream ?? (['bilibili', 'youtube'].includes(track.source) || track.source.startsWith('web_'));
 
-    // 本地已有该歌曲，优先播放本地文件
     const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
     if (localItem) {
         finishTrackLoading();
@@ -308,7 +313,7 @@ export async function playTrack(track, context = 'search', preferStream = null) 
     showToast('正在加载试听...');
     try {
         const data = await previewTrack(track, 'audio', useStream);
-        if (state.loadingTrackId !== track.id) return; // 已切歌，丢弃旧结果
+        if (state.loadingTrackId !== track.id) return;
         state.currentTrack = track;
         state.isPlaying = true;
         state.playRecordedForTrackId = null;
@@ -385,6 +390,7 @@ export async function playLocalItem(item) {
     state.randomHistory = [];
     state.streamFallback = null;
     state.playRecordedForTrackId = null;
+    notifyQueue();
 
     els.audioPlayer.src = `${API_BASE}/local/stream/${encodeURIComponent(item.id)}`;
     els.audioPlayer.play().catch(err => {
@@ -431,6 +437,7 @@ export function playPrev() {
         return;
     }
     state.queueIndex = (state.queueIndex - 1 + state.queue.length) % state.queue.length;
+    notifyQueue();
     playTrackByQueueTrack(state.queue[state.queueIndex]);
     savePlaybackState();
 }
@@ -448,12 +455,14 @@ export function playNext() {
             nextTrack = remaining[Math.floor(Math.random() * remaining.length)];
         }
         state.randomHistory.push(nextTrack.id);
+        notifyQueue();
         playTrackByQueueTrack(nextTrack);
         savePlaybackState();
         return;
     }
 
     state.queueIndex = (state.queueIndex + 1) % state.queue.length;
+    notifyQueue();
     playTrackByQueueTrack(state.queue[state.queueIndex]);
     savePlaybackState();
 }
@@ -507,6 +516,7 @@ export async function playTrackByQueueTrack(track, preferStream = null) {
     updatePlayerInfo();
     updatePlayButton();
     savePlaybackState();
+    notifyQueue();
     if (isInRoom() && !state.room.applyingRemote) sendChangeTrack(track);
 }
 
@@ -592,7 +602,7 @@ export function closeLyricsPage() {
     if (els.lyricsModal.classList.contains('hidden')) return;
     els.lyricsModal.classList.add('hidden');
     clearShareUrl();
-    document.title = '音河 - 在线音乐';
+    document.title = '音河 · 发现你的下一首歌';
 }
 
 export function renderLyrics() {
@@ -747,7 +757,6 @@ export async function restorePlaybackState() {
     state.currentPlaylistId = saved.playlistId || 'default';
 
     if (saved.track) {
-        // 重建队列
         const playlist = state.playlists.find(p => p.id === state.currentPlaylistId);
         if (playlist && playlist.tracks.length > 0) {
             state.queue = [...playlist.tracks];
@@ -760,6 +769,7 @@ export async function restorePlaybackState() {
         updatePlayerInfo();
         updatePlayerFavorite();
         updatePlayerRemoveButton();
+        notifyQueue();
 
         try {
             const localItem = state.localItems.find(i => i.track && i.track.id === saved.track.id);
@@ -837,7 +847,6 @@ function applyRemotePlayState(isPlaying, position) {
         const audio = els.audioPlayer;
         let targetPosition = position || 0;
         if (isPlaying && state.room.updatedAt) {
-            // 补上从服务端下发到现在经过的时间
             targetPosition += Math.max(0, Date.now() / 1000 - state.room.updatedAt);
         }
         if (audio.duration && targetPosition > audio.duration) {

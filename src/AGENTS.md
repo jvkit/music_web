@@ -46,10 +46,16 @@ src/
 │       └── rooms.py          # 一起听房间 WebSocket
 └── web/static/               # H5 前端
     ├── index.html
+    ├── admin.html            # 后台管理独立页面（/admin）
     ├── styles.css
     ├── js/
     │   ├── app.js
+    │   ├── admin-main.js     # 后台管理页面入口
+    │   ├── admin.js          # 管理员 token / /api/admin 请求封装
     │   ├── api.js
+    │   ├── auth.js            # 用户系统客户端（登录/令牌/个人库接口）
+    │   ├── authUI.js          # 登录弹窗与用户信息展示
+    │   ├── rightRail.js       # 右栏 Now Playing / 播放队列
     │   ├── passwordGate.js
     │   ├── playlistOps.js
     │   ├── player.js
@@ -59,6 +65,8 @@ src/
     │   │   └── roomPanel.js
     │   └── views/
     │       ├── search.js
+    │       ├── serverLibrary.js  # 服务器音乐库（所有用户去重汇总）
+    │       ├── admin.js          # 后台管理视图
     │       ├── playlists.js
     │       ├── local.js
     │       ├── settings.js
@@ -67,6 +75,8 @@ src/
 ```
 
 ## 当前架构约定
+
+- **Web 用户系统**：登录可选。登录后歌单/收藏走 `/api/me/library`（客户端权威，整包快照同步），未登录走全局 `/api/library`（数据不做保证）。前端由 `auth.js`（令牌/接口）与 `authUI.js`（登录弹窗/用户信息）负责，`playlistOps.js` 按登录态切换数据源。
 
 - **Library 是唯一事实源**：`src/yinhe/library.py` 中的 `Library` 类管理 `library.json`，包含所有播放列表、歌曲、收听记录。写操作全部线程安全（RLock + 原子写），多步读-改-写用 `with library.write_lock():`。
 - **Song.id 全局唯一**：格式 `{source}:{original_id}`，例如 `youtube:wJnBTPUQS5A`、`web_liumingye:qq:001qgtJp4fe6Lr`。

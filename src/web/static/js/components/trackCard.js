@@ -1,5 +1,5 @@
 /**
- * 通用歌曲卡片组件
+ * 通用歌曲行组件（列表样式）
  */
 
 import { DEFAULT_THUMBNAIL, getThumbnailUrl } from '../config.js';
@@ -11,64 +11,76 @@ import { playTrack, playVideo } from '../player.js';
 import { downloadTrack } from '../views/modals.js';
 import { isTrackInPlaylist, toggleFavorite, removeTrackFromPlaylist, getFavoriteTargetId } from '../playlistOps.js';
 
+function sourceLabel(source) {
+    const ws = (state.webSources || []).find(s => s.id === source);
+    if (ws) return ws.display_name || source;
+    const map = { youtube: 'YouTube', netease: '网易云', bilibili: 'Bilibili', soundcloud: 'SoundCloud' };
+    return map[source] || source || '';
+}
+
 export function createTrackCard(track, options = {}) {
     const { selectable = false, showSource = false, context = 'search' } = options;
     const favoriteTargetId = getFavoriteTargetId(track);
     const isFavorite = isTrackInPlaylist(track.id, favoriteTargetId);
     const isSelected = state.selectedIds.has(track.id);
-    const isCurrent = state.currentTrack && state.currentTrack.id === track.id && state.isPlaying;
+    const isCurrent = state.currentTrack && state.currentTrack.id === track.id;
     const isLoading = state.loadingTrackId === track.id;
     const currentPlaylist = state.playlists.find(p => p.id === state.currentPlaylistId);
     const isSystemPlaylist = context === 'playlist' && currentPlaylist && currentPlaylist.is_system;
 
-    const div = document.createElement('div');
-    div.className = 'track-card card card-side flex-wrap bg-base-100/80 backdrop-blur shadow-sm border border-base-200/60 p-3 gap-3 items-center hover:shadow-md transition group';
-
-    let left = '';
-    if (selectable) {
-        left = `<input type="checkbox" class="track-checkbox checkbox checkbox-primary checkbox-sm" data-id="${track.id}" ${isSelected ? 'checked' : ''}>`;
-    }
-
     const hasPages = track.source === 'bilibili';
+    const isVideo = (track.media_type || 'audio') === 'video';
+    const cover = track.cover_url || getThumbnailUrl(track.thumbnail);
+
+    const div = document.createElement('article');
+    div.className = `song${isCurrent ? ' active' : ''}`;
+    div.dataset.id = track.id;
+
+    const checkbox = selectable
+        ? `<input type="checkbox" class="track-checkbox check" data-id="${track.id}" ${isSelected ? 'checked' : ''} aria-label="选择">`
+        : '';
+    const mvButton = (track.source === 'youtube' || track.source === 'bilibili')
+        ? `<button class="btn-mv" title="播放 MV">${icon('film')}</button>` : '';
+    const removeButton = (context === 'playlist' && !isSystemPlaylist)
+        ? `<button class="btn-remove" title="从列表移除">${icon('close')}</button>` : '';
+    const pagesButton = hasPages
+        ? `<button class="btn-pages" title="选集">${icon('list')}</button>` : '';
+    const favButton = (context !== 'playlist')
+        ? `<button class="btn-favorite${isFavorite ? ' liked' : ''}" title="${isFavorite ? '已收藏' : '收藏'}">${icon('heart', { filled: isFavorite })}</button>` : '';
 
     div.innerHTML = `
-        ${left ? `<div class="flex-shrink-0">${left}</div>` : ''}
-        <figure class="relative flex-shrink-0 m-0">
-            <img src="${track.cover_url || getThumbnailUrl(track.thumbnail)}" alt="cover" loading="lazy" class="w-16 h-16 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
-            ${isCurrent ? `<div class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">${icon('music', { className: 'text-white text-lg' })}</div>` : ''}
-        </figure>
-        <div class="flex-1 min-w-0">
-            <h3 class="text-sm font-bold text-base-content truncate">${escapeHtml(track.title)}</h3>
-            <p class="text-xs text-base-content/60 truncate mt-0.5">${escapeHtml(track.artist)}</p>
-            <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                <span class="text-xs text-base-content/50">${formatTime(track.duration)}</span>
-                ${showSource ? `<span class="badge badge-xs badge-ghost">${track.source}</span>` : ''}
-                ${getPlayCountBadge(track.id)}
+        <div class="song-info">
+            ${checkbox}
+            <div class="cover-small">${track.thumbnail || track.cover_url ? `<img src="${cover}" alt="cover" loading="lazy" onerror="this.style.display='none'">` : icon('music')}</div>
+            <div class="song-copy">
+                <div class="song-title">${escapeHtml(track.title || '未知歌曲')}${isVideo ? '<em>MV</em>' : ''}</div>
+                <div class="song-artist">${escapeHtml(track.artist || '-')}</div>
             </div>
         </div>
-        <div class="flex flex-col gap-2 flex-shrink-0">
-            <button class="btn-play btn btn-circle btn-primary btn-sm" data-id="${track.id}" title="播放" ${isLoading ? 'disabled' : ''}>${icon(isLoading ? 'spinner' : 'play', isLoading ? { className: 'animate-spin' } : {})}</button>
-            ${(track.source === 'youtube' || track.source === 'bilibili') ? `<button class="btn-mv btn btn-circle btn-secondary btn-sm" title="播放MV">${icon('film')}</button>` : ''}
-            ${context === 'playlist' && !isSystemPlaylist ? `<button class="btn-remove btn btn-circle btn-error btn-sm btn-ghost" title="从列表移除">${icon('close')}</button>` : ''}
-            ${hasPages ? `<button class="btn-pages btn btn-circle btn-ghost btn-sm text-base-content/50" title="选集">${icon('list')}</button>` : ''}
-            ${context !== 'playlist' ? `<button class="btn-favorite btn btn-circle btn-sm ${isFavorite ? 'btn-error' : 'btn-ghost text-base-content/50'}" title="${isFavorite ? '已收藏' : '收藏'}">${icon('heart', { filled: isFavorite })}</button>` : ''}
-            <button class="btn-download btn btn-circle btn-ghost btn-sm text-base-content/50" title="下载">${icon('download')}</button>
+        <div class="song-meta">${showSource ? `<span class="src">${escapeHtml(sourceLabel(track.source))}</span>` : ''} ${getPlayCountBadge(track.id)}</div>
+        <div class="duration">${formatTime(track.duration)}</div>
+        <div class="row-actions">
+            <button class="btn-play" data-id="${track.id}" title="播放" ${isLoading ? 'disabled' : ''}>${icon(isLoading ? 'spinner' : 'play', isLoading ? { className: 'spin' } : {})}</button>
+            ${mvButton}${pagesButton}${favButton}${removeButton}
+            <button class="btn-download" title="下载">${icon('download')}</button>
         </div>
     `;
 
+    div.addEventListener('click', e => {
+        if (e.target.closest('button, input, label, a')) return;
+        playTrack(track, context);
+    });
+
     if (selectable) {
-        const checkbox = div.querySelector('.track-checkbox');
-        checkbox.addEventListener('change', () => toggleSelection(track.id, checkbox.checked));
+        const cb = div.querySelector('.track-checkbox');
+        cb.addEventListener('change', () => toggleSelection(track.id, cb.checked));
     }
 
     div.querySelector('.btn-play').addEventListener('click', () => playTrack(track, context));
-    div.querySelector('.btn-download').addEventListener('click', async (e) => {
+    div.querySelector('.btn-download').addEventListener('click', async e => {
         const btn = e.currentTarget;
-        
-        // 先检查本地是否已有文件
         const localItem = state.localItems.find(i => i.track && i.track.id === track.id);
         if (localItem) {
-            // 直接触发浏览器下载
             const a = document.createElement('a');
             a.href = `api/local/stream/${encodeURIComponent(localItem.id)}`;
             a.download = `${track.artist} - ${track.title}${localItem.media_type === 'video' ? '.mp4' : '.mp3'}`;
@@ -78,10 +90,8 @@ export function createTrackCard(track, options = {}) {
             showToast('开始下载...', 'success');
             return;
         }
-        
-        // 本地没有，调后端下载接口
         btn.disabled = true;
-        btn.innerHTML = icon('spinner', { className: 'animate-spin' });
+        btn.innerHTML = icon('spinner', { className: 'spin' });
         try {
             await downloadTrack(track);
         } finally {
@@ -100,13 +110,12 @@ export function createTrackCard(track, options = {}) {
         favBtn.addEventListener('click', async () => {
             const targetId = getFavoriteTargetId(track);
             const nextFavorite = !isTrackInPlaylist(track.id, targetId);
-            // 立即反馈，不等 API 返回
             favBtn.innerHTML = icon('heart', { filled: nextFavorite });
-            favBtn.className = `btn btn-circle btn-sm ${nextFavorite ? 'btn-error' : 'btn-ghost text-base-content/50'}`;
+            favBtn.classList.toggle('liked', nextFavorite);
             try {
                 await toggleFavorite(track);
             } catch {
-                // 失败时 optimisticallySetFavorite 会回退并触发重绘
+                // 失败会回退并触发重绘
             }
         });
     }
@@ -118,45 +127,48 @@ async function togglePages(container, track, context, btn) {
     let pagesBox = container.querySelector('.pages-box');
     if (pagesBox) {
         pagesBox.classList.toggle('hidden');
-        btn.classList.toggle('btn-primary', !pagesBox.classList.contains('hidden'));
+        btn.classList.toggle('liked', !pagesBox.classList.contains('hidden'));
         return;
     }
 
-    btn.innerHTML = icon('spinner', { className: 'animate-spin' });
+    btn.innerHTML = icon('spinner', { className: 'spin' });
     try {
         const data = await fetchTrackPages(track);
         const pages = data.pages || [];
         pagesBox = document.createElement('div');
-        pagesBox.className = 'pages-box w-full mt-2';
+        pagesBox.className = 'pages-box';
         if (pages.length === 0) {
-            pagesBox.innerHTML = '<div class="text-xs text-base-content/40 py-2">没有分集</div>';
+            pagesBox.innerHTML = '<div class="page-row">没有分集</div>';
         } else {
-            pagesBox.innerHTML = `
-                <div class="text-xs text-base-content/60 mb-1">共 ${pages.length} 集</div>
-                <div class="pages-list max-h-64 overflow-y-auto space-y-1"></div>
-            `;
-            const list = pagesBox.querySelector('.pages-list');
+            const list = document.createElement('div');
+            list.className = 'pages-list';
             pages.forEach(page => {
                 const pageTrack = buildPageTrack(track, page);
                 const row = document.createElement('div');
-                row.className = 'flex items-center gap-2 p-2 rounded-lg bg-base-200/50 hover:bg-base-200 cursor-pointer';
+                row.className = 'page-row';
                 const isPageLoading = state.loadingTrackId === pageTrack.id;
                 row.innerHTML = `
-                    <button class="btn-play btn btn-circle btn-primary btn-xs" data-id="${pageTrack.id}" ${isPageLoading ? 'disabled' : ''}>${icon(isPageLoading ? 'spinner' : 'play', isPageLoading ? { className: 'animate-spin' } : {})}</button>
-                    <span class="text-xs flex-1 truncate">${escapeHtml(pageTrack.title)}</span>
-                    <span class="text-xs text-base-content/50">${formatTime(pageTrack.duration)}</span>
+                    <button class="btn-play" data-id="${pageTrack.id}" ${isPageLoading ? 'disabled' : ''}>${icon(isPageLoading ? 'spinner' : 'play', isPageLoading ? { className: 'spin' } : {})}</button>
+                    <span class="pg-num">P${page.page}</span>
+                    <span class="pg-title">${escapeHtml(pageTrack.title)}</span>
+                    <span class="pg-dur">${formatTime(pageTrack.duration)}</span>
                 `;
-                row.addEventListener('click', () => playTrack(pageTrack, context));
+                row.addEventListener('click', e => {
+                    if (e.target.closest('button')) return;
+                    playTrack(pageTrack, context);
+                });
+                row.querySelector('.btn-play').addEventListener('click', () => playTrack(pageTrack, context));
                 list.appendChild(row);
             });
+            pagesBox.appendChild(list);
         }
         container.appendChild(pagesBox);
-        btn.classList.add('btn-primary');
+        btn.classList.add('liked');
     } catch (err) {
         console.error('加载分集失败:', err);
         pagesBox = document.createElement('div');
-        pagesBox.className = 'pages-box col-span-full w-full mt-2 text-xs text-error';
-        pagesBox.textContent = '分集加载失败';
+        pagesBox.className = 'pages-box';
+        pagesBox.innerHTML = '<div class="page-row">分集加载失败</div>';
         container.appendChild(pagesBox);
     } finally {
         btn.innerHTML = icon('list');

@@ -103,6 +103,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 ## 关键 API 契约（前缀可被 root_path 包裹）
 
 - `GET /api/library` → `{ version, playlists: {id: Playlist}, songs: {id: Song} }`；`POST /api/library` 全量更新（同步用）。
+- `GET /api/server_library` → `{ items: [Track + owner_count + play_count], total, today_plays }`：聚合所有用户收藏 + 自建歌单去重，Web / App 共用「服务器音乐库」。
 - `GET /api/search`、`POST /api/preview`（本地/缓存优先 → direct_stream 直链 → 代理流/下载缓存）。
 - `GET /api/track_pages` Bilibili 分 P 列表；`GET /api/track_resolve` 按 id+source 重新解析曲目。
 - `GET /api/stream/{cache_key}`、`GET /api/stream_proxy`（Referer/Cookie 音源代理，Range 透传，Bilibili m4s 强制 `audio/mp4`）。
@@ -115,13 +116,26 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
 - 宠物（好友对共养，config/pets.json）：`GET /pet/pairs`、`GET /pet/pair/{friend}`、`POST /pet/signin`、
   `POST /pet/claim`、`POST /pet/feed`、`POST /pet/interact`、`POST /pet/buy_species`、`POST /pet/switch_species`、
-  `POST /pet/event`（行为埋点）、`GET /pet/shop`。WS 信令 `pet_invite`/`pet_accept`（accept 建 pair）/`pet_action`。
+  `POST /pet/event`（行为埋点）、`GET /pet/shop?friend=`（角色 + 当前等级动作货架）、
+  `POST /pet/buy_action`（动作解锁）、`PATCH /pet/name`（改名）。WS 信令 `pet_invite`/`pet_accept`（accept 建 pair）/`pet_action`。
   经济=音符（任务/签到得、投喂换经验、升级解锁动作、角色商店兑换）。详见 andr/docs/pet-design.md。
-- 宠物素材内容（config/pet_content/，新增角色免发版）：`GET /pet/content/manifest`（manifest.json
-  缺省回退内置 boy 清单，characters[id]={name,fps,acts,clips}）与
-  `GET /pet/content/file/{character}/{act}`（每段动画一个 zip，内含 frames/frame_%04d.webp）。
-  运维：素材 zip 用 zipfile 打（241 帧/段），放 config/pet_content/<角色>/；manifest.json 只在
-  新增/改角色时需要。客户端 PetContentStore 按需下载解压到 filesDir/pet/。
+- 宠物素材内容（config/pet_content/，manifest v3，新增角色/动作免发版、免重启）：`GET /pet/content/manifest`
+  返回 {version, shop_rotation_version, characters[id]={name,fps,roles,starter,behaviors,clips,packs},
+  actions=[...], shop=[...]}；`GET /pet/content/file/{character}/{act}` 返回动画段 zip
+  （内含 frames/frame_%04d.webp）。动作商店按等级随机货架（10/20/30/40 音符，生成后固定）：
+  `GET /pet/shop?friend=` 返回角色 + 当前等级货架 + 动作目录，`POST /pet/buy_action` 购买；
+  `PATCH /pet/name` 改名。客户端 PetContentStore 按 pack 懒下载、manifest.version 变化清缓存，
+  PetAnimationEngine 只认语义角色/已解锁动作。完整格式见 `knowledge/2026-11_pet_content_format.md`。
+  素材（原始可操作资源 / 成品 / 生成脚本 / 局域网预览）不在本仓库，见 `~/workspace/cw/pet-assets/README.md`
+  与 `~/workspace/music_app/ASSETS.md`。
+- 后台管理（独立管理员账号）：`POST /admin/login`、`GET /admin/me`、`POST /admin/password`；
+  `GET /admin/stats`（概览统计）、`GET /admin/users`（分页/搜索）、`GET /admin/users/{name}`、
+  `POST /admin/users/{name}/reset_password`、`POST /admin/users/{name}/status`（禁用/启用，禁用即踢下线）、
+  `POST /admin/users/{name}/kick`、`DELETE /admin/users/{name}`；`GET/PUT /admin/announcement`；
+  `GET/POST /admin/avatar_presets`、`DELETE /admin/avatar_presets/{name}`；
+  `GET /admin/feedback`、`GET /admin/logs`、`GET /admin/logs/{name}`、`GET /admin/online`。
+  全部需管理员 Bearer token；管理员账号存 `config/admin.json`，首次按 `MUSIC_ADMIN_USER`/`MUSIC_ADMIN_PASSWORD`
+  引导（缺省 admin/admin123）。前端入口：独立页面 `/admin`（`admin.html` + `js/admin-main.js`），主页与侧栏不再放入口。
 
 ## 部署
 
@@ -147,6 +161,14 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - IM：/api/ws/im 长连接（好友直加双向、聊天、分享音乐、presence 广播、离线信箱 inbox 拉取即清）；
   一起听 = /im/listen/state 覆盖上报 + 3s 轮询跟随。
 - 公告：/api/announcement 读 config/announcement.json（改内容免重启）。
+
+### 后台管理系统（2026-11）
+
+- 目的：同一服务端（Web + App 共用）需要一个数据管控后台，覆盖用户管理 / 内容运营 / 日志监控 / 数据统计。
+- 形态：独立页面 `/admin`（`admin.html` + `js/admin-main.js` + `js/views/admin.js`），复用 FastAPI 服务与 `/api/admin/*`；主页/侧栏不放入口。`src/yinhe/web/admin_api.py` 提供后端。
+- 鉴权：**独立管理员账号**，存 `config/admin.json`（PBKDF2 哈希 + 独立 Bearer token），与普通用户 token 分开比对、互不覆盖。首次访问按 env `MUSIC_ADMIN_USER`/`MUSIC_ADMIN_PASSWORD` 引导创建（缺省 admin/admin123，务必改密）。
+- 用户禁用：`users.json` 条目加 `disabled` 字段；`_resolve_user` 与 `login` 均拦截，禁用即清 token 踢下线；`last_login_at` 在注册/登录时写入。
+- 数据全来自现有存储（users.json / users/<name>.json / feedback.jsonl / logs_upload/ / announcement.json / avatar_presets/ / pets.json）+ 内存态（im `_CONNECTIONS`、rooms `room_manager._rooms`）。
 
 ### WS 握手 500 的根因排查
 

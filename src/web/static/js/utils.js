@@ -27,17 +27,22 @@ export function filterByMediaType(items, filter) {
     return items.filter(item => getMediaType(item) === filter);
 }
 
-export function createMediaTypeFilter(currentFilter, onChange) {
-    const container = document.createElement('div');
-    container.className = 'flex gap-2 mb-3';
-    const labels = { all: '全部', audio: '音频', video: '视频' };
+export function renderChips(container, currentFilter, onChange, labels = { all: '全部', audio: '音频', video: '视频' }) {
+    if (!container) return;
+    container.innerHTML = '';
     Object.entries(labels).forEach(([type, label]) => {
         const btn = document.createElement('button');
-        btn.className = `btn btn-xs ${currentFilter === type ? 'btn-primary' : 'btn-ghost'}`;
+        btn.className = `chip${currentFilter === type ? ' active' : ''}`;
         btn.textContent = label;
         btn.addEventListener('click', () => onChange(type));
         container.appendChild(btn);
     });
+}
+
+export function createMediaTypeFilter(currentFilter, onChange) {
+    const container = document.createElement('div');
+    container.className = 'chips';
+    renderChips(container, currentFilter, onChange);
     return container;
 }
 
@@ -51,21 +56,20 @@ export function loadSettings() {
 }
 
 export function showToast(message, type = 'info') {
-    const toast = els.toast;
+    const toast = els.toast || document.getElementById('toast');
     if (!toast) return;
     const content = toast.querySelector('div') || toast;
     content.textContent = message;
 
-    // 类型样式
-    toast.className = toast.className.replace(/alert-\w+/g, '').trim();
-    if (type === 'success') toast.classList.add('alert-success');
-    else if (type === 'error') toast.classList.add('alert-error');
-    else if (type === 'warning') toast.classList.add('alert-warning');
-    else toast.classList.add('alert-info');
+    toast.className = 'toast-box';
+    if (type === 'success') toast.classList.add('success');
+    else if (type === 'error') toast.classList.add('error');
+    else if (type === 'warning') toast.classList.add('warning');
 
     toast.classList.remove('hidden');
+    requestAnimationFrame(() => toast.classList.add('show'));
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.add('hidden'), 2500);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 export function escapeHtml(text) {
@@ -77,7 +81,7 @@ export function escapeHtml(text) {
 export function getPlayCountBadge(trackId) {
     const count = state.playCounts[trackId] || 0;
     if (count <= 0) return '';
-    return `<span class="badge badge-sm badge-secondary gap-1" title="已收听 ${count} 次">${icon('headphones')} ${count}</span>`;
+    return `<span class="pc-badge" title="已收听 ${count} 次">${icon('headphones')} ${count}</span>`;
 }
 
 export function formatTime(seconds) {

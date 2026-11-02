@@ -6,9 +6,9 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>音河 - 在线音乐</title>
+    <title>音河 · 发现你的下一首歌</title>
     <!-- OG_META -->
-    <meta name="theme-color" content="#38bdf8">
+    <meta name="theme-color" content="#15181d">
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="node_modules/@phosphor-icons/web/src/regular/style.css">
@@ -19,258 +19,319 @@
     <link rel="apple-touch-icon" href="/icons/icon-512.png">
     <style>
         /* 从分享链接进入时，先隐藏主界面，避免闪现搜索页 */
-        .share-entry header,
-        .share-entry main,
-        .share-entry #tabNav,
+        .share-entry .app,
+        .share-entry .mobile-nav,
         .share-entry #playerBar {
             display: none !important;
         }
     </style>
 </head>
-<body class="bg-base-200 text-base-content pb-40">
+<body>
     <script>
         // 分享链接触发：立即隐藏主界面，后续由 JS 打开歌词页
         (function () {
-            if (/[?&](share|song)=/.test(location.search)) {
+            if (/[?&](share|song|c)=/.test(location.search)) {
                 document.documentElement.classList.add('share-entry');
             }
         })();
     </script>
     <!-- SHARE_COVER -->
-    <!-- 入站密码验证（已临时关闭）
-    <div id="passwordGate" class="fixed inset-0 z-[100] bg-base-200 flex items-center justify-center p-4">
-        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
-            <div class="card-body items-center text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-black text-3xl shadow-lg shadow-primary/20 mb-4">
-                    <i class="ph-fill ph-lock-key"></i>
-                </div>
-                <h2 class="card-title text-lg">我们不欢迎爬虫</h2>
-                <p class="text-sm text-base-content/60">请输入密码</p>
-                <input id="passwordInput" type="password" placeholder="密码" class="input input-bordered w-full mt-2" autocomplete="off" autofocus>
-                <p id="passwordError" class="text-sm text-error hidden">密码错误</p>
-                <p id="passwordSuccess" class="text-sm text-success hidden">密码正确，正在进入…</p>
-                <button id="passwordSubmit" class="btn btn-primary w-full mt-2">进入</button>
+
+    <!-- 管理密码弹窗（删除/取消收藏/改设置等敏感操作） -->
+    <div id="adminPasswordModal" class="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="panel" style="width:100%;max-width:360px">
+            <h2 id="adminPasswordTitle" class="panel-title">需要密码</h2>
+            <p class="panel-sub">该操作受保护，请输入管理密码</p>
+            <input id="adminPasswordInput" type="password" placeholder="管理密码" class="field-input" autocomplete="off">
+            <p id="adminPasswordError" class="field-error hidden">密码错误</p>
+            <div class="flex gap-2 mt-3">
+                <button id="adminPasswordCancel" class="btn-soft flex-1">取消</button>
+                <button id="adminPasswordSubmit" class="btn-lime flex-1">确认</button>
             </div>
         </div>
     </div>
-    -->
 
-    <!-- 管理密码弹窗（删除/取消收藏/改设置等敏感操作） -->
-    <div id="adminPasswordModal" class="fixed inset-0 z-[110] bg-base-200/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
-            <div class="card-body">
-                <h2 id="adminPasswordTitle" class="card-title text-lg">需要密码</h2>
-                <p class="text-sm text-base-content/60">该操作受保护，请输入管理密码</p>
-                <input id="adminPasswordInput" type="password" placeholder="管理密码" class="input input-bordered w-full mt-2" autocomplete="off">
-                <p id="adminPasswordError" class="text-sm text-error hidden">密码错误</p>
-                <div class="flex gap-2 mt-2">
-                    <button id="adminPasswordCancel" class="btn btn-ghost flex-1">取消</button>
-                    <button id="adminPasswordSubmit" class="btn btn-primary flex-1">确认</button>
-                </div>
+    <!-- 登录 / 注册 -->
+    <div id="authModal" class="auth-overlay hidden">
+        <div class="auth-card">
+            <button id="authClose" class="icon-btn auth-close" title="关闭"><i class="ph ph-x"></i></button>
+            <div class="auth-logo">♪</div>
+            <h2 class="auth-title">音河账号</h2>
+            <p class="auth-sub">登录后歌单与收藏会和 App 同步</p>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-auth-mode="login">登录</button>
+                <button class="auth-tab" data-auth-mode="register">注册</button>
             </div>
+            <form id="authForm" class="auth-form">
+                <label class="field-label">账号
+                    <input id="authUsername" class="field-input" type="text" autocomplete="username" placeholder="账号" required>
+                </label>
+                <label class="field-label">密码
+                    <input id="authPassword" class="field-input" type="password" autocomplete="current-password" placeholder="密码" required>
+                </label>
+                <p id="authError" class="field-error hidden"></p>
+                <button id="authSubmit" class="btn-lime auth-submit" type="submit">登录</button>
+            </form>
+            <p class="auth-note">不登录也能使用，但数据不做保证。</p>
         </div>
     </div>
 
     <!-- 一起听房间弹窗 -->
-    <div id="roomModal" class="fixed inset-0 z-[120] bg-base-200/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="card bg-base-100 w-full max-w-sm shadow-xl border border-base-300">
-            <div class="card-body">
-                <div class="flex items-center justify-between">
-                    <h2 id="roomModalTitle" class="card-title text-lg">一起听</h2>
-                    <button id="roomModalClose" class="btn btn-ghost btn-circle btn-sm"><i class="ph ph-x"></i></button>
-                </div>
-                <div id="roomModalBody" class="mt-2"></div>
+    <div id="roomModal" class="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="panel" style="width:100%;max-width:380px">
+            <div class="flex items-center justify-between mb-2">
+                <h2 id="roomModalTitle" class="panel-title mb-0">一起听</h2>
+                <button id="roomModalClose" class="icon-btn"><i class="ph ph-x"></i></button>
             </div>
+            <div id="roomModalBody" class="mt-2"></div>
         </div>
     </div>
 
-    <!-- 顶部搜索栏 -->
-    <header class="sticky top-0 z-40 glass border-b border-base-300/50">
-        <div class="max-w-3xl mx-auto px-4 py-4 space-y-3">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-black text-xl shadow-lg shadow-primary/20">
-                    <i class="ph-fill ph-music-note"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-black tracking-tight leading-none bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">音河</h1>
-                    <p class="text-xs text-base-content/50">发现你的下一首歌</p>
-                </div>
+    <div id="app" class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo">♪</span>
+                <span class="brand-copy"><strong>音河</strong><span>发现你的下一首歌</span></span>
             </div>
 
-            <!-- 搜索框 -->
-            <div class="join w-full">
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="搜索歌曲、艺人、专辑..."
-                    class="input input-bordered join-item w-full bg-base-100/80"
-                >
-                <button id="searchBtn" class="btn btn-primary join-item px-6">搜索</button>
-            </div>
+            <div class="nav-label">探索</div>
+            <nav class="nav">
+                <button class="nav-item tab-btn tab-active" data-tab="search"><span class="nav-icon"><i class="ph ph-magnifying-glass"></i></span><span>搜索</span></button>
+                <button class="nav-item tab-btn" data-tab="playlists"><span class="nav-icon"><i class="ph ph-music-notes"></i></span><span>我的列表</span><span class="nav-badge" id="navPlaylistCount">0</span></button>
+                <button class="nav-item tab-btn" data-tab="local"><span class="nav-icon"><i class="ph ph-hard-drives"></i></span><span>本地音乐</span></button>
+                <button class="nav-item tab-btn" data-tab="settings"><span class="nav-icon"><i class="ph ph-gear"></i></span><span>设置</span></button>
+            </nav>
 
-            <!-- 音源筛选：四类音源 -->
-            <div class="flex items-center gap-2">
-                <label class="text-sm text-base-content/60 whitespace-nowrap">音源</label>
-                <select id="sourceSelect" class="select select-bordered select-sm bg-base-100/80 flex-1 min-w-0">
-                    <option value="">加载中…</option>
-                </select>
+            <div class="nav-label nav-label-row"><span>音乐库</span><button id="createPlaylistBtn" class="nav-add" title="新建列表"><i class="ph ph-plus"></i></button></div>
+            <div class="playlist-box" id="playlistsSidebar"></div>
+
+            <div class="side-bottom">
+                <a class="nav-item app-download" id="appDownloadLink" href="https://jvkit.cn/download/music" target="_blank" rel="noopener">
+                    <span class="nav-icon"><i class="ph ph-device-mobile"></i></span><span>下载 App</span>
+                </a>
+                <div class="profile-wrap">
+                    <button class="profile" id="userButton">
+                        <span class="avatar" id="userAvatar">?</span>
+                        <span class="profile-copy" id="userName">登录 / 注册</span>
+                    </button>
+                    <div class="user-menu hidden" id="userMenu">
+                        <button id="logoutBtn" class="user-menu-item"><i class="ph ph-sign-out"></i> 退出登录</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main" id="mainScroll">
+            <div class="content">
+                <header class="topbar">
+                    <div class="welcome">
+                        <h1 id="pageTitle">发现你的下一首歌</h1>
+                        <p id="pageSub">从熟悉的旋律出发，也多走一点陌生的路。</p>
+                    </div>
+                    <div class="top-actions">
+                        <a class="round-btn" href="https://jvkit.cn/download/music" target="_blank" rel="noopener" title="下载 App"><i class="ph ph-device-mobile"></i></a>
+                        <button class="round-btn" id="userBtnTop" title="账号"><i class="ph ph-user-circle"></i></button>
+                    </div>
+                </header>
+
+                <div id="batchBar" class="batch-bar hidden">
+                    <div class="batch-left">
+                        <input type="checkbox" id="selectAll" class="check">
+                        <label for="selectAll">全选</label>
+                        <span id="selectedCount" class="batch-count">已选 0 首</span>
+                    </div>
+                    <button id="copyToPlaylistBtn" class="btn-soft btn-xs" disabled>复制到…</button>
+                </div>
+
+                <section id="searchView" class="view">
+                    <section class="search-panel">
+                        <div class="search">
+                            <span class="search-icon"><i class="ph ph-magnifying-glass"></i></span>
+                            <input id="searchInput" type="text" placeholder="搜索歌曲、艺人、专辑…" aria-label="搜索歌曲">
+                            <kbd>⌘ K</kbd>
+                        </div>
+                        <select id="sourceSelect" class="source"></select>
+                        <button id="searchBtn" class="search-btn">搜索</button>
+                    </section>
+
+                    <section class="results" id="serverLibrarySection">
+                        <header class="results-head">
+                            <div class="results-title">
+                                <h2>服务器音乐库</h2>
+                                <span id="serverLibraryMeta">所有用户共享的音乐</span>
+                            </div>
+                            <div class="filter-row">
+                                <div class="chips" id="serverLibraryChips"></div>
+                                <span class="view-count" id="serverLibraryCount"></span>
+                            </div>
+                        </header>
+                        <div id="serverLibraryLoading" class="state-box hidden">
+                            <i class="ph ph-spinner spin"></i>
+                            <p>加载音乐库…</p>
+                        </div>
+                        <div id="serverLibraryList"></div>
+                    </section>
+
+                    <section class="results hidden" id="searchResultsSection">
+                        <header class="results-head">
+                            <div class="results-title">
+                                <h2>搜索结果</h2>
+                                <span id="searchMeta">输入关键词开始搜索</span>
+                            </div>
+                            <div class="filter-row">
+                                <div class="chips" id="searchChips"></div>
+                                <span class="view-count" id="searchCount"></span>
+                            </div>
+                        </header>
+
+                        <div id="searchLoading" class="state-box hidden">
+                            <i class="ph ph-spinner spin"></i>
+                            <p>搜索中…</p>
+                        </div>
+                        <div id="searchEmpty" class="state-box">
+                            <div class="state-emoji"><i class="ph ph-headphones"></i></div>
+                            <p>输入关键词，开始你的下一首歌</p>
+                        </div>
+                        <div id="searchResults"></div>
+                    </section>
+                </section>
+
+                <section id="playlistsView" class="view hidden">
+                    <div class="section-head">
+                        <h2 id="currentPlaylistTitle" class="section-title">我的收藏</h2>
+                        <button id="deletePlaylistBtn" class="btn-danger btn-xs hidden">删除列表</button>
+                    </div>
+                    <div class="filter-row filter-row-left">
+                        <div class="chips" id="playlistChips"></div>
+                    </div>
+                    <div id="playlistTracks"></div>
+                </section>
+
+                <section id="localView" class="view hidden">
+                    <div class="section-head">
+                        <h2 class="section-title">本地音乐</h2>
+                        <span class="view-count" id="localMeta"></span>
+                    </div>
+                    <div class="filter-row filter-row-left">
+                        <div class="chips" id="localChips"></div>
+                    </div>
+                    <div id="localLoading" class="state-box hidden">
+                        <i class="ph ph-spinner spin"></i>
+                    </div>
+                    <div id="localList"></div>
+                </section>
+
+                <section id="settingsView" class="view hidden">
+                    <div class="section-head"><h2 class="section-title">设置</h2></div>
+                    <div class="settings-grid">
+                        <div class="panel">
+                            <h3 class="panel-title">收藏与列表</h3>
+                            <label class="field-label">默认收藏目标列表
+                                <select id="settingsTargetPlaylist" class="field-input"></select>
+                            </label>
+                            <p class="field-hint">点击「收藏」按钮时加入的默认播放列表。</p>
+                            <label class="field-label">网页音源收藏列表
+                                <select id="settingsWebFavoritePlaylist" class="field-input"></select>
+                            </label>
+                            <p class="field-hint">网页音源（第三方站点）收藏时加入的播放列表。</p>
+                        </div>
+                        <div class="panel">
+                            <h3 class="panel-title">搜索分页数量</h3>
+                            <div class="grid-2">
+                                <label class="field-label">YouTube<input type="number" id="settingsLimitYoutube" min="1" max="50" value="10" class="field-input"></label>
+                                <label class="field-label">网易云<input type="number" id="settingsLimitNetease" min="1" max="50" value="10" class="field-input"></label>
+                                <label class="field-label">Bilibili<input type="number" id="settingsLimitBilibili" min="1" max="50" value="10" class="field-input"></label>
+                                <label class="field-label">SoundCloud<input type="number" id="settingsLimitSoundcloud" min="1" max="50" value="10" class="field-input"></label>
+                            </div>
+                            <p class="field-hint">每次搜索/加载更多时返回的曲目数量（YouTube 暂不支持真正翻页）。</p>
+                            <button id="settingsSaveBtn" class="btn-lime mt-3" style="width:100%">保存设置</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <aside class="right-rail" id="rightRail">
+            <section class="now-card">
+                <div class="now-label"><span>NOW PLAYING</span><i class="eq"><span></span><span></span><span></span></i></div>
+                <div class="now-cover" id="nowCover"><i class="ph ph-music-note"></i></div>
+                <div class="now-info">
+                    <h2 id="nowTitle">未在播放</h2>
+                    <p id="nowArtist">选一首歌开始</p>
+                </div>
+                <div class="now-controls">
+                    <button id="nowFavoriteBtn" class="ctrl" title="收藏"><i class="ph ph-heart"></i></button>
+                    <button id="sidePlay" class="play-main" title="播放/暂停"><i class="ph ph-play"></i></button>
+                    <button id="nowNextBtn" class="ctrl" title="下一首"><i class="ph ph-skip-forward"></i></button>
+                    <span class="play-time" id="nowTime">0:00 / 0:00</span>
+                </div>
+                <div class="progress"><i id="nowProgress"></i></div>
+            </section>
+
+            <section class="queue-card">
+                <div class="queue-head"><h3>接下来播放</h3><button id="queueClear">清空</button></div>
+                <div id="queueList" class="queue-list"></div>
+            </section>
+
+            <section class="discover-card">
+                <div class="discover-head"><h3>音源</h3><span id="sourceCount"></span></div>
+                <div class="tags" id="discoverTags"></div>
+            </section>
+        </aside>
+    </div>
+
+    <nav class="mobile-nav" id="mobileNav">
+        <button class="tab-btn tab-active" data-tab="search"><i class="ph ph-magnifying-glass"></i><span>搜索</span></button>
+        <button class="tab-btn" data-tab="playlists"><i class="ph ph-music-notes"></i><span>列表</span></button>
+        <button class="tab-btn" data-tab="local"><i class="ph ph-hard-drives"></i><span>本地</span></button>
+        <button class="tab-btn" data-tab="settings"><i class="ph ph-gear"></i><span>设置</span></button>
+        <a class="mobile-app" href="https://jvkit.cn/download/music" target="_blank" rel="noopener"><i class="ph ph-device-mobile"></i><span>App</span></a>
+    </nav>
+
+    <footer id="playerBar" class="player">
+        <div class="playing">
+            <div class="player-art"><img id="playerThumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23242931'/%3E%3Ccircle cx='24' cy='24' r='10' fill='%235f6762'/%3E%3C/svg%3E" alt="cover"></div>
+            <div class="playing-copy"><strong id="playerTitle">未在播放</strong><span id="playerArtist">-</span></div>
+            <button id="playerFavoriteBtn" class="heart-btn" title="收藏"><i class="ph ph-heart"></i></button>
+        </div>
+        <div class="player-center">
+            <div class="player-controls">
+                <button id="modeBtn" class="pcontrol" title="列表循环"><i class="ph ph-repeat"></i></button>
+                <button id="prevBtn" class="pcontrol" title="上一首"><i class="ph ph-skip-back"></i></button>
+                <button id="playPauseBtn" class="player-play" title="播放/暂停"><i class="ph ph-play"></i></button>
+                <button id="nextBtn" class="pcontrol" title="下一首"><i class="ph ph-skip-forward"></i></button>
+                <button id="playerLyricsBtn" class="pcontrol" title="歌词"><i class="ph ph-microphone"></i></button>
+            </div>
+            <div class="timeline">
+                <span class="time" id="currentTime">0:00</span>
+                <div class="track" id="progressContainer"><i id="progressBar"></i></div>
+                <span class="time" id="duration">0:00</span>
             </div>
         </div>
-
-        <!-- 批量操作栏 -->
-        <div id="batchBar" class="hidden bg-base-100/60 border-t border-base-300/30">
-            <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="selectAll" class="checkbox checkbox-primary checkbox-sm">
-                    <label for="selectAll" class="text-sm">全选</label>
-                    <span id="selectedCount" class="text-xs text-base-content/60 ml-2">已选 0 首</span>
-                </div>
-                <div class="flex gap-2">
-                    <button id="copyToPlaylistBtn" class="btn btn-xs btn-outline btn-primary" disabled>复制到…</button>
-                </div>
-            </div>
+        <div class="player-right">
+            <button id="roomBtn" class="pcontrol" title="一起听"><i class="ph ph-users"></i></button>
+            <button id="playerRemoveBtn" class="pcontrol hidden" title="删除本地文件"><i class="ph ph-trash"></i></button>
         </div>
-
-        <!-- Tab 导航 -->
-        <nav class="bg-base-100/60 border-t border-base-300/30" id="tabNav">
-            <div class="max-w-3xl mx-auto px-4">
-                <div role="tablist" class="tabs tabs-bordered">
-                    <button role="tab" class="tab tab-active tab-btn flex-1 gap-1" data-tab="search"><i class="ph ph-magnifying-glass"></i> 搜索</button>
-                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="playlists"><i class="ph ph-music-notes"></i> 列表</button>
-                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="local"><i class="ph ph-hard-drives"></i> 本地</button>
-                    <button role="tab" class="tab tab-btn flex-1 gap-1" data-tab="settings"><i class="ph ph-gear"></i> 设置</button>
-                </div>
-            </div>
-        </nav>
-    </header>
+        <audio id="audioPlayer" preload="none" playsinline webkit-playsinline></audio>
+    </footer>
 
     <!-- 一起听顶部横幅 -->
-    <div id="roomBanner" class="hidden bg-primary/10 border-b border-primary/20 backdrop-blur">
-        <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-sm">
-                <i class="ph ph-users text-primary"></i>
-                <span class="font-medium text-primary">一起听</span>
-                <span class="text-base-content/70">房间 <span id="roomBannerCode" class="font-mono font-bold tracking-wider">----</span></span>
-                <span class="text-base-content/50 text-xs" id="roomBannerCount">1 人在线</span>
+    <div id="roomBanner" class="room-banner hidden">
+        <div class="room-banner-inner">
+            <div class="room-banner-copy">
+                <i class="ph ph-users"></i>
+                <span class="room-banner-title">一起听</span>
+                <span class="room-banner-room">房间 <b id="roomBannerCode">----</b></span>
+                <span class="room-banner-count" id="roomBannerCount">1 人在线</span>
             </div>
-            <button id="roomBannerExit" class="btn btn-xs btn-ghost text-error">退出</button>
+            <button id="roomBannerExit" class="room-banner-exit">退出</button>
         </div>
     </div>
-
-    <!-- 主内容区 -->
-    <main class="max-w-3xl mx-auto px-4 py-5">
-        <!-- 搜索视图 -->
-        <section id="searchView" class="view space-y-4">
-            <div id="searchLoading" class="hidden py-16 text-center">
-                <span class="loading loading-spinner loading-lg text-primary"></span>
-                <p class="mt-3 text-sm text-base-content/60">搜索中...</p>
-            </div>
-            <div id="searchEmpty" class="py-16 text-center text-base-content/40">
-                <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-base-300/50 flex items-center justify-center text-5xl text-primary">
-                    <i class="ph ph-headphones"></i>
-                </div>
-                <p class="text-sm">输入关键词开始搜索</p>
-            </div>
-            <div id="searchResults" class="space-y-3"></div>
-        </section>
-
-        <!-- 播放列表视图 -->
-        <section id="playlistsView" class="view hidden">
-            <div class="flex flex-col md:flex-row gap-4">
-                <div class="w-full md:w-1/3 md:min-w-[160px]">
-                    <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-3 mb-3">
-                        <button id="createPlaylistBtn" class="btn btn-primary btn-sm w-full">
-                            + 新建列表
-                        </button>
-                    </div>
-                    <div id="playlistsSidebar" class="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-1 md:pb-0"></div>
-                </div>
-                <div class="flex-1">
-                    <div id="playlistDetailHeader" class="mb-4 flex items-center justify-between">
-                        <h2 id="currentPlaylistTitle" class="text-xl font-bold">我的收藏</h2>
-                        <button id="deletePlaylistBtn" class="hidden btn btn-sm btn-error btn-soft">删除列表</button>
-                    </div>
-                    <div id="playlistTracks" class="space-y-3"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 本地视图 -->
-        <section id="localView" class="view hidden">
-            <h2 class="text-xl font-bold mb-4">本地音乐</h2>
-            <div id="localLoading" class="hidden py-16 text-center">
-                <span class="loading loading-spinner loading-lg text-primary"></span>
-            </div>
-            <div id="localList" class="space-y-3"></div>
-        </section>
-
-        <!-- 设置视图 -->
-        <section id="settingsView" class="view hidden">
-            <h2 class="text-xl font-bold mb-4">设置</h2>
-            <div class="space-y-4">
-                <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-5">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">默认收藏目标列表</span>
-                        </label>
-                        <select id="settingsTargetPlaylist" class="select select-bordered bg-base-100/80">
-                            <option value="default">我的收藏</option>
-                        </select>
-                        <label class="label">
-                            <span class="label-text-alt">点击「收藏」按钮时加入的默认播放列表。</span>
-                        </label>
-                    </div>
-
-                    <div class="form-control mt-4">
-                        <label class="label">
-                            <span class="label-text font-medium">网页音源收藏列表</span>
-                        </label>
-                        <select id="settingsWebFavoritePlaylist" class="select select-bordered bg-base-100/80">
-                            <option value="web_favorites">网页收藏</option>
-                        </select>
-                        <label class="label">
-                            <span class="label-text-alt">网页音源（第三方站点）收藏时加入的播放列表。</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="card bg-base-100/80 backdrop-blur shadow-sm border border-base-300/50 p-5">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">搜索分页数量</span>
-                        </label>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="label-text-alt">YouTube</label>
-                                <input type="number" id="settingsLimitYoutube" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
-                            </div>
-                            <div>
-                                <label class="label-text-alt">网易云</label>
-                                <input type="number" id="settingsLimitNetease" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
-                            </div>
-                            <div>
-                                <label class="label-text-alt">Bilibili</label>
-                                <input type="number" id="settingsLimitBilibili" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
-                            </div>
-                            <div>
-                                <label class="label-text-alt">SoundCloud</label>
-                                <input type="number" id="settingsLimitSoundcloud" min="1" max="50" value="10" class="input input-bordered input-sm w-full bg-base-100/80">
-                            </div>
-                        </div>
-                        <label class="label">
-                            <span class="label-text-alt">每次搜索/加载更多时返回的曲目数量（YouTube 暂不支持真正翻页）。</span>
-                        </label>
-                    </div>
-                    <button id="settingsSaveBtn" class="btn btn-primary w-full mt-4">保存设置</button>
-                </div>
-            </div>
-        </section>
-    </main>
 
     <!-- 复制到播放列表弹窗 -->
     <div id="copyModal" class="modal" role="dialog">
         <div class="modal-box">
-            <h3 class="font-bold text-lg mb-3">复制到播放列表</h3>
+            <h3 class="text-lg font-semibold mb-3">复制到播放列表</h3>
             <div id="copyModalList" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
             <div class="modal-action">
                 <button id="copyModalCancel" class="btn">取消</button>
@@ -333,112 +394,21 @@
         </div>
     </div>
 
-    <!-- 底部固定播放器 -->
-    <footer id="playerBar" class="fixed bottom-0 left-0 right-0 z-50 glass border-t border-base-300/50 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]">
-        <div class="relative h-1.5 bg-base-300 cursor-pointer group" id="progressContainer">
-            <div id="progressBar" class="absolute top-0 left-0 h-full bg-primary w-0 transition-all duration-100"></div>
-            <div class="absolute top-1/2 -translate-y-1/2 left-[var(--progress,0%)] w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow" style="pointer-events:none"></div>
-        </div>
-
-        <div class="max-w-3xl mx-auto px-4 py-3">
-            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-                <img
-                    id="playerThumbnail"
-                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23e5e7eb'/%3E%3Ccircle cx='24' cy='24' r='10' fill='%239ca3af'/%3E%3C/svg%3E"
-                    alt="cover"
-                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover flex-shrink-0 bg-base-300 shadow-md"
-                >
-
-                <div class="flex-1 min-w-0 order-2 sm:order-2">
-                    <p id="playerTitle" class="text-sm font-bold truncate">未在播放</p>
-                    <p id="playerArtist" class="text-xs text-base-content/60 truncate">-</p>
-                </div>
-
-                <div class="flex items-center gap-1 order-3 sm:order-3">
-                    <button id="prevBtn" class="btn btn-circle btn-ghost btn-sm"><i class="ph ph-skip-back"></i></button>
-                    <button id="playPauseBtn" class="btn btn-circle btn-primary"><i class="ph ph-play"></i></button>
-                    <button id="nextBtn" class="btn btn-circle btn-ghost btn-sm"><i class="ph ph-skip-forward"></i></button>
-                </div>
-
-                <div class="flex items-center gap-1 order-4 sm:order-4 ml-auto sm:ml-2">
-                    <button id="modeBtn" class="btn btn-circle btn-ghost btn-sm" title="列表循环"><i class="ph ph-repeat"></i></button>
-                    <button id="playerFavoriteBtn" class="btn btn-circle btn-ghost btn-sm text-base-content/40" title="收藏"><i class="ph ph-heart"></i></button>
-                    <button id="playerLyricsBtn" class="btn btn-circle btn-ghost btn-sm" title="歌词"><i class="ph ph-microphone"></i></button>
-                    <button id="roomBtn" class="btn btn-circle btn-ghost btn-sm text-base-content/60" title="一起听"><i class="ph ph-users"></i></button>
-                    <button id="playerRemoveBtn" class="hidden btn btn-circle btn-ghost btn-sm text-error" title="删除本地文件"><i class="ph ph-trash"></i></button>
-                </div>
-            </div>
-
-            <div class="flex justify-between text-xs text-base-content/50 mt-2 px-1">
-                <span id="currentTime">0:00</span>
-                <span id="duration">0:00</span>
-            </div>
-        </div>
-
-        <audio id="audioPlayer" preload="none" playsinline webkit-playsinline></audio>
-    </footer>
-
     <!-- 下载进度弹窗 -->
     <div id="downloadModal" class="modal" role="dialog">
         <div class="modal-box">
-            <h3 id="downloadModalTitle" class="font-bold text-lg mb-2 truncate">下载中...</h3>
-            <p id="downloadModalStatus" class="text-sm text-base-content/60 mb-3">准备下载</p>
-            <div class="w-full h-2 bg-base-300 rounded-full overflow-hidden mb-4">
-                <div id="downloadModalProgress" class="h-full bg-success w-0 transition-all duration-200"></div>
-            </div>
+            <h3 id="downloadModalTitle" class="text-lg font-semibold mb-2 truncate">下载中...</h3>
+            <p id="downloadModalStatus" class="text-sm opacity-60 mb-3">准备下载</p>
+            <div class="dl-track"><i id="downloadModalProgress"></i></div>
             <div class="modal-action">
                 <button id="downloadModalCancel" class="btn">取消</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast 提示 -->
-    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 hidden alert shadow-lg">
-        <div class="text-sm font-medium"></div>
-    </div>
+    <!-- 复制到播放列表弹窗列表元素 -->
+    <div id="toast" class="toast-box hidden"><div></div></div>
 
-    <!-- 入站密码保护：内联兜底（已临时关闭）
-    <script>
-        (function () {
-            const SITE_PASSWORD = 'junvon';
-            const SITE_KEY = 'musiic_password';
-            function unlock() {
-                const g = document.getElementById('passwordGate');
-                if (g) g.classList.add('hidden');
-            }
-            function showErr() {
-                const e = document.getElementById('passwordError');
-                if (e) e.classList.remove('hidden');
-            }
-
-            let stored = null;
-            try { stored = localStorage.getItem(SITE_KEY); } catch (e) {}
-            if (stored === SITE_PASSWORD) {
-                unlock();
-                return;
-            }
-
-            const input = document.getElementById('passwordInput');
-            const btn = document.getElementById('passwordSubmit');
-            if (!input || !btn) return;
-
-            function tryUnlock() {
-                if ((input.value || '').trim() === SITE_PASSWORD) {
-                    try { localStorage.setItem(SITE_KEY, SITE_PASSWORD); } catch (e) {}
-                    unlock();
-                } else {
-                    showErr();
-                }
-            }
-
-            btn.addEventListener('click', tryUnlock);
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') tryUnlock();
-            });
-        })();
-    </script>
-    -->
-
-    <script type="module" src="js/app.js?v=33"></script>
+    <script type="module" src="js/app.js?v=40"></script>
 </body>
 </html>

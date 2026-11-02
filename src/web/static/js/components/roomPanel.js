@@ -146,10 +146,8 @@ function updateRoomUI() {
 function renderRoomButton() {
     if (!els.roomBtn) return;
     const active = isInRoom();
-    els.roomBtn.innerHTML = icon('users', { className: active ? 'text-primary' : '' });
-    els.roomBtn.className = active
-        ? 'btn btn-circle btn-ghost btn-sm text-primary'
-        : 'btn btn-circle btn-ghost btn-sm text-base-content/60';
+    els.roomBtn.innerHTML = icon('users');
+    els.roomBtn.className = active ? 'pcontrol active-room' : 'pcontrol';
     els.roomBtn.title = active ? '一起听中' : '一起听';
 }
 

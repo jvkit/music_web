@@ -5,7 +5,7 @@
 import { DEFAULT_THUMBNAIL, getThumbnailUrl } from '../config.js';
 import { els } from '../dom.js';
 import { state } from '../state.js';
-import { escapeHtml, formatDate, formatSize, showToast, filterByMediaType, createMediaTypeFilter } from '../utils.js';
+import { escapeHtml, formatDate, formatSize, showToast, filterByMediaType, renderChips } from '../utils.js';
 import { icon } from '../icons.js';
 import { deleteLocalItem, fetchLocalItems } from '../api.js';
 import { playLocalItem, updatePlayerRemoveButton, playNext, stopPlayback } from '../player.js';
@@ -29,45 +29,43 @@ export function renderLocal() {
     const container = els.localList;
     container.innerHTML = '';
 
-    // 筛选按钮
-    const filterContainer = createMediaTypeFilter(state.mediaTypeFilter.local, (type) => {
+    renderChips(els.localChips, state.mediaTypeFilter.local, type => {
         state.mediaTypeFilter.local = type;
         renderLocal();
     });
-    container.appendChild(filterContainer);
 
     const items = filterByMediaType(state.localItems, state.mediaTypeFilter.local).slice().reverse();
+    if (els.localMeta) els.localMeta.textContent = `${items.length} 个文件`;
 
     if (items.length === 0) {
-        container.insertAdjacentHTML('beforeend', '<div class="py-12 text-center text-base-content/40 text-sm">暂无本地音乐</div>');
+        container.innerHTML = '<div class="state-box"><p>还没有本地音乐</p></div>';
         return;
     }
 
     items.forEach(item => {
         const track = item.track || {};
-        const div = document.createElement('div');
-        div.className = 'card card-side bg-base-100/80 backdrop-blur shadow-sm border border-base-200/60 p-3 gap-3 items-center hover:shadow-md transition';
+        const div = document.createElement('article');
+        div.className = 'song local-row';
         div.innerHTML = `
-            <figure class="flex-shrink-0 m-0">
-                <img src="${getThumbnailUrl(track.thumbnail)}" alt="cover" class="w-14 h-14 rounded-xl object-cover bg-base-300" onerror="this.src='${DEFAULT_THUMBNAIL}'">
-            </figure>
-            <div class="flex-1 min-w-0">
-                <h3 class="text-sm font-bold text-base-content truncate">${escapeHtml(track.title || '未知歌曲')}</h3>
-                <p class="text-xs text-base-content/60 truncate mt-0.5">${escapeHtml(track.artist || '-')}</p>
-                <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                    <span class="badge badge-xs badge-primary">${item.media_type}</span>
-                    <span class="text-xs text-base-content/50">${formatSize(item.size)}</span>
-                    <span class="text-xs text-base-content/50">${formatDate(item.downloaded_at)}</span>
-                    ${item.is_cache ? '<span class="badge badge-xs badge-ghost">缓存</span>' : ''}
+            <div class="song-info">
+                <div class="cover-small"><img src="${getThumbnailUrl(track.thumbnail)}" alt="cover" onerror="this.style.display='none'"></div>
+                <div class="song-copy">
+                    <div class="song-title">${escapeHtml(track.title || '未知歌曲')}</div>
+                    <div class="song-artist">${escapeHtml(track.artist || '-')}</div>
                 </div>
             </div>
-            <div class="flex flex-col gap-2 flex-shrink-0">
-                <button class="btn-play-local btn btn-circle btn-primary btn-sm" title="播放">${icon('play')}</button>
-                <button class="btn-fav-local btn btn-circle btn-ghost btn-sm text-base-content/50" title="加入播放列表">${icon('heart')}</button>
-                <button class="btn-delete-local btn btn-circle btn-error btn-sm btn-ghost" title="删除">${icon('trash')}</button>
+            <div class="song-meta">${item.media_type === 'video' ? 'MV' : '音频'} · ${formatSize(item.size)} · ${formatDate(item.downloaded_at)}${item.is_cache ? ' · 缓存' : ''}</div>
+            <div class="duration"></div>
+            <div class="row-actions">
+                <button class="btn-play-local" title="播放">${icon('play')}</button>
+                <button class="btn-fav-local" title="加入播放列表">${icon('heart')}</button>
+                <button class="btn-delete-local" title="删除">${icon('trash')}</button>
             </div>
         `;
-
+        div.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            playLocalItem(item);
+        });
         div.querySelector('.btn-play-local').addEventListener('click', () => playLocalItem(item));
         div.querySelector('.btn-fav-local').addEventListener('click', () => { if (item.track) toggleFavorite(item.track); });
         div.querySelector('.btn-delete-local').addEventListener('click', () => deleteLocalItemById(item));
@@ -89,11 +87,11 @@ async function deleteLocalItemById(item) {
         await deleteLocalItem(item.id);
         showToast('已删除', 'success');
         await loadLocal();
-        // 如果当前队列来自本地列表，刷新队列避免残留已删文件
         if (state.queue.length > 0 && state.localItems.some(i => i.track && state.queue.some(t => t.id === i.track.id))) {
             const currentId = state.currentTrack ? state.currentTrack.id : null;
             state.queue = state.localItems.filter(i => i.track).map(i => i.track);
             state.queueIndex = currentId ? state.queue.findIndex(t => t.id === currentId) : -1;
+            document.dispatchEvent(new CustomEvent('musiic:queue-updated'));
         }
     } catch (err) {
         showToast('删除失败', 'error');

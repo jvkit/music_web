@@ -4,7 +4,7 @@
   "description": "Musiic H5 前端静态资源",
   "type": "module",
   "scripts": {
-    "check": "node --check js/app.js && node --check js/config.js && node --check js/state.js && node --check js/utils.js && node --check js/api.js && node --check js/playlistOps.js && node --check js/selection.js && node --check js/selectionState.js && node --check js/player.js && node --check js/components/trackCard.js && node --check js/views/search.js && node --check js/views/playlists.js && node --check js/views/local.js && node --check js/views/settings.js && node --check js/views/modals.js",
+    "check": "for f in $(find js -name '*.js'); do node --check \"$f\" || exit 1; done",
     "serve": "python -m http.server 8080"
   },
   "keywords": [],

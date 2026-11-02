@@ -107,6 +107,8 @@ def _resolve_user(authorization: Optional[str]) -> str:
     users = _load_users()
     for username, info in users.items():
         if info.get("token") and secrets.compare_digest(info["token"], token):
+            if info.get("disabled"):
+                raise HTTPException(status_code=403, detail="账号已被禁用，请联系管理员")
             return username
     raise HTTPException(status_code=401, detail="令牌无效或已失效，请重新登录")
 
@@ -139,6 +141,7 @@ def _issue_token(username: str, password: str) -> dict[str, Any]:
             "password_hash": password_hash,
             "token": token,
             "created_at": _now_iso(),
+            "last_login_at": _now_iso(),
         }
         # 注册即随机分配一个默认头像（有预设时）
         avatar = _assign_random_preset_avatar(username)
@@ -168,6 +171,69 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ===================== 服务器音乐库（所有用户去重汇总） =====================
+
+@router.get("/server_library")
+def api_server_library():
+    """汇总所有用户收藏 + 自建歌单中的歌曲，按歌曲 id 去重。
+
+    返回：{ items: [track + owner_count + play_count], total }
+    公开接口：用于 Web / App 的「服务器音乐库」。
+    """
+    users = _load_users()
+    merged: dict[str, dict[str, Any]] = {}
+    owners: dict[str, set[str]] = {}
+
+    for username in users:
+        data = _load_user_data(username)
+        tracks: list[dict[str, Any]] = []
+        favorites = data.get("favorites")
+        if isinstance(favorites, list):
+            tracks.extend(favorites)
+        for playlist in data.get("playlists") or []:
+            if isinstance(playlist, dict) and isinstance(playlist.get("tracks"), list):
+                tracks.extend(playlist["tracks"])
+        for track in tracks:
+            if not isinstance(track, dict):
+                continue
+            track_id = track.get("id")
+            if not track_id:
+                continue
+            if track_id not in merged:
+                merged[track_id] = dict(track)
+                owners[track_id] = set()
+            owners[track_id].add(username)
+
+    # 合并全局音乐库的播放次数，便于排序与展示
+    try:
+        from yinhe.web import deps
+
+        songs = deps.get_library().data.songs
+        for track_id, item in merged.items():
+            song = songs.get(track_id)
+            if song is not None:
+                item.setdefault("play_count", song.play_count)
+    except Exception:
+        pass
+
+    items = []
+    for track_id, item in merged.items():
+        item["owner_count"] = len(owners[track_id])
+        item.setdefault("play_count", 0)
+        items.append(item)
+    items.sort(key=lambda x: (-int(x.get("owner_count") or 0), -int(x.get("play_count") or 0), str(x.get("title") or "")))
+
+    # 今日播放次数：App 首页排序用，和 /api/library 保持一致
+    try:
+        from yinhe.web.library_api import _today_plays
+
+        today_plays = _today_plays()
+    except Exception:
+        today_plays = {}
+
+    return {"items": items, "total": len(items), "today_plays": today_plays}
+
+
 @router.post("/auth/register")
 def api_register(req: AuthRequest):
     username, password = _validate_credentials(req)
@@ -186,10 +252,13 @@ def api_login(req: AuthRequest):
         info = users.get(username)
         if info is None:
             raise HTTPException(status_code=401, detail="账号不存在")
+        if info.get("disabled"):
+            raise HTTPException(status_code=403, detail="账号已被禁用，请联系管理员")
         if not _check_password(password, info["salt"], info["password_hash"]):
             raise HTTPException(status_code=401, detail="密码错误")
         token = secrets.token_hex(24)
         info["token"] = token
+        info["last_login_at"] = _now_iso()
         _save_users(users)
     return {"token": token, "username": username}
 

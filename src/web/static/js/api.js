@@ -4,11 +4,15 @@
 
 import { API_BASE } from './config.js';
 import { showToast } from './utils.js';
+import { getToken } from './auth.js';
 
 export async function apiFetch(path, options = {}, { silent = false } = {}) {
     const url = `${API_BASE}${path}`;
     try {
-        const response = await fetch(url, options);
+        const headers = new Headers(options.headers || {});
+        const token = getToken();
+        if (token) headers.set('Authorization', `Bearer ${token}`);
+        const response = await fetch(url, { ...options, headers });
         if (!response.ok) {
             const text = await response.text().catch(() => '');
             throw new Error(`HTTP ${response.status}: ${text}`);
@@ -136,5 +140,10 @@ export async function recordPlay(track, progress) {
 
 export async function fetchPlayCounts() {
     const response = await apiFetch('/plays');
+    return response.json();
+}
+
+export async function fetchServerLibrary() {
+    const response = await apiFetch('/server_library', {}, { silent: true });
     return response.json();
 }
