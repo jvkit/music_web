@@ -49,10 +49,10 @@ function selectSource(id) {
     <aside class="right-rail">
         <section class="now-card">
             <div class="now-label"><span>NOW PLAYING</span><i class="eq"><span></span><span></span><span></span></i></div>
-            <div class="now-cover" :class="{ playing: player.isPlaying }" :style="coverStyle">
+            <div class="now-cover" :class="{ playing: player.isPlaying }" :style="coverStyle" title="点击展开播放页" @click="player.openLyricsPage()">
                 <i v-if="!player.currentTrack" class="ph ph-music-note"></i>
             </div>
-            <div class="now-info">
+            <div class="now-info" title="点击展开播放页" @click="player.openLyricsPage()">
                 <h2>{{ player.currentTrack ? (player.currentTrack.title || '未知歌曲') : '未在播放' }}</h2>
                 <p>{{ player.currentTrack ? (player.currentTrack.artist || '-') : '选一首歌开始' }}</p>
             </div>

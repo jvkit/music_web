@@ -29,7 +29,7 @@ function seek(e) {
 
 <template>
     <footer class="player">
-        <div class="playing">
+        <div class="playing" title="点击展开播放页" @click="player.openLyricsPage()">
             <div class="player-art"><img :src="cover" alt="cover"></div>
             <div class="playing-copy">
                 <strong>{{ player.currentTrack ? player.currentTrack.title : '未在播放' }}</strong>
@@ -39,7 +39,7 @@ function seek(e) {
                 class="heart-btn"
                 :class="{ liked: isFavorite }"
                 title="收藏"
-                @click="player.currentTrack && library.toggleFavorite(player.currentTrack)"
+                @click.stop="player.currentTrack && library.toggleFavorite(player.currentTrack)"
             >
                 <i :class="isFavorite ? 'ph-fill ph-heart' : 'ph ph-heart'"></i>
             </button>
