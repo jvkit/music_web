@@ -94,7 +94,7 @@ function selectSource(id) {
             <div class="discover-head"><h3>音源</h3><span>{{ sources.webSources.length }} 个网页源</span></div>
             <div class="tags">
                 <button
-                    v-for="src in sources.webSources.slice(0, 12)"
+                    v-for="src in sources.webSources.filter(s => !s.internal).slice(0, 12)"
                     :key="src.id"
                     class="tag"
                     @click="selectSource(src.id)"

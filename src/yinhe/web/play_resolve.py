@@ -220,17 +220,22 @@ def api_play_resolve(req: deps.PreviewRequest):
             else:
                 failures.append(f"{s}(无同名匹配)")
 
-        # 直链型候选按优先级逐个试流；netease（整曲下载型）放链尾
+        # 直链型候选按优先级逐个试流；netease（整曲下载型）放链尾。
+        # 聚合源返回的候选带真实站点 source：同一站点不重复尝试
         download_type = [s for s in matched if s == "netease"]
         stream_type = [s for s in chain_sources if s in matched and s not in download_type]
+        attempted_real = {track.source}
         for s in stream_type:
             candidate = matched[s]
-            resp = _stream_response(candidate, s, media_type.value)
+            if candidate.source in attempted_real:
+                continue
+            attempted_real.add(candidate.source)
+            resp = _stream_response(candidate, candidate.source, media_type.value)
             if resp:
                 candidate_song = deps.ensure_song(candidate, media_type="audio")
                 library.record_play(candidate_song.id)
                 logger.info(
-                    f"play_resolve 换源成功：《{track.title}》{track.source} -> {s}"
+                    f"play_resolve 换源成功：《{track.title}》{track.source} -> {candidate.source}"
                 )
                 resp["fallback"] = True
                 return resp

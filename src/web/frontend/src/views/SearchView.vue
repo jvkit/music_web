@@ -18,9 +18,7 @@ const resultsEl = ref(null);
 
 const SOURCE_GROUPS = [
     { id: 'recommended', name: '强烈推荐', sources: ['web_liumingye'] },
-    { id: 'stable', name: '稳定源', sources: ['netease', 'bilibili', 'web_gequbao', 'web_fangpi'] },
-    { id: 'direct', name: '直连源（可播性一般）', sources: ['web_jbsou', 'web_netease_fe_mm'] },
-    { id: 'unstable', name: '不稳定 / 备选', sources: ['web_qqmp3', 'web_musicenc', 'web_tonzhon', 'web_tonzhon_whamon'] },
+    { id: 'library', name: '内容库', sources: ['web_netease_agg', 'web_kuwo_agg', 'netease', 'bilibili'] },
     { id: 'foreign', name: '外网源', sources: ['youtube', 'soundcloud'] },
 ];
 
@@ -36,7 +34,8 @@ const groups = computed(() => {
     return SOURCE_GROUPS.map(group => {
         const opts = group.sources
             .filter(id => !hidden.has(id))
-            .filter(id => id.startsWith('web_') ? sources.webSources.some(s => s.id === id) : true)
+            // 幕后站点（聚合的内部通道）不进选单，仅换源链与老收藏使用
+            .filter(id => id.startsWith('web_') ? sources.webSources.some(s => s.id === id && !s.internal) : true)
             .map(id => ({
                 id,
                 name: sourceName(id),

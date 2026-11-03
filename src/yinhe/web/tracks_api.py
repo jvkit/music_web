@@ -147,10 +147,59 @@ def api_track_pages(
     }
 
 
+def _netease_lyrics_by_title(track) -> Optional[dict]:
+    """歌词与音源解耦的兜底：按歌名+歌手去网易搜同曲，取 weapi 歌词（带翻译）。
+
+    适用于所有源生无歌词的曲目（酷我系 / B站 / 各网页镜像）。
+    """
+    from yinhe.sources import get_source
+    from yinhe.sources.web.merge import norm_key
+
+    title = (track.title or "").strip()
+    if not title:
+        return None
+    src = get_source("netease")
+    # 只按歌名搜：带歌手名会把结果带偏（返回标题混入歌手/版本修饰词），
+    # 匹配阶段再用归一化标题+歌手精确校验
+    try:
+        results = src.search(title, 8, 0) or []
+    except Exception:
+        return None
+
+    want_title = norm_key(title)
+    want_artist = norm_key(track.artist)
+    matched = None
+    for strict in (True, False):
+        for c in results:
+            if norm_key(c.title) != want_title:
+                continue
+            if strict and want_artist and norm_key(c.artist) != want_artist:
+                continue
+            matched = c
+            break
+        if matched:
+            break
+    if not matched:
+        return None
+
+    try:
+        lyrics = src.get_lyrics(matched)
+    except Exception:
+        return None
+    if lyrics and lyrics.get("lines"):
+        return {"lines": lyrics["lines"], "source": "netease"}
+    return None
+
+
 @router.post("/lyrics")
 def api_lyrics(req: deps.LyricsRequest):
-    """获取歌词（带时间轴）。原生源走原生 get_lyrics；网页源实现了才调，否则无歌词。"""
+    """获取歌词（带时间轴）。
+
+    链路：本源 get_lyrics（原生网易带翻译 / YouTube）→ 网易按歌名搜同曲兜底
+    （覆盖酷我系、B站等源生无歌词的内容库）。
+    """
     track = req.track
+    lyrics = None
     try:
         if track.source.startswith("web_"):
             src = deps.get_web_source(track.source)
@@ -160,7 +209,11 @@ def api_lyrics(req: deps.LyricsRequest):
             from yinhe.sources import get_source
             lyrics = get_source(track.source).get_lyrics(track)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"歌词获取失败: {e}")
+        logger.warning(f"本源歌词获取失败 {track.source}: {e}")
+
+    if not lyrics or not lyrics.get("lines"):
+        lyrics = _netease_lyrics_by_title(track) or lyrics
+
     if not lyrics:
         return {"has_lyrics": False, "lines": [], "source": track.source}
     return {
@@ -180,21 +233,30 @@ def _web_source_status(site_id: str) -> str:
 
 @router.get("/web_sources")
 def api_web_sources():
-    """列出已注册的网页音源（不包含 hidden 的）"""
+    """列出用户可选的网页音源（内容库聚合优先；幕后站点标 internal）
+
+    internal 站点（fangpi/jbsou 等）不进用户选单，但仍注册可用：
+    play_resolve 换源链与历史收藏 id 依赖它们。
+    """
+    from yinhe.sources.web import PUBLIC_SITES
+
     settings = load_settings()
     hidden = set(settings.hidden_sources or [])
+    items = [
+        {
+            "id": f"web_{a.site_id}",
+            "site_id": a.site_id,
+            "display_name": a.display_name,
+            "site_url": a.site_url,
+            "direct_stream": a.direct_stream,
+            "status": _web_source_status(a.site_id),
+            "internal": a.site_id not in PUBLIC_SITES,
+        }
+        for a in sorted(WEB_ADAPTERS, key=lambda x: x.display_name)
+        if f"web_{a.site_id}" not in hidden
+    ]
     return {
-        "items": [
-            {
-                "id": f"web_{a.site_id}",
-                "site_id": a.site_id,
-                "display_name": a.display_name,
-                "site_url": a.site_url,
-                "direct_stream": a.direct_stream,
-                "status": _web_source_status(a.site_id),
-            }
-            for a in sorted(WEB_ADAPTERS, key=lambda x: x.display_name)
-            if f"web_{a.site_id}" not in hidden
-        ],
+        # 聚合源排前，幕后站点殿后（前端按 internal 过滤）
+        "items": sorted(items, key=lambda x: x["internal"]),
         "hidden_sources": sorted(hidden),
     }

@@ -94,7 +94,8 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 
 - **Library 唯一事实源**：`src/yinhe/library.py` 的 `Library` 类管理 `library.json`（playlists + songs）。不要绕过它直接改 JSON。它是线程安全的（写锁 + 临时文件原子写），Web 层多线程并发场景必须走它的方法或 `write_lock()`。
 - **Song.id 全局唯一**：格式 `{source}:{original_id}`，如 `youtube:wJnBTPUQS5A`、`web_liumingye:qq:001qgtJp4fe6Lr`。前端 Track.id 与后端 Song.id 一致。
-- **音源插件化**：新音源实现 `sources/base.py` 的 `Source` 接口并注册到 `sources/__init__.py` 的 `_SOURCE_MAP`；网页音源实现 `sources/web/base.py` 的 `WebAdapter`，在 `sources/web/__init__.py` 的 `_load_adapters()` 里加入导入列表即可自动注册为 `web_<site_id>`。稳定性在 `sources/__init__.py` 的 `SOURCE_STATUS` 中登记（只登记 `unstable` 的源，正常的不用登记）。
+- **音源插件化（两层结构，2026-11 起）**：新音源实现 `sources/base.py` 的 `Source` 接口并注册到 `sources/__init__.py` 的 `_SOURCE_MAP`；网页音源实现 `sources/web/base.py` 的 `WebAdapter`，在 `sources/web/__init__.py` 的 `_load_adapters()` 里加入导入列表即可自动注册为 `web_<site_id>`。稳定性在 `sources/__init__.py` 的 `SOURCE_STATUS` 中登记（只登记 `unstable` 的源，正常的不用登记）。
+- **内容库聚合层**：`sources/web/aggregates.py` 的 网易聚合（`web_netease_agg`：jbsou/vkeys+meting/铜钟/原生weapi）与 酷我聚合（`web_kuwo_agg`：fangpi/gequbao/qqmp3）；`sites/group_a/liumingye.py` 为顶层「音河聚合」（网易+酷我+B站 少量附尾，外网源不参与）。聚合器只做搜索层并发+跨站去重（`sources/web/merge.py`），**返回的 Track 保留真实站点 source/id（零迁移）**；幕后站点在 `web_sources` 接口中标 `internal: true` 不进用户选单（`PUBLIC_SITES`），但注册保留供换源链与老收藏使用。2026-11 上游诊断：kuwo(cenguigui)/qq(s01s) 上游死、netease_fe_mm 取流被法务下架已注销、酷我内容靠三站点源、QQ 内容全线失守。
 - **下载必须走 DownloadManager**：`POST /api/download` 提交后台任务（`downloads_api.py` → `DownloadManager.submit(job)`），不要在 endpoint 里同步下载。任务体注入 `deps.download_to_library()`，它会处理临时目录、文件名冲突、Song 登记、sidecar、封面。
 - **取消/进度经 DownloadContext 透传**：yt-dlp 音源用 progress hook；网页音源 `WebAdapter._download_url` 逐块检查 `ctx.cancelled`。新增下载实现时必须响应 ctx。
 - **本地文件命名**：`{source}_{original_id}_{safe_title}.{ext}`；每次下载完成写 sidecar `<文件名>.track.json` 保存原始 Track 元数据。
@@ -120,7 +121,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - `GET /api/local`、`GET /api/local/stream/{song_id}`、`GET /api/local/cover/{song_id}`、`DELETE /api/local/{song_id}`。
 - 播放列表 CRUD：`/api/playlists...`；收藏：`GET/POST/DELETE /api/favorites...`。
 - `POST /api/plays`（进度 >80% 记一次播放）、`GET /api/plays`。
-- `POST /api/lyrics`、`GET /api/web_sources`、`GET /api/thumbnail?url=`（封面代理）。
+- `POST /api/lyrics`（本源 get_lyrics → 网易按歌名搜同曲兜底，覆盖酷我系/B站等源生无歌词内容）、`GET /api/web_sources`（聚合源在前，幕后站点带 `internal: true`）、`GET /api/thumbnail?url=`（封面代理）。
 - 分享：`POST /api/share` / `GET /api/share`（短码 `?c=`，存 `<config_dir>/share_codes.json`，TTL 7 天）、`GET /api/og_image`、`GET /api/share_image`。
 - 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
 - 宠物（好友对共养，config/pets.json）：`GET /pet/pairs`、`GET /pet/pair/{friend}`、`POST /pet/signin`、
@@ -257,7 +258,7 @@ settings.json 的 proxy 只应用于外网源（_PROXY_SOURCES = youtube/soundcl
 - `models.py`：`Track.source` 为 `str`，支持任意 `web_<site_id>`。
 - `sources/web/base.py`：`WebAdapter` 抽象（search / get_stream_url / download）；`source.py` 按 `site_id` 分发；`sites/group_a|group_b/` 共 9 个站点适配器。
 - `direct_stream=true` 的源可直接流式播放（⭐ 标记），否则由后端下载到缓存再播。
-- 不稳定源（qqmp3、netease_fe_mm）常被关键词拦截或取链失败，前端显示「（不稳定）」；musicenc、tonzhon_whamon 已于 2026-10 确认死站并注销注册（详见 knowledge/2026-10_source_rescue.md）。
+- 源结构 2026-11 重组为「内容库聚合」两层形态，详见上方「内容库聚合层」；musicenc、tonzhon_whamon（2026-10 死站）与 netease_fe_mm（2026-11 法务下架取流）均已注销注册。
 
 ### QQ/微信分享卡片
 
