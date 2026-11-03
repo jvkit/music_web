@@ -40,6 +40,7 @@ music_web/
 │       ├── deps.py            # 共享单例（Library/Cache/DownloadManager/音源缓存）+ Track↔Song 转换等
 │       ├── share.py           # 短分享码 + OG 卡片 + 首页 meta 注入
 │       ├── tracks_api.py      # 搜索 / 试听 / 分P / 歌词 / web_sources
+│       ├── discover_api.py    # 发现页：网易云公开元数据代理（榜单/歌单墙/歌单详情/私人FM/相似推荐，内存缓存，不写 library.json）
 │       ├── library_api.py     # library 全量读写 / 播放列表 CRUD / 收藏 / 播放统计
 │       ├── local_api.py       # 本地文件列表 / 流 / 封面 / 删除
 │       ├── stream.py          # 缓存流 / stream_proxy 流代理 / thumbnail 封面代理
@@ -111,6 +112,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - `GET /api/library` → `{ version, playlists: {id: Playlist}, songs: {id: Song} }`；`POST /api/library` 全量更新（同步用）。
 - `GET /api/server_library` → `{ items: [Track + owner_count + play_count], total, today_plays }`：聚合所有用户收藏 + 自建歌单去重，Web / App 共用「服务器音乐库」。
 - `GET /api/search`、`POST /api/preview`（本地/缓存优先 → direct_stream 直链 → 代理流/下载缓存）。
+- `POST /api/track_upgrade`（`web/track_upgrade.py`，无歌词曲目换曲升级）：网易系按歌名找同曲（严格标题匹配，失败剥修饰词重试）、校验有词才换，**全用户库（users/*.json 收藏+歌单）原地替换引用** + 播放计数迁移；返回新 track，前端切播保进度、队列原位替换。
 - `POST /api/play_resolve`（多音源可靠播放编排，`web/play_resolve.py`）：本地 → 原始源直链 → 并发搜换源链
   （jbsou→gequbao→fangpi→qqmp3→tonzhon→liumingye→bilibili，严格标题归一化匹配才换，排除 youtube/soundcloud
   与视频候选）→ 原始源整曲下载 → 网易候选整曲下载；全失败 502 且 detail 给逐源原因。返回兼容 preview
@@ -122,6 +124,12 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - 播放列表 CRUD：`/api/playlists...`；收藏：`GET/POST/DELETE /api/favorites...`。
 - `POST /api/plays`（进度 >80% 记一次播放）、`GET /api/plays`。
 - `POST /api/lyrics`（本源 get_lyrics → 网易按歌名搜同曲兜底，覆盖酷我系/B站等源生无歌词内容）、`GET /api/web_sources`（聚合源在前，幕后站点带 `internal: true`）、`GET /api/thumbnail?url=`（封面代理）。
+- 发现页（`discover_api.py`，网易云免登录公开接口代理，侦察记录见 `knowledge/2026-11_netease_discover_api.md`）：
+  `GET /api/discover/categories`（硬编码分类）、`/toplists`（官方榜单）、`/playlists?cat=`（分类歌单墙，
+  特殊 cat：personalized/hq）、`/playlist?playlist_id=`（详情，tracks 即 Track，`netease:{id}` 可直接播）、
+  `/fm`（私人FM，不缓存）、`/simi_song`、`/simi_playlists`。元数据只进内存缓存（TTL 1-2h），
+  **绝不写 library.json**；前端 `#/discover`（DiscoverView.vue + stores/discover.js），
+  播放上下文 `context='discover'`（player.queueForContext 引 discover store 的当前歌单做队列）。
 - 分享：`POST /api/share` / `GET /api/share`（短码 `?c=`，存 `<config_dir>/share_codes.json`，TTL 7 天）、`GET /api/og_image`、`GET /api/share_image`。
 - 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
 - 宠物（好友对共养，config/pets.json）：`GET /pet/pairs`、`GET /pet/pair/{friend}`、`POST /pet/signin`、

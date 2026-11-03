@@ -5,10 +5,14 @@ import { useLibraryStore } from '../stores/library.js';
 import { useLocalStore } from '../stores/local.js';
 import { shareTrack } from '../lib/qqShare.js';
 import { getThumbnailUrl } from '../lib/utils.js';
+import { apiFetch } from '../lib/api.js';
+import { showToast } from '../lib/notify.js';
 
 const player = usePlayerStore();
 const library = useLibraryStore();
 const local = useLocalStore();
+
+const upgrading = ref(false);
 
 const lineRefs = ref([]);
 
@@ -41,6 +45,37 @@ watch(activeLineIndex, async (idx) => {
 
 function seekTo(time) {
     player.seekTo(time);
+}
+
+/** 无歌词时换曲升级：整条替换为有歌词的强源版本，全用户库同步 */
+async function upgradeLyrics() {
+    if (!track.value || upgrading.value) return;
+    upgrading.value = true;
+    const oldId = track.value.id;
+    const pos = player.currentTime;
+    try {
+        const resp = await apiFetch('/api/track_upgrade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ track: track.value }),
+        });
+        const data = await resp.json();
+
+        // 队列中原位替换
+        const qi = player.queue.findIndex(t => t.id === oldId);
+        if (qi >= 0) player.queue[qi] = data.track;
+
+        // 切播到新版本并保留进度，重开歌词页
+        await player.playTrackByQueueTrack(data.track);
+        if (pos > 3) player.seekTo(pos);
+        await player.openLyricsPage();
+        library.refresh();
+        showToast(`已换源到 ${data.source}（同步 ${data.upgraded_users} 个用户库）`, 'success');
+    } catch (err) {
+        showToast(err.message?.includes('未找到') ? '未找到带歌词的同曲版本' : '升级失败', 'error');
+    } finally {
+        upgrading.value = false;
+    }
 }
 </script>
 
@@ -79,6 +114,14 @@ function seekTo(time) {
                         >
                             <p class="text-sm">暂无歌词</p>
                             <p class="text-xs text-white/40 mt-1">{{ player.lyricsSource ? '该音源暂未提供歌词' : '欣赏音乐吧' }}</p>
+                            <button
+                                class="btn btn-sm bg-white/15 text-white border-0 hover:bg-white/25 mt-3"
+                                :disabled="upgrading"
+                                @click="upgradeLyrics"
+                            >
+                                <i :class="upgrading ? 'ph ph-spinner spin' : 'ph ph-magic-wand'"></i>
+                                {{ upgrading ? '正在寻找带歌词的版本…' : '获取歌词（换更强音源）' }}
+                            </button>
                         </div>
                         <div
                             v-for="(line, index) in player.lyrics"
