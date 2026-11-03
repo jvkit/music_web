@@ -77,27 +77,14 @@ class LiumingyeAdapter(WebAdapter):
         per_source = max(limit, 10)
         need = offset + limit
 
-        # 并发搜索三个源，整体最多等 6 秒，避免最慢源拖垮体验。
-        overall_timeout = 6
+        # 2026-11 上游诊断：kuwo(cenguigui) 与 qq(s01s) 上游已死（服务器亦不可达），
+        # 搜索只跑 netease 分支（vkeys，~1.3s），不再空等死上游超时；
+        # get_stream_url 的 kuwo/qq 分支保留，兼容历史收藏，上游若复活自动恢复。
         grouped: dict[str, list[Track]] = {"kuwo": [], "netease": [], "qq": []}
-        pool = ThreadPoolExecutor(max_workers=3)
-        futures = {
-            pool.submit(self._search_kuwo, query, per_source, page): "kuwo",
-            pool.submit(self._search_netease, query, per_source, page): "netease",
-            pool.submit(self._search_qq, query, per_source): "qq",
-        }
         try:
-            for future in as_completed(futures, timeout=overall_timeout):
-                src = futures[future]
-                try:
-                    grouped[src] = future.result() or []
-                except Exception:
-                    grouped[src] = []
-        except TimeoutError:
-            # 整体超时，使用已返回的源结果即可
-            pass
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
+            grouped["netease"] = self._search_netease(query, per_source, page) or []
+        except Exception:
+            grouped["netease"] = []
 
         # QQ 搜索不返回封面；先去重再按需补封面（去重会挤掉多数无封面的 QQ 条目）。
         merged = self._merge_dedup(grouped, need)
