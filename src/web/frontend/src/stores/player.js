@@ -31,6 +31,8 @@ import { useSearchStore } from './search.js';
 import { useServerLibraryStore } from './serverLibrary.js';
 import { useLocalStore } from './local.js';
 import { useRoomStore } from './room.js';
+import { useDiscoverStore } from './discover.js';
+import { useRecognizeStore } from './recognize.js';
 import { requireAdminPassword } from './ui.js';
 
 let audio = null;
@@ -254,6 +256,8 @@ export const usePlayerStore = defineStore('player', {
             if (context === 'search') return [...useSearchStore().results];
             if (context === 'playlist') return [...useLibraryStore().getCurrentPlaylistTracks()];
             if (context === 'server') return [...useServerLibraryStore().items];
+            if (context === 'discover') return [...useDiscoverStore().queueTracks];
+            if (context === 'recognize') return [...useRecognizeStore().results];
             return [track];
         },
 
@@ -468,6 +472,10 @@ export const usePlayerStore = defineStore('player', {
             const room = useRoomStore();
             if (this.loadingTrackId === track.id) return false;
             this.loadingTrackId = track.id;
+
+            // 同步队列索引：从右侧「接下来播放」等处直接点歌时，高亮要跟着走
+            const queueIdx = this.queue.findIndex((t) => t.id === track.id);
+            if (queueIdx >= 0) this.queueIndex = queueIdx;
 
             this.currentTrack = track;
             this.isPlaying = true;

@@ -148,9 +148,20 @@ uv run python scripts/sync_library.py --dry-run
 | GET | `/api/track_pages` | Bilibili 分 P 列表 |
 | GET | `/api/track_resolve` | 按 id+source 重新解析曲目 |
 | GET | `/api/web_sources` | 网页音源元数据 |
+| GET | `/api/discover/categories` | 发现页分类列表（后端硬编码） |
+| GET | `/api/discover/toplists` | 官方榜单列表（网易云公开接口代理，内存缓存 1h） |
+| GET | `/api/discover/playlists?cat=&offset=&limit=` | 分类歌单墙（cat 特殊值：personalized=为你推荐、hq=精品） |
+| GET | `/api/discover/playlist?playlist_id=` | 歌单/榜单详情，tracks 即 Track（`netease:{id}`），可直接 preview/play_resolve |
+| GET | `/api/discover/fm` | 私人 FM 随机推荐曲（不缓存） |
+| GET | `/api/discover/simi_song?song_id=` | 相似歌曲 |
+| GET | `/api/discover/simi_playlists?song_id=` | 包含这首歌的歌单 |
 | GET | `/api/stream/{cache_key}` | 缓存文件流 |
 | GET | `/api/stream_proxy?url=&source=` | 流代理（Range 透传） |
 | GET | `/api/thumbnail?url=` | 封面代理 |
+| POST | `/api/recognize?fmt=&offset=` | 听歌识曲：请求体为原始音频字节（≥10s），返回识别 Track 列表（服务端需 node+ffmpeg，`MUSIC_RECOG_NODE` 可指定 node） |
+| POST | `/api/sprite/chat` | 智慧小精灵对话：ndjson 流（player_command/recognize/reply/done/error），Agent 工具搜歌/放歌/FM/播放控制/识曲触发（模型网关走 `MUSIC_LLM_*` 或 kimi-code newapi） |
+| GET | `/api/sprite/manifest` | 精灵动画清单（小河灵动作子集） |
+| GET | `/api/sprite/frame?act=&i=` | 精灵单帧 WebP（zip 首次访问解压到缓存，长缓存） |
 | POST | `/api/share` / `GET /api/share?code=` | 短分享码（TTL 7 天） |
 | GET | `/api/og_image` / `/api/share_image` | 分享卡片图 |
 | GET/POST | `/api/rooms...` | 一起听房间 |

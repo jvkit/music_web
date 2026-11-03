@@ -185,6 +185,10 @@ class NetEaseSource(Source):
             },
         )
 
+    def song_to_track(self, song: dict[str, Any]) -> Track:
+        """公开封装：网易云歌曲字典转 Track（发现页 discover_api 复用）"""
+        return self._song_to_track(song)
+
     def search(self, query: str, limit: int = 10, offset: int = 0) -> list[Track]:
         payload = {
             "s": query,

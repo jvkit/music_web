@@ -43,3 +43,9 @@ src/web/package-lock.json
 
 # Local tools (ffmpeg.exe ~100MB，自行下载，见 yinhe/ffmpeg.py)
 /tools/
+
+# 本地 HTTPS 证书（私钥，禁止入库）
+/certs/
+
+# 独立参考项目（oa-copilot demo，不属于本仓库）
+/oa-copilot/

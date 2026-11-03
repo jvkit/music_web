@@ -54,6 +54,7 @@ function selectPlaylist(id) {
 
 const navItems = [
     { to: '/', icon: 'ph-magnifying-glass', label: '搜索' },
+    { to: '/discover', icon: 'ph-compass', label: '发现' },
     { to: '/playlists', icon: 'ph-music-notes', label: '我的列表', badge: true },
     { to: '/local', icon: 'ph-hard-drives', label: '本地音乐' },
     { to: '/settings', icon: 'ph-gear', label: '设置' },

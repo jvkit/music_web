@@ -7,6 +7,7 @@ import { searchTracks, fetchLocalItems } from './lib/api.js';
 import { showToast } from './lib/notify.js';
 
 import { useUiStore } from './stores/ui.js';
+import { useRecognizeStore } from './stores/recognize.js';
 import { useAuthStore } from './stores/auth.js';
 import { useSourcesStore } from './stores/sources.js';
 import { useLibraryStore } from './stores/library.js';
@@ -20,6 +21,7 @@ import RightRail from './components/RightRail.vue';
 import PlayerBar from './components/PlayerBar.vue';
 import MobileNav from './components/MobileNav.vue';
 import RoomBanner from './components/RoomBanner.vue';
+import SpriteWidget from './components/SpriteWidget.vue';
 import BatchBar from './components/BatchBar.vue';
 import ToastStack from './components/ToastStack.vue';
 import AdminPasswordModal from './components/AdminPasswordModal.vue';
@@ -28,11 +30,13 @@ import RoomModal from './components/RoomModal.vue';
 import CopyModal from './components/CopyModal.vue';
 import DownloadModal from './components/DownloadModal.vue';
 import VideoModal from './components/VideoModal.vue';
+import RecognizeModal from './components/RecognizeModal.vue';
 import LyricsPage from './components/LyricsPage.vue';
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const recognize = useRecognizeStore();
 const auth = useAuthStore();
 const sources = useSourcesStore();
 const library = useLibraryStore();
@@ -211,6 +215,7 @@ onMounted(async () => {
                         </div>
                         <div class="top-actions">
                             <a class="round-btn" href="https://jvkit.cn/download/music" target="_blank" rel="noopener" title="下载 App"><i class="ph ph-device-mobile"></i></a>
+                            <button class="round-btn" title="听歌识曲" @click="recognize.open()"><i class="ph ph-microphone"></i></button>
                             <button class="round-btn" title="账号" @click="auth.loggedIn ? null : ui.openAuthModal('login')"><i class="ph ph-user-circle"></i></button>
                         </div>
                     </header>
@@ -227,6 +232,8 @@ onMounted(async () => {
         <PlayerBar />
         <RoomBanner />
 
+        <SpriteWidget />
+
         <LyricsPage />
         <VideoModal />
         <CopyModal />
@@ -234,6 +241,7 @@ onMounted(async () => {
         <RoomModal />
         <AuthModal />
         <AdminPasswordModal />
+        <RecognizeModal />
         <ToastStack />
     </template>
 </template>

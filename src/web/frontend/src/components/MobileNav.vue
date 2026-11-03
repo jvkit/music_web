@@ -1,6 +1,7 @@
 <script setup>
 const items = [
     { to: '/', icon: 'ph-magnifying-glass', label: '搜索' },
+    { to: '/discover', icon: 'ph-compass', label: '发现' },
     { to: '/playlists', icon: 'ph-music-notes', label: '列表' },
     { to: '/local', icon: 'ph-hard-drives', label: '本地' },
     { to: '/settings', icon: 'ph-gear', label: '设置' },

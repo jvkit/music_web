@@ -42,9 +42,24 @@ weapi/eapi 加密后可用（二期）**。
 - `simiSong`(旧)、`simiArtist` → 404；`artist/similar` → 400（需 eapi）。
 - `top/song`（新歌速递）→ 404（需 eapi），用 `personalized/newsong` 替代。
 - `search/suggest`（搜索建议）→ 400（weapi 专用）。搜索建议改用自家曲库前缀匹配即可。
-- `POST /api/music/audioMatch`（**听歌识曲**）→ 404：走 eapi 加密通道。可行性：参考
-  NeteaseCloudMusicApi 项目的 `search` 识曲实现（`/eapi/music/audioMatch`，需 weapi/eapi
-  加密 + 音频指纹参数），纯 Python 可移植加密层，工作量中等，列为二期。
+- ~~`POST /api/music/audioMatch`（听歌识曲）→ 404，判为需 eapi~~ **结论已推翻（2026-11-03 实测）**：
+  听歌识曲不需要 eapi/weapi 加密。见下节「听歌识曲（已验证可用）」。
+
+## 听歌识曲（已验证可用，2026-11-03 PoC → 已上线 /api/recognize）
+
+- 明文接口：`POST https://interface.music.163.com/api/music/audio/match`（form 表单），
+  免登录免 Cookie，参数 `sessionId`（任意串）/`algorithmCode=shazam_v2`/`duration=6`/
+  `rawdata=<指纹>`/`times=2`/`decrypt=1`。music.163.com/weapi 同参数也能通，但没必要。
+- **关键坑：指纹窗口必须「第 4 秒起的 6 秒」+ duration=6 + times=2**。用 5 秒窗口或
+  times=1 稳定返回 `noMatchReason: 10`（无匹配）——服务端索引按 6 秒粒度建。该参数
+  来自 akinazuki/NeteaseCloudMusic-Audio-Recognize（ncm-audio-recognize）源码。
+- 指纹生成：网易官方 Chrome 扩展里的 afp.wasm（逆向提取，mos9527/ncm-afp，与
+  mikan.ac.cn 在线 demo 的 wasm md5 一致），输入 8kHz 单声道 Float32 PCM，
+  输出 base64 指纹（~1.3KB）。本项目用 node 子进程跑（`web/recognize_assets/`，
+  afp.js 已修好 Node 分支三处坑），`MUSIC_RECOG_NODE` 可指定 node 路径，无 node 时
+  端点 501。识别返回多版本（不同专辑/翻唱），带精确匹配起点（误差 <0.5s）。
+- 后端端点：`POST /api/recognize?fmt=webm|m4a...&offset=4`，请求体为原始音频字节，
+  ffmpeg 转 8k PCM → 指纹 → 识别 → Track 列表（`netease:{id}`，直接可播）。
 
 ## 缓存与频控建议（后端代理实现时）
 

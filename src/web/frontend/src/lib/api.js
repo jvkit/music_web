@@ -141,3 +141,51 @@ export async function fetchServerLibrary() {
     const response = await apiFetch('/server_library', {}, { silent: true });
     return response.json();
 }
+
+// ===================== 发现页（网易云公开元数据代理） =====================
+
+export async function fetchDiscoverCategories() {
+    const response = await apiFetch('/discover/categories', {}, { silent: true });
+    return response.json();
+}
+
+export async function fetchDiscoverToplists() {
+    const response = await apiFetch('/discover/toplists');
+    return response.json();
+}
+
+export async function fetchDiscoverPlaylists(cat, offset = 0, limit = 30) {
+    const response = await apiFetch(`/discover/playlists?cat=${encodeURIComponent(cat)}&offset=${offset}&limit=${limit}`);
+    return response.json();
+}
+
+export async function fetchDiscoverPlaylistDetail(playlistId) {
+    const response = await apiFetch(`/discover/playlist?playlist_id=${encodeURIComponent(playlistId)}`);
+    return response.json();
+}
+
+export async function fetchDiscoverFm() {
+    const response = await apiFetch('/discover/fm');
+    return response.json();
+}
+
+export async function fetchDiscoverSimiSong(songId) {
+    const response = await apiFetch(`/discover/simi_song?song_id=${encodeURIComponent(songId)}`);
+    return response.json();
+}
+
+export async function fetchDiscoverSimiPlaylists(songId) {
+    const response = await apiFetch(`/discover/simi_playlists?song_id=${encodeURIComponent(songId)}`);
+    return response.json();
+}
+
+// ===================== 听歌识曲 =====================
+
+export async function recognizeUpload(blob, fmt = 'webm') {
+    const response = await apiFetch(`/recognize?fmt=${fmt}`, {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'audio/webm' },
+        body: blob,
+    });
+    return response.json();
+}

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from yinhe.web import announcement_api, admin_api, deps, discover_api, downloads_api, feedback_api, im_api, library_api, local_api, pet_api, play_resolve, share, stream, tracks_api, track_upgrade, users_api
+from yinhe.web import announcement_api, admin_api, deps, discover_api, downloads_api, feedback_api, im_api, library_api, local_api, pet_api, play_resolve, recognize_api, share, sprite_api, stream, tracks_api, track_upgrade, users_api
 from yinhe.web.rooms import router as rooms_router
 
 
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(share.router, prefix="/api")
     app.include_router(tracks_api.router, prefix="/api")
     app.include_router(discover_api.router, prefix="/api")
+    app.include_router(recognize_api.router, prefix="/api")
     app.include_router(play_resolve.router, prefix="/api")
     app.include_router(track_upgrade.router, prefix="/api")
     app.include_router(library_api.router, prefix="/api")
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback_api.router, prefix="/api")
     app.include_router(rooms_router, prefix="/api")
     app.include_router(pet_api.router, prefix="/api")
+    app.include_router(sprite_api.router, prefix="/api")
 
     # 后台管理：/admin 进入 Vue 应用后台路由（不占用主页入口）
     if deps.WEB_ROOT.exists():

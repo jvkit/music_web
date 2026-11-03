@@ -41,6 +41,8 @@ music_web/
 │       ├── share.py           # 短分享码 + OG 卡片 + 首页 meta 注入
 │       ├── tracks_api.py      # 搜索 / 试听 / 分P / 歌词 / web_sources
 │       ├── discover_api.py    # 发现页：网易云公开元数据代理（榜单/歌单墙/歌单详情/私人FM/相似推荐，内存缓存，不写 library.json）
+│       ├── recognize_api.py   # 听歌识曲：音频→ffmpeg 8k PCM→node+afp.wasm 指纹→网易云 shazam_v2 匹配（recognize_assets/ 为指纹资产）
+│       ├── sprite_api.py      # 智慧小精灵：Pydantic AI Agent 对话（搜歌/放歌/FM/播放控制工具）+ 小河灵动画帧服务
 │       ├── library_api.py     # library 全量读写 / 播放列表 CRUD / 收藏 / 播放统计
 │       ├── local_api.py       # 本地文件列表 / 流 / 封面 / 删除
 │       ├── stream.py          # 缓存流 / stream_proxy 流代理 / thumbnail 封面代理
@@ -130,6 +132,23 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
   `/fm`（私人FM，不缓存）、`/simi_song`、`/simi_playlists`。元数据只进内存缓存（TTL 1-2h），
   **绝不写 library.json**；前端 `#/discover`（DiscoverView.vue + stores/discover.js），
   播放上下文 `context='discover'`（player.queueForContext 引 discover store 的当前歌单做队列）。
+- 听歌识曲（`recognize_api.py`，详见 `knowledge/2026-11_netease_discover_api.md` 识曲小节）：
+  `POST /api/recognize?fmt=&offset=`，请求体为原始音频字节（前端麦克风/浏览器录屏音轨两种采集，
+  ≥10 秒）。链路 ffmpeg→8k PCM→node 子进程跑 `web/recognize_assets/`（afp.wasm 指纹，逆向自
+  网易官方扩展）→ 网易云明文 match 接口。**指纹窗口固定「第 4 秒起 6 秒」+ duration=6 + times=2，
+  改了必失配**。服务端需 node（`MUSIC_RECOG_NODE` 指定路径，缺失时 501）+ ffmpeg。
+  前端：顶栏麦克风按钮 → RecognizeModal.vue（stores/recognize.js），结果 context='recognize'。
+- 智慧小精灵（`sprite_api.py`，参考 oa-copilot 的"工具事件驱动前端"模式）：`POST /api/sprite/chat`
+  （ndjson 流式：`{type: player_command|reply|done|error}`，player_command 由前端 player store 执行）。
+  Pydantic AI Agent 工具：search_songs（web_netease_agg→web_liumingye→netease 兜底）/ play_songs /
+  play_fm（复用 discover FM）/ control_player（pause/resume/next/prev）/ recognize_song（推送
+  `{type:'recognize', source:'mic'|'system'}` 事件让前端走现有识曲流程，识别完成由前端汇报结果；
+  音频采集只能在浏览器，后端工具只负责决策与触发）。会话记忆内存态（重启即忘）。
+  模型网关不写死：`MUSIC_LLM_BASE_URL/API_KEY/MODEL` 环境变量优先，缺省回落 `~/.kimi-code/config.toml`
+  的 newapi 网关（deepseek-v4.1-flash），都没有时 503（精灵装睡）。
+  动画素材复用 pet_content 的 boy（小河灵）：`GET /api/sprite/manifest`（动作子集 stand/music/heart/
+  thumbs/hop/bounce）、`GET /api/sprite/frame?act=&i=`（zip 首次访问解压到缓存目录，长缓存）。
+  前端：SpriteWidget.vue（右下角悬浮精灵+聊天窗，stores/sprite.js，动画引擎 lib/spriteAnim.js）。
 - 分享：`POST /api/share` / `GET /api/share`（短码 `?c=`，存 `<config_dir>/share_codes.json`，TTL 7 天）、`GET /api/og_image`、`GET /api/share_image`。
 - 房间：`POST /api/rooms`、`GET /api/rooms/{room_id}`、WebSocket `/api/ws/room/{room_id}`（仅控制信号：play/pause/seek/next/prev/join/leave/chat；不同步音频流，房主有控制权；内存态，重启清空，空房 10 分钟回收）。
 - 宠物（好友对共养，config/pets.json）：`GET /pet/pairs`、`GET /pet/pair/{friend}`、`POST /pet/signin`、
