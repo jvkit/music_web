@@ -10,12 +10,28 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlencode
 
+import re
 import time
+import unicodedata
 
 import requests
 
 from yinhe.models import MediaType, Track
 from yinhe.sources.web.base import WebAdapter
+
+_VARIANT_SUFFIX = re.compile(r"[（(](?:live|remix|伴奏|cover|原唱|深情版|dj|加速版)[^）)]*[）)]", re.IGNORECASE)
+
+
+def _norm_key(s: str) -> str:
+    """标题/歌手归一化：小写、去空白标点符号、剔除（live/remix…）变体后缀，用于去重。"""
+    if not s:
+        return ""
+    s = _VARIANT_SUFFIX.sub("", s.lower())
+    return "".join(
+        ch for ch in s
+        if not ch.isspace()
+        and not unicodedata.category(ch).startswith(("P", "S"))
+    )
 
 
 class LiumingyeAdapter(WebAdapter):
@@ -83,24 +99,71 @@ class LiumingyeAdapter(WebAdapter):
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
 
-        # QQ 搜索不返回封面，补一次详情接口取 album_pic。
+        # QQ 搜索不返回封面；先去重再按需补封面（去重会挤掉多数无封面的 QQ 条目）。
+        merged = self._merge_dedup(grouped, need)
+
         if grouped["qq"]:
-            grouped["qq"] = self._enrich_qq_thumbnails(grouped["qq"], need)
-
-        # 每个源截断到 need，避免某一源过多。
-        for src in grouped:
-            grouped[src] = grouped[src][:need]
-
-        # 交错合并：kuwo -> netease -> qq，让有封面的源排在前面。
-        merged: list[Track] = []
-        max_len = max(len(lst) for lst in grouped.values()) if grouped else 0
-        for i in range(max_len):
-            for src in ("kuwo", "netease", "qq"):
-                lst = grouped.get(src, [])
-                if i < len(lst):
-                    merged.append(lst[i])
+            kept_qq_mids = {t.id for t in merged if t.extra.get("source") == "qq"}
+            kept_qq = [t for t in grouped["qq"] if t.id in kept_qq_mids][:6]
+            if kept_qq:
+                enriched = self._enrich_qq_thumbnails(kept_qq, len(kept_qq))
+                by_id = {t.id: t for t in enriched}
+                merged = [by_id.get(t.id, t) for t in merged]
 
         return merged[offset:offset + limit]
+
+    @staticmethod
+    def _quality_score(track: Track) -> int:
+        """同歌候选的质量分：有封面、kuwo 直链稳的优先。"""
+        score = 0
+        if track.thumbnail:
+            score += 2
+        source = track.extra.get("source")
+        if source == "kuwo":
+            score += 2
+        elif source == "qq":
+            score += 1
+        return score
+
+    def _merge_dedup(self, grouped: dict[str, list[Track]], need: int) -> list[Track]:
+        """按归一化（标题+歌手）去重合并，同歌取质量最高的版本，交错保序。
+
+        kuwo → netease → qq 轮转出队，保证结果源多样；同键已被高分版本占据的
+        低分版本直接丢弃，搜索结果「同一首歌只出现一次且是最好的那条」。
+        """
+        queues = [grouped.get(src, [])[:need] for src in ("kuwo", "netease", "qq")]
+        best: dict[tuple[str, str], Track] = {}
+        order: list[tuple[str, str]] = []
+        for lst in queues:
+            for t in lst:
+                key = (_norm_key(t.title), _norm_key(t.artist))
+                if not key[0]:
+                    continue
+                if key not in best:
+                    best[key] = t
+                    order.append(key)
+                elif self._quality_score(t) > self._quality_score(best[key]):
+                    best[key] = t
+
+        merged: list[Track] = []
+        max_len = max((len(q) for q in queues), default=0)
+        emitted: set[tuple[str, str]] = set()
+        for i in range(max_len):
+            for q in queues:
+                if i >= len(q):
+                    continue
+                t = q[i]
+                key = (_norm_key(t.title), _norm_key(t.artist))
+                if not key[0] or key in emitted:
+                    continue
+                emitted.add(key)
+                merged.append(best[key])
+        # 轮转未覆盖到的（某源独有且不在前列）按序补齐
+        for key in order:
+            if key not in emitted:
+                emitted.add(key)
+                merged.append(best[key])
+        return merged
 
     def _enrich_qq_thumbnails(self, tracks: list[Track], need: int) -> list[Track]:
         """为 QQ 搜索结果补封面，只处理前 need 条以控制耗时。"""
@@ -271,7 +334,8 @@ class LiumingyeAdapter(WebAdapter):
             return None
         url = f"https://api.qijieya.cn/meting/?type=song&id={song_id}"
         try:
-            resp = self._session.get(url, timeout=20)
+            # 8s 快速失败：换源链整体限时 10s，20s 超时只会拖垮整链
+            resp = self._session.get(url, timeout=8)
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list) and data:
@@ -290,7 +354,7 @@ class LiumingyeAdapter(WebAdapter):
             f"{urlencode({'msg': query, 'type': 'json', 'mid': mid})}"
         )
         try:
-            resp = self._session.get(url, timeout=20)
+            resp = self._session.get(url, timeout=8)
             resp.raise_for_status()
             data = resp.json()
             if not isinstance(data, dict) or not data.get("song_mid"):
