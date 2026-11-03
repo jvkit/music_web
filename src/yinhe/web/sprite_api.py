@@ -7,7 +7,8 @@
 - 会话记忆存内存（重启即忘，精灵会打个哈欠），历史用 pydantic-ai 序列化。
 
 模型网关不写死：环境变量 MUSIC_LLM_BASE_URL / MUSIC_LLM_API_KEY / MUSIC_LLM_MODEL
-优先；缺省回落读 ~/.kimi-code/config.toml 的 newapi 网关（deepseek-v4.1-flash）。
+优先；缺省回落读 ~/.kimi-code/config.toml 里配好的 provider（newapi 优先，其次 deepseek），
+默认模型 deepseek-flash（DeepSeek-V4.1-Flash）。
 两者都没有时精灵"装睡"（503），不抛异常。
 
 精灵形象复用宠物素材库 config/pet_content/ 的 boy（小河灵）：
@@ -48,14 +49,21 @@ def _llm_config() -> Optional[tuple[str, str, str]]:
     """返回 (base_url, api_key, model)；解析不到返回 None（精灵装睡）"""
     base = os.environ.get("MUSIC_LLM_BASE_URL")
     key = os.environ.get("MUSIC_LLM_API_KEY")
-    model = os.environ.get("MUSIC_LLM_MODEL") or "deepseek-v4.1-flash"
+    model = os.environ.get("MUSIC_LLM_MODEL") or "deepseek-flash"
     if not (base and key):
         try:
             import tomllib
 
             cfg_path = Path.home() / ".kimi-code" / "config.toml"
             cfg = tomllib.loads(cfg_path.read_text(encoding="utf-8"))
-            prov = (cfg.get("providers") or {}).get("newapi") or {}
+            providers = cfg.get("providers") or {}
+            # newapi 是历史网关名，deepseek 是官方直连；按优先级取第一个配好的
+            prov: dict[str, Any] = {}
+            for name in ("newapi", "deepseek"):
+                cand = providers.get(name) or {}
+                if cand.get("base_url") and cand.get("api_key"):
+                    prov = cand
+                    break
             base = base or prov.get("base_url")
             key = key or prov.get("api_key")
         except Exception:
