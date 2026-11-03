@@ -59,14 +59,14 @@ def create_app() -> FastAPI:
     app.include_router(rooms_router, prefix="/api")
     app.include_router(pet_api.router, prefix="/api")
 
-    # 后台管理独立页面：/admin（不占用主页入口）
-    if deps.STATIC_DIR.exists():
+    # 后台管理：/admin 进入 Vue 应用后台路由（不占用主页入口）
+    if deps.WEB_ROOT.exists():
         @app.get("/admin", include_in_schema=False)
         def admin_page():
-            return FileResponse(deps.STATIC_DIR / "admin.html")
+            return FileResponse(deps.WEB_ROOT / "index.html")
 
-        # 静态文件：H5 前端
-        app.mount("/", StaticFiles(directory=deps.STATIC_DIR, html=True), name="static")
+        # 静态文件：H5 前端（Vue 构建产物）
+        app.mount("/", StaticFiles(directory=deps.WEB_ROOT, html=True), name="static")
 
     return app
 

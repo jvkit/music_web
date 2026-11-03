@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dim">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>音河 · 发现你的下一首歌</title>
+    <meta name="description" content="音河 - 在线音乐搜索、试听与分享">
+    <!-- OG_META -->
+    <meta name="theme-color" content="#15181d">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-512.png">
+    <style>
+        /* 从分享链接进入时，先隐藏主界面，避免闪现搜索页 */
+        .share-entry .app,
+        .share-entry .mobile-nav,
+        .share-entry .player {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // 分享链接触发：立即隐藏主界面，后续由 JS 打开歌词页
+        (function () {
+            if (/[?&](share|song|c)=/.test(location.search)) {
+                document.documentElement.classList.add('share-entry');
+            }
+            // 后端 /admin 路径进入时切到后台路由
+            if (/\/admin\/?(\?|#|$)/.test(location.pathname)) {
+                location.hash = '#/admin';
+            }
+        })();
+    </script>
+    <!-- SHARE_COVER -->
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

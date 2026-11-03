@@ -8,7 +8,7 @@
 
 - **多音源聚合**：YouTube、网易云音乐、Bilibili、SoundCloud，外加 9 个网页音源适配器。
 - **统一音乐库（Library）**：所有歌曲、播放列表、收听记录集中在 `library.json`，本地文件存在 `library/files/`，封面/歌词在 `library/assets/`。
-- **H5 前端**：原生 JS + Tailwind CSS + DaisyUI，支持搜索、播放、MV、下载、播放列表、本地管理、设置、一起听房间。
+- **H5 前端**：Vue 3 + Vite + Pinia + Vue Router，Tailwind CSS + DaisyUI + Phosphor Icons，支持搜索、播放、MV、下载、播放列表、本地管理、设置、一起听房间、后台管理（`/admin`）。
 - **边下边播**：优先平台直链；需要 Referer/Cookie 的音源走后端代理；失败自动回退到完整下载。
 - **歌词播放页**：网易云 LRC、YouTube 字幕自动解析；点击歌词跳转；无歌词时展示封面背景。
 - **下载进度与取消**：单曲/批量下载实时进度条，支持取消（后台任务 + 轮询）。
@@ -31,7 +31,8 @@
 
 ```bash
 uv sync
-cd src/web/static && npm install   # 前端图标依赖（Phosphor Icons）
+cd src/web/frontend && npm install   # 前端依赖（Vue/Vite/Phosphor Icons 等）
+npm run build                        # 构建到 src/web/static/dist/
 ```
 
 ```bash
@@ -232,7 +233,7 @@ music_web/
 │   ├── sources/               # 音源实现（4 原生源 + 9 网页适配器）
 │   ├── library.py             # 统一音乐库（线程安全）
 │   ├── models.py / cache.py / config.py / settings.py / ffmpeg.py
-├── src/web/static/            # H5 前端（原生 ES6 + DaisyUI）
+├── src/web/frontend/           # H5 前端源码（Vue 3 + Vite + Pinia），构建输出 src/web/static/dist/
 ├── scripts/                   # 同步/部署/导出/迁移脚本
 ├── tutorial/                  # 系统性中文教程
 ├── knowledge/                 # AI 经验笔记

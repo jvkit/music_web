@@ -337,7 +337,7 @@ def api_share_image(
     q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
 ):
     """根据短分享码返回歌曲封面 JPEG，URL 极短，适合微信/QQ 卡片。"""
-    logo_path = deps.STATIC_DIR / "icons" / "icon-512.png"
+    logo_path = deps.WEB_ROOT / "icons" / "icon-512.png"
     track = _get_share_track(code)
     if not track or not track.thumbnail:
         if logo_path.exists():
@@ -360,7 +360,7 @@ def api_og_image(
     q: int = Query(2, description="JPEG 质量（越小越压缩）", ge=1, le=31),
 ):
     """微信/QQ 分享卡片图片代理：统一转 JPEG，兼容性和速度更好。"""
-    logo_path = deps.STATIC_DIR / "icons" / "icon-512.png"
+    logo_path = deps.WEB_ROOT / "icons" / "icon-512.png"
     if not url:
         if logo_path.exists():
             return FileResponse(logo_path, media_type="image/png")
@@ -411,7 +411,7 @@ def api_root(
     c: Optional[str] = Query(None, description="短分享码"),
 ):
     """返回 H5 首页；若带 ?share= 或 ?song= 则注入微信 Open Graph 分享卡片标签。"""
-    index_path = deps.STATIC_DIR / "index.html"
+    index_path = deps.WEB_ROOT / "index.html"
     track: Optional[Track] = None
     query_key = "share"
     query_value = ""

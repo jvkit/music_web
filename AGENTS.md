@@ -14,7 +14,7 @@
 
 - **Python ≥ 3.12**，包管理用 `uv`（存在 `uv.lock`），构建后端 hatchling，包名 `yinhe`。
 - 主要依赖：`fastapi` + `uvicorn`（Web 服务）、`pydantic`（数据模型）、`requests`（HTTP）、`yt-dlp`（YouTube/Bilibili/SoundCloud 下载）、`beautifulsoup4` + `lxml`（网页音源解析）、`platformdirs`（路径）、`websockets`（房间同步）。
-- **前端**：原生 ES6 模块 + Fetch API + WebSocket，DaisyUI + Tailwind CSS（CDN），Phosphor Icons（npm），PWA（manifest.json + Media Session API），无前端构建步骤。
+- **前端**：Vue 3（`<script setup>`）+ Vite + Pinia + Vue Router（hash 模式），DaisyUI + Tailwind CSS（构建版，主题 dim）+ Phosphor Icons（构建版），Fetch API + WebSocket，PWA（manifest.json + Media Session API）。源码 `src/web/frontend/`，构建产物 `src/web/static/dist/`（后端 `deps.WEB_ROOT` 挂载，dist 不存在时回退旧 static 目录）。
 - **外部工具**：FFmpeg（yt-dlp 转 MP3/MP4、封面压缩需要，放项目 `tools/` 或系统 PATH）。
 
 ## 目录结构
@@ -46,7 +46,10 @@ music_web/
 │       ├── downloads.py       # DownloadManager（后台任务/进度/取消）
 │       ├── downloads_api.py   # 下载端点（POST 提交任务 / GET 进度 / DELETE 取消）
 │       └── rooms.py           # 一起听房间（WebSocket）
-├── src/web/static/            # H5 前端（index.html + js/ + styles.css + package.json）
+├── src/web/frontend/           # H5 前端源码（Vue 3 + Vite + Pinia + Router；Tailwind/DaisyUI/Phosphor 构建版）
+│   ├── index.html / vite.config.js / tailwind.config.js
+│   └── src/                     # main.js / App.vue / lib/ stores/ components/ views/ router/
+├── src/web/static/dist/        # 前端构建产物（Vite 输出，后端 WEB_ROOT 挂载）
 ├── scripts/                   # sync_library.py（双向同步）、deploy.py、export_liked.py、migrate_to_library.py
 ├── knowledge/                 # AI 经验笔记：踩坑、接口异常、修复记录（给 AI 看）
 ├── tutorial/                  # 系统性中文教程（仅用户主动要求教学时输出，给用户看）
@@ -59,14 +62,16 @@ music_web/
 
 ```bash
 uv sync                                  # 安装 Python 依赖
-cd src/web/static && npm install         # 安装前端 npm 依赖（Phosphor Icons）
+cd src/web/frontend && npm install        # 安装前端 npm 依赖
+npm run build                             # 构建（输出 src/web/static/dist，改前端后必须跑）
+npm run dev                               # 本地开发（5173，代理 /api 到 8001）
 uv run music-web                         # 启动 Web 服务（0.0.0.0:8001，root_path=/music）
 uv run music-web --port 8001 --root-path /music
 uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 ```
 
 - `music-web` 启动时，若项目根存在 `data/` 和 `config/`，自动把 `MUSIC_DOWNLOAD_DIR`、`MUSIC_CACHE_DIR`、`MUSIC_CONFIG_DIR` 指到项目根（等价旧版 `-s` 行为）。
-- 前端检查：`cd src/web/static && npm run check`（对所有 js 文件执行 `node --check` 语法检查）。
+- 前端检查：`cd src/web/frontend && npm run build` 必须通过（编译即校验模板与引用）。
 
 ## 环境变量
 
@@ -81,7 +86,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 
 - **本项目没有任何自动化测试**（无 pytest、无 CI）。不要臆造测试命令。
 - 修改后的验证方式：
-  1. 前端改动：`cd src/web/static && npm run check` 必须通过。
+  1. 前端改动：`cd src/web/frontend && npm run build` 必须通过，且后端 `WEB_ROOT` 指向的 dist 已重新构建。
   2. Python 改动：启动 `uv run music-web`，对改动的接口做真实端到端验证（搜索 → 播放 → 下载）。
   3. 改了后端 API 时，同步更新根目录 `README.md` 与本文件的接口契约。
 
@@ -95,7 +100,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - **本地文件命名**：`{source}_{original_id}_{safe_title}.{ext}`；每次下载完成写 sidecar `<文件名>.track.json` 保存原始 Track 元数据。
 - **系统播放列表是前端虚拟构造**：`playlistOps.js#buildPlaylistsFromLibrary` 根据音源 `direct_stream`/`status` 自动生成 4 个源分类列表，标记 `is_system: true`，不可删除/编辑，在复制、设置目标列表等 UI 中必须过滤。
 - **前端图标**：统一 Phosphor Icons（`js/icons.js` 的 `icon('heart', { filled: true })`），**禁止 UI 直接使用 emoji**。
-- **密码保护**：新增危险操作复用 `js/passwordGate.js` 的 `requireAdminPassword()`，不要自写 prompt。
+- **密码保护**：新增危险操作复用 `stores/ui.js` 导出的 `requireAdminPassword()`，不要自写 prompt。
 - **代码与数据分离**：绝不 commit `library/`、`data/`、`cache/`、`config/*.json`。pull 冲突涉及这些文件时优先 `git reset --hard`，但事后需从备份恢复 `library.json`。
 - **注释与文档用中文**；commit message 用约定式前缀（`feat:` / `fix:` / `docs:`，可加 scope，如 `fix(share):`），描述用中文。
 - 前端资源禁缓存由后端中间件统一处理（`app.py` 的 `no_cache_static`），不要在响应里私自加缓存头。
@@ -151,18 +156,18 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
   `GET/POST /admin/avatar_presets`、`DELETE /admin/avatar_presets/{name}`；
   `GET /admin/feedback`、`GET /admin/logs`、`GET /admin/logs/{name}`、`GET /admin/online`。
   全部需管理员 Bearer token；管理员账号存 `config/admin.json`，首次按 `MUSIC_ADMIN_USER`/`MUSIC_ADMIN_PASSWORD`
-  引导（缺省 admin/admin123）。前端入口：独立页面 `/admin`（`admin.html` + `js/admin-main.js`），主页与侧栏不再放入口。
+  引导（缺省 admin/admin123）。前端入口：`/admin`（Vue 应用 `#/admin` 路由，AdminView.vue），主页与侧栏不再放入口。
 
 ## 部署
 
 - 本地开发：`uv run music-web`（`--reload` 可调试）。
 - 服务器：`MUSIC_LIBRARY_DIR=/path/to/library uv run music-web --host 0.0.0.0 --port 8001`，systemd 托管 + Nginx 反代 `/music/` 到 8001。
 - `scripts/deploy.py`（配合 `deploy.json`）：导出点赞列表、打包代码排除 `node_modules`/`.git`、上传音乐文件到远程 `data/`。
-- **注意**：部署后需在服务器 `src/web/static` 手动 `npm install`（`node_modules` 不同步）；同步用 `uv run python scripts/sync_library.py`（配置见 settings.json 的 `sync_remote_*`）。
+- **注意**：前端构建产物 `src/web/static/dist/` 随代码包一起上传，服务器**不再需要** `npm install`；改前端后本地重新 `npm run build` 再部署。同步用 `uv run python scripts/sync_library.py`（配置见 settings.json 的 `sync_remote_*`）。
 
 ## 安全考虑
 
-- 入站密码门 `js/passwordGate.js`：密码 `junvon`，验证过写入 `localStorage`（提示语「我们不欢迎爬虫，请输入密码」）。这是轻量门槛，不是真鉴权。
+- 入站密码门：密码 `junvon`（提示语「我们不欢迎爬虫，请输入密码」）。重设计版前端未接线该门（历史 `passwordGate.js` 已随原生前端移除）。这是轻量门槛，不是真鉴权。
 - 管理密码 `jvkit123`：删除播放列表、从列表移除歌曲、取消收藏、删除本地文件、保存设置需验证，状态存 `sessionStorage`。
 - 短分享码 7 天过期、定期清理；分享 track 数据存在服务器本地 JSON。
 - CORS 目前 `allow_origins=["*"]`——公网部署时留意。
@@ -181,7 +186,7 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 ### 后台管理系统（2026-11）
 
 - 目的：同一服务端（Web + App 共用）需要一个数据管控后台，覆盖用户管理 / 内容运营 / 日志监控 / 数据统计。
-- 形态：独立页面 `/admin`（`admin.html` + `js/admin-main.js` + `js/views/admin.js`），复用 FastAPI 服务与 `/api/admin/*`；主页/侧栏不放入口。`src/yinhe/web/admin_api.py` 提供后端。
+- 形态：Vue 应用内 `#/admin` 路由（`src/web/frontend/src/views/AdminView.vue`，后端 `/admin` 返回同一 index.html），复用 FastAPI 服务与 `/api/admin/*`；主页/侧栏不放入口。`src/yinhe/web/admin_api.py` 提供后端。
 - 鉴权：**独立管理员账号**，存 `config/admin.json`（PBKDF2 哈希 + 独立 Bearer token），与普通用户 token 分开比对、互不覆盖。首次访问按 env `MUSIC_ADMIN_USER`/`MUSIC_ADMIN_PASSWORD` 引导创建（缺省 admin/admin123，务必改密）。
 - 用户禁用：`users.json` 条目加 `disabled` 字段；`_resolve_user` 与 `login` 均拦截，禁用即清 token 踢下线；`last_login_at` 在注册/登录时写入。
 - 数据全来自现有存储（users.json / users/<name>.json / feedback.jsonl / logs_upload/ / announcement.json / avatar_presets/ / pets.json）+ 内存态（im `_CONNECTIONS`、rooms `room_manager._rooms`）。

@@ -36,6 +36,11 @@ def _ffmpeg_cmd() -> str:
 # 本文件位于 <project_root>/src/yinhe/web/deps.py
 STATIC_DIR = Path(__file__).resolve().parents[3] / "src" / "web" / "static"
 
+# Vue 构建产物目录（src/web/frontend 经 Vite 构建输出）；
+# 未构建时回退旧版静态目录，保证源码克隆后服务可直接启动
+WEB_DIST_DIR = STATIC_DIR / "dist"
+WEB_ROOT = WEB_DIST_DIR if (WEB_DIST_DIR / "index.html").exists() else STATIC_DIR
+
 _cache_manager = CacheManager()
 _download_manager = DownloadManager()
 _library = Library()
