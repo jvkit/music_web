@@ -60,7 +60,8 @@ export async function previewTrack(track, mediaType, stream = true, { timeoutMs 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const response = await apiFetch('/preview', {
+        // play_resolve：服务端多音源可靠解析（本地→直链→换源链），返回结构兼容 preview
+        const response = await apiFetch('/play_resolve', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ track, media_type: mediaType, stream }),

@@ -110,6 +110,10 @@ uv run python scripts/sync_library.py --dry-run   # 预览本地↔远程同步
 - `GET /api/library` → `{ version, playlists: {id: Playlist}, songs: {id: Song} }`；`POST /api/library` 全量更新（同步用）。
 - `GET /api/server_library` → `{ items: [Track + owner_count + play_count], total, today_plays }`：聚合所有用户收藏 + 自建歌单去重，Web / App 共用「服务器音乐库」。
 - `GET /api/search`、`POST /api/preview`（本地/缓存优先 → direct_stream 直链 → 代理流/下载缓存）。
+- `POST /api/play_resolve`（多音源可靠播放编排，`web/play_resolve.py`）：本地 → 原始源直链 → 并发搜换源链
+  （jbsou→gequbao→fangpi→qqmp3→tonzhon→liumingye→bilibili，严格标题归一化匹配才换，排除 youtube/soundcloud
+  与视频候选）→ 原始源整曲下载 → 网易候选整曲下载；全失败 502 且 detail 给逐源原因。返回兼容 preview
+  并多 `source`（实际音源）与 `fallback` 字段。Web 端已默认走此端点。
 - `GET /api/track_pages` Bilibili 分 P 列表；`GET /api/track_resolve` 按 id+source 重新解析曲目。
 - `GET /api/stream/{cache_key}`、`GET /api/stream_proxy`（Referer/Cookie 音源代理，Range 透传，Bilibili m4s 强制 `audio/mp4`）。
 - `POST /api/download` → `{task_id, status: "pending"}`（本地已有 → `{task_id: null, status: "completed", from_cache: true}`）；`GET /api/download/progress?task_id=`；`DELETE /api/download/{task_id}`。

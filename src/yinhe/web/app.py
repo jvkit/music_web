@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from yinhe.web import announcement_api, admin_api, deps, downloads_api, feedback_api, im_api, library_api, local_api, pet_api, share, stream, tracks_api, users_api
+from yinhe.web import announcement_api, admin_api, deps, downloads_api, feedback_api, im_api, library_api, local_api, pet_api, play_resolve, share, stream, tracks_api, users_api
 from yinhe.web.rooms import router as rooms_router
 
 
@@ -47,6 +47,7 @@ def create_app() -> FastAPI:
     # 业务 routers
     app.include_router(share.router, prefix="/api")
     app.include_router(tracks_api.router, prefix="/api")
+    app.include_router(play_resolve.router, prefix="/api")
     app.include_router(library_api.router, prefix="/api")
     app.include_router(local_api.router, prefix="/api")
     app.include_router(downloads_api.router, prefix="/api")

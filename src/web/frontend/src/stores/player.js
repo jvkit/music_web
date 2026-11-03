@@ -294,6 +294,10 @@ export const usePlayerStore = defineStore('player', {
             try {
                 const data = await previewTrack(track, 'audio', useStream);
                 if (this.loadingTrackId !== track.id) return;
+                if (data.fallback && data.track) {
+                    track = data.track;
+                    showToast(`原音源不可用，已通过 ${data.source} 播放`, 'info');
+                }
                 this.currentTrack = track;
                 this.isPlaying = true;
                 this.playRecordedForTrackId = null;
@@ -481,6 +485,11 @@ export const usePlayerStore = defineStore('player', {
                 try {
                     const data = await previewTrack(track, 'audio', useStream);
                     if (this.loadingTrackId !== track.id) return false;
+                    if (data.fallback && data.track) {
+                        track = data.track;
+                        this.currentTrack = track;
+                        showToast(`原音源不可用，已通过 ${data.source} 播放`, 'info');
+                    }
                     el.src = data.stream_url;
                     this.streamFallback = data.streamed ? { track, context: 'queue', isVideo: false, tried: !useStream } : null;
                 } catch (err) {
