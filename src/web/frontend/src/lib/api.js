@@ -56,13 +56,20 @@ export async function removeTrackFromPlaylist(playlistId, trackId) {
     });
 }
 
-export async function previewTrack(track, mediaType, stream = true) {
-    const response = await apiFetch('/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ track, media_type: mediaType, stream })
-    }, { silent: true });
-    return response.json();
+export async function previewTrack(track, mediaType, stream = true, { timeoutMs = 45000 } = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await apiFetch('/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ track, media_type: mediaType, stream }),
+            signal: controller.signal,
+        }, { silent: true });
+        return await response.json();
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 export async function downloadTrackRequest(track, mediaType = 'audio') {

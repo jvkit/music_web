@@ -24,6 +24,7 @@ import {
     previewTrack,
     recordPlay,
     fetchLyrics,
+    searchTracks,
 } from '../lib/api.js';
 import { useLibraryStore } from './library.js';
 import { useSearchStore } from './search.js';
@@ -73,6 +74,9 @@ function clearShareUrl() {
         // ignore
     }
 }
+
+// 换源兜底：原音源取流失败时，按歌名在稳定源重新搜索（元数据歌常见场景）
+const FALLBACK_SOURCES = ['netease', 'web_liumingye'];
 
 export const usePlayerStore = defineStore('player', {
     state: () => ({
@@ -253,7 +257,7 @@ export const usePlayerStore = defineStore('player', {
             return [track];
         },
 
-        async playTrack(track, context = 'search', preferStream = null) {
+        async playTrack(track, context = 'search', preferStream = null, { allowFallback = true } = {}) {
             const room = useRoomStore();
             if (this.loadingTrackId === track.id) return;
             this.loadingTrackId = track.id;
@@ -311,12 +315,42 @@ export const usePlayerStore = defineStore('player', {
                 const played = await this.tryPlayLocal(track, context);
                 if (played) {
                     showToast('已切换到本地文件', 'success');
+                } else if (allowFallback) {
+                    await this.fallbackPlay(track);
                 } else {
                     showToast('加载失败，本地无该歌曲', 'error');
                 }
             } finally {
                 if (this.loadingTrackId === track.id) this.loadingTrackId = null;
             }
+        },
+
+        /** 原音源失败后的换源兜底：按歌名在稳定源逐源逐候选重搜并播放 */
+        async fallbackPlay(track) {
+            showToast('原音源加载失败，正在换源重试…', 'warning');
+            const query = `${track.title || ''} ${track.artist || ''}`.trim();
+            if (!query) {
+                showToast('加载失败：原音源不可用', 'error');
+                return false;
+            }
+            for (const source of FALLBACK_SOURCES) {
+                if (source === track.source) continue;
+                let candidates = [];
+                try {
+                    candidates = (await searchTracks(query, source, 5, 0)).tracks || [];
+                } catch {
+                    continue;
+                }
+                for (const matched of candidates.filter(t => t.id !== track.id).slice(0, 3)) {
+                    const ok = await this.playTrackByQueueTrack(matched, null, { allowFallback: false, quiet: true });
+                    if (ok) {
+                        showToast(`已通过其他音源播放（${source}）`, 'success');
+                        return true;
+                    }
+                }
+            }
+            showToast('加载失败：原音源不可用，且未找到可播放的替代', 'error');
+            return false;
         },
 
         async playVideo(track, preferStream = true) {
@@ -425,10 +459,10 @@ export const usePlayerStore = defineStore('player', {
             this.savePlaybackState();
         },
 
-        async playTrackByQueueTrack(track, preferStream = null) {
-            if (!track) return;
+        async playTrackByQueueTrack(track, preferStream = null, { allowFallback = true, quiet = false } = {}) {
+            if (!track) return false;
             const room = useRoomStore();
-            if (this.loadingTrackId === track.id) return;
+            if (this.loadingTrackId === track.id) return false;
             this.loadingTrackId = track.id;
 
             this.currentTrack = track;
@@ -446,20 +480,27 @@ export const usePlayerStore = defineStore('player', {
             } else {
                 try {
                     const data = await previewTrack(track, 'audio', useStream);
-                    if (this.loadingTrackId !== track.id) return;
+                    if (this.loadingTrackId !== track.id) return false;
                     el.src = data.stream_url;
                     this.streamFallback = data.streamed ? { track, context: 'queue', isVideo: false, tried: !useStream } : null;
                 } catch (err) {
-                    if (this.loadingTrackId !== track.id) return;
+                    if (this.loadingTrackId !== track.id) return false;
                     console.error('队列加载失败，尝试本地文件:', err);
                     const played = await this.tryPlayLocal(track, 'queue');
                     if (played) {
                         showToast('已切换到本地文件', 'success');
+                    } else if (allowFallback) {
+                        this.loadingTrackId = null;
+                        const ok = await this.fallbackPlay(track);
+                        if (!ok) {
+                            this.isPlaying = false;
+                        }
+                        return ok;
                     } else {
-                        showToast('加载失败，本地无该歌曲', 'error');
+                        if (!quiet) showToast('加载失败，本地无该歌曲', 'error');
                         this.loadingTrackId = null;
                         this.isPlaying = false;
-                        return;
+                        return false;
                     }
                 }
             }
@@ -474,6 +515,7 @@ export const usePlayerStore = defineStore('player', {
             this.updateMediaSession();
             this.savePlaybackState();
             if (room.isInRoom && !room.applyingRemote) room.sendChangeTrack(track);
+            return true;
         },
 
         handleTrackEnded() {
