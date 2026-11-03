@@ -38,6 +38,39 @@ import { requireAdminPassword } from './ui.js';
 let audio = null;
 let lastPlaybackSaveTime = 0;
 
+// 歌词本地缓存：有歌词 7 天，无歌词 6 小时（避免每次打开歌词页都重复请求/闪中间态）
+const LYRICS_CACHE_PREFIX = 'yinhe_lyrics_';
+const LYRICS_TTL = 7 * 24 * 3600 * 1000;
+const LYRICS_EMPTY_TTL = 6 * 3600 * 1000;
+
+function readLyricsCache(trackId) {
+    try {
+        const raw = localStorage.getItem(LYRICS_CACHE_PREFIX + trackId);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        const lines = Array.isArray(data.lines) ? data.lines : [];
+        const ttl = lines.length ? LYRICS_TTL : LYRICS_EMPTY_TTL;
+        if (Date.now() - (data.ts || 0) > ttl) {
+            localStorage.removeItem(LYRICS_CACHE_PREFIX + trackId);
+            return null;
+        }
+        return { lines, source: data.source || null };
+    } catch {
+        return null;
+    }
+}
+
+function writeLyricsCache(trackId, lines, source) {
+    try {
+        localStorage.setItem(
+            LYRICS_CACHE_PREFIX + trackId,
+            JSON.stringify({ lines: lines || [], source: source || null, ts: Date.now() }),
+        );
+    } catch {
+        // 存储满/隐私模式：缓存失败不影响主流程
+    }
+}
+
 function getAudio() {
     if (!audio) {
         audio = new Audio();
@@ -566,24 +599,39 @@ export const usePlayerStore = defineStore('player', {
             this.seekTo(Math.max(0, Math.min(1, ratio)) * el.duration);
         },
 
+        async loadLyricsFor(track) {
+            if (!track) return;
+            const cached = readLyricsCache(track.id);
+            if (cached) {
+                this.lyrics = cached.lines;
+                this.lyricsSource = cached.source;
+                return;
+            }
+            this.lyrics = [];
+            this.lyricsSource = null;
+            try {
+                const data = await fetchLyrics(track);
+                // 请求期间可能已切歌：只应用仍是当前曲目的结果
+                if (this.currentTrack?.id !== track.id) return;
+                const lines = data.has_lyrics ? (data.lines || []) : [];
+                const source = data.source || track.source;
+                this.lyrics = lines;
+                this.lyricsSource = source;
+                writeLyricsCache(track.id, lines, source);
+            } catch {
+                if (this.currentTrack?.id !== track.id) return;
+                this.lyrics = [];
+                this.lyricsSource = null;
+            }
+        },
+
         async openLyricsPage() {
             if (!this.currentTrack) { showToast('请先选择一首歌曲'); return; }
             const track = this.currentTrack;
             this.lyricsOpen = true;
             document.title = `${track.title} - ${track.artist} | 音河`;
             await setShareUrl(track);
-
-            this.lyrics = [];
-            this.lyricsSource = null;
-
-            try {
-                const data = await fetchLyrics(track);
-                this.lyrics = data.has_lyrics ? (data.lines || []) : [];
-                this.lyricsSource = data.source || track.source;
-            } catch (err) {
-                this.lyrics = [];
-                this.lyricsSource = null;
-            }
+            await this.loadLyricsFor(track);
         },
 
         closeLyricsPage() {

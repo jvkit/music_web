@@ -43,6 +43,11 @@ watch(activeLineIndex, async (idx) => {
     lineRefs.value[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
+// 歌词页开着时切歌：自动重新加载新歌歌词（有缓存则秒显）
+watch(() => player.currentTrack?.id, (id) => {
+    if (id && player.lyricsOpen) player.loadLyricsFor(player.currentTrack);
+});
+
 function seekTo(time) {
     player.seekTo(time);
 }
@@ -110,12 +115,12 @@ async function upgradeLyrics() {
                     <div class="w-full space-y-6 text-center transition-transform duration-300 pb-8">
                         <div
                             v-if="!player.lyrics || player.lyrics.length === 0"
-                            class="text-center py-6 text-white/60"
+                            class="text-center py-5 text-white/60 max-w-xs mx-auto px-2"
                         >
                             <p class="text-sm">暂无歌词</p>
                             <p class="text-xs text-white/40 mt-1">{{ player.lyricsSource ? '该音源暂未提供歌词' : '欣赏音乐吧' }}</p>
                             <button
-                                class="btn btn-sm bg-white/15 text-white border-0 hover:bg-white/25 mt-3"
+                                class="btn btn-sm bg-white/15 text-white border-0 hover:bg-white/25 mt-3 whitespace-normal h-auto py-2 leading-snug"
                                 :disabled="upgrading"
                                 @click="upgradeLyrics"
                             >

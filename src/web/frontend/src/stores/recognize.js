@@ -140,7 +140,9 @@ export const useRecognizeStore = defineStore('recognize', {
                     this.results = data.tracks || [];
                     this.phase = 'done';
                     if (!this.results.length) {
-                        this.error = '没听出来这段音频，换个段落、离音源近一点再试试';
+                        this.error = this.mode === 'mic'
+                            ? '麦克风没听清：环境嘈杂或离音源太远，靠近一点或改用系统内录再试'
+                            : '没听出来这段音频，换个段落或改用麦克风听外放的声音再试';
                     } else if (!silent) {
                         showToast(`识别成功：${this.results[0].title}`, 'success');
                     }
