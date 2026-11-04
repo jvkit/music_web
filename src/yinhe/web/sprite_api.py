@@ -46,10 +46,16 @@ SPRITE_CLIPS = ["stand", "music", "heart", "thumbs", "hop", "bounce"]
 # ===================== 模型网关解析（不写死） =====================
 
 def _llm_config() -> Optional[tuple[str, str, str]]:
-    """返回 (base_url, api_key, model)；解析不到返回 None（精灵装睡）"""
+    """返回 (base_url, api_key, model)；解析不到返回 None（精灵装睡）
+
+    模型名与网关绑定：newapi 中转站注册的是 deepseek-v4.1-flash，DeepSeek 官方是
+    deepseek-flash。因此模型默认值优先从 kimi 配置 [models] 表里按 provider 读真实
+    注册名，读不到再按 provider 名映射兜底。
+    """
     base = os.environ.get("MUSIC_LLM_BASE_URL")
     key = os.environ.get("MUSIC_LLM_API_KEY")
-    model = os.environ.get("MUSIC_LLM_MODEL") or "deepseek-flash"
+    model = os.environ.get("MUSIC_LLM_MODEL")
+    provider_name = ""
     if not (base and key):
         try:
             import tomllib
@@ -63,13 +69,22 @@ def _llm_config() -> Optional[tuple[str, str, str]]:
                 cand = providers.get(name) or {}
                 if cand.get("base_url") and cand.get("api_key"):
                     prov = cand
+                    provider_name = name
                     break
             base = base or prov.get("base_url")
             key = key or prov.get("api_key")
+            # 从 [models] 表找该 provider 下配置的真实模型 id
+            if not model and provider_name:
+                for m in (cfg.get("models") or {}).values():
+                    if isinstance(m, dict) and m.get("provider") == provider_name and m.get("model"):
+                        model = m["model"]
+                        break
         except Exception:
             pass
     if not (base and key):
         return None
+    if not model:
+        model = "deepseek-v4.1-flash" if "172.16." in (base or "") or provider_name == "newapi" else "deepseek-flash"
     return base, key, model
 
 
